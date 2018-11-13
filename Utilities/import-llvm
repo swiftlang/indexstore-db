@@ -1,0 +1,135 @@
+#!/usr/bin/env python
+
+# This is a helper script for importing the things we use from LLVM.
+#
+# NOTE: We have slightly modified copies of some of the files, to reduce the
+# dependency surface area, so if you run this to update the sources, please
+# examine the diffs to remove things that don't make sense.
+
+import errno
+import optparse
+import os
+import shutil
+import sys
+
+# ADT types.
+ADT_imports = ['EpochTracker', 'iterator', 'iterator_range', 'Hashing', 'None', 'Optional',
+               'Statistic', 'StringExtras', 'STLExtras', 'AllocatorList', 'Triple']
+
+# ADT basic data structures.
+ADT_imports += ['APFloat', 'APInt', 'APSInt', 'ArrayRef', 'PointerIntPair', 'SetVector', 'StringRef', 'StringSwitch',
+                'Twine', 'IntrusiveRefCntPtr', 'ilist', 'ilist_base', 'ilist_node', 'ilist_node_base',
+                'ilist_node_options', 'ilist_iterator', 'simple_ilist', 'OptionSet', 'PointerUnion']
+
+# ADT Mapping structures.
+ADT_imports += ['DenseMap', 'DenseMapInfo', 'DenseSet', 'FoldingSet', 'StringMap', 'StringSet']
+
+# ADT "Small" structures.
+ADT_imports += ['SmallPtrSet', 'SmallSet', 'SmallString', 'SmallVector']
+
+# ADT Algorithms.
+ADT_imports += ['edit_distance']
+
+# Support types and infrastructure.
+Support_imports = [
+    'AlignOf', 'Allocator', 'Atomic', 'CBindingWrapping', 'Casting', 'Capacity', 'CommandLine', 'Compiler',
+    'Endian', 'Errno', 'ErrorHandling', 'Errc', 'ErrorOr', 'Error', 'Format',
+    'ManagedStatic', 'MathExtras', 'Mutex', 'MutexGuard', 'Memory',
+    'MemoryBuffer', 'PointerLikeTypeTraits', 'Recycler', 'SwapByteOrder',
+    'Timer', 'TimeValue', 'Threading', 'Unicode', 'UniqueLock', 'Unix', 'WindowsError',
+    'Valgrind', 'circular_raw_ostream', 'raw_ostream', 'type_traits', 'JSON']
+
+# Stuff we don't want, but have to pull in.
+Support_imports += [
+    'COFF', 'ConvertUTF', 'ConvertUTFWrapper', 'Debug', 'FileSystem',
+    'FileUtilities', 'Host', 'Locale', 'MachO', 'Path', 'Process', 'Program', 'SMLoc',
+    'SourceMgr', 'Signals', 'StringSaver', 'ToolOutputFile', 'TrailingObjects', 'Unicode', 'UnicodeCharRanges',
+    'MemAlloc', 'Chrono', 'FormatProviders', 'FormatVariadic', 'FormatCommon',
+    'FormatVariadicDetails', 'NativeFormatting', 'DJB', 'ReverseIteration', 'MD5',
+    'SmallVectorMemoryBuffer', 'WithColor', 'Options', 'PrettyStackTrace', 'Watchdog',
+    'TargetParser', 'ARMBuildAttributes', 'ARMTargetParser.def', 'AArch64TargetParser.def', 'X86TargetParser.def', 'LineIterator']
+
+# Dependencies from llvm-c needed by Support.
+C_imports = ['Types', 'DataTypes', 'Support', 'ErrorHandling']
+
+# Support data structures.
+Support_imports += ['YAMLParser', 'YAMLTraits']
+
+# Source files to exclude.
+Support_source_excludes = set(['Host'])
+
+llvm_srcroot = None
+sourcekit_srcroot = None
+
+def note(msg):
+    msg = msg.replace(llvm_srcroot, "<LLVM>")
+    msg = msg.replace(sourcekit_srcroot, "<INDEXSTOREDB>")
+    print >>sys.stderr, "note: %s" % (msg,)
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+        note("mkdir -p %r" % (path,))
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
+def copyfile(src, dst):
+    note("cp %r %r" % (src, dst))
+    shutil.copyfile(src, dst)
+
+def main():
+    parser = optparse.OptionParser("usage: %prog <llvm-source-path>")
+    (opts, args) = parser.parse_args()
+
+    if len(args) != 1:
+        parser.error("unexpected number of arguments")
+
+    global llvm_srcroot, sourcekit_srcroot
+    llvm_srcroot, = args
+    sourcekit_srcroot = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def import_header(dir, name):
+        src = os.path.join(llvm_srcroot, 'include', 'llvm', dir, name)
+        if os.path.exists(src):
+            dst = os.path.join(sourcekit_srcroot, 'include', 'llvm', dir, name)
+            mkdir_p(os.path.dirname(dst))
+            copyfile(src, dst)
+
+    def import_c_header(name):
+        src = os.path.join(llvm_srcroot, 'include', 'llvm-c', name)
+        if os.path.exists(src):
+            dst = os.path.join(sourcekit_srcroot, 'include', 'llvm-c', name)
+            mkdir_p(os.path.dirname(dst))
+            copyfile(src, dst)
+
+    def import_source(dir, name):
+        src = os.path.join(llvm_srcroot, 'lib', dir, name)
+        if os.path.exists(src):
+            dst = os.path.join(sourcekit_srcroot, 'lib', 'LLVMSupport', dir, name)
+            mkdir_p(os.path.dirname(dst))
+            copyfile(src, dst)
+
+    print "note: importing from %r to %r" % (llvm_srcroot, sourcekit_srcroot)
+
+    for name in ADT_imports:
+        import_header('ADT', name+'.h')
+        if name not in Support_source_excludes:
+            import_source('Support', name+'.c')
+            import_source('Support', name+'.cpp')
+    for name in Support_imports:
+        if name.endswith('.def'):
+            import_header('Support', name)
+            continue
+        import_header('Support', name+'.h')
+        if name not in Support_source_excludes:
+            import_source('Support', name+'.c')
+            import_source('Support', name+'.cpp')
+            import_source('Support', os.path.join('Unix', name+'.h'))
+            import_source('Support', os.path.join('Unix', name+'.inc'))
+
+    for name in C_imports:
+        import_c_header(name + '.h')
+
+if __name__ == '__main__':
+    main()
