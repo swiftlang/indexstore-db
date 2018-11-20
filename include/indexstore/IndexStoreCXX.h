@@ -41,9 +41,10 @@ public:
   const indexstore_functions_t &api() const { return functions; }
 };
 
-template<typename Ret, typename ...Params>
-static inline Ret functionPtrFromFunctionRef(void *ctx, Params ...params) {
-  auto fn = (llvm::function_ref<Ret(Params...)> *)ctx;
+template<typename FnT, typename ...Params>
+static inline auto functionPtrFromFunctionRef(void *ctx, Params ...params)
+    -> decltype((*(FnT *)ctx)(std::forward<Params>(params)...)) {
+  auto fn = (FnT *)ctx;
   return (*fn)(std::forward<Params>(params)...);
 }
 
@@ -53,7 +54,7 @@ class IndexRecordSymbol {
   friend class IndexRecordReader;
 
 public:
-  IndexRecordSymbol(indexstore_symbol_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(lib) {}
+  IndexRecordSymbol(indexstore_symbol_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(std::move(lib)) {}
 
   indexstore_symbol_language_t getLanguage() {
     return lib->api().symbol_get_language(obj);
@@ -75,7 +76,7 @@ class IndexSymbolRelation {
   IndexStoreLibraryRef lib;
 
 public:
-  IndexSymbolRelation(indexstore_symbol_relation_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(lib) {}
+  IndexSymbolRelation(indexstore_symbol_relation_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(std::move(lib)) {}
 
   uint64_t getRoles() { return lib->api().symbol_relation_get_roles(obj); }
   IndexRecordSymbol getSymbol() { return {lib->api().symbol_relation_get_symbol(obj), lib}; }
@@ -86,19 +87,16 @@ class IndexRecordOccurrence {
   IndexStoreLibraryRef lib;
 
 public:
-  IndexRecordOccurrence(indexstore_occurrence_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(lib) {}
+  IndexRecordOccurrence(indexstore_occurrence_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(std::move(lib)) {}
 
   IndexRecordSymbol getSymbol() { return {lib->api().occurrence_get_symbol(obj), lib}; }
   uint64_t getRoles() { return lib->api().occurrence_get_roles(obj); }
 
   bool foreachRelation(llvm::function_ref<bool(IndexSymbolRelation)> receiver) {
-#if INDEXSTORE_HAS_BLOCKS
-    return lib->api().occurrence_relations_apply(obj, ^bool(indexstore_symbol_relation_t sym_rel) {
+    auto forwarder = [&](indexstore_symbol_relation_t sym_rel) -> bool {
       return receiver({sym_rel, lib});
-    });
-#else
-    return lib->api().occurrence_relations_apply_f(obj, &receiver, functionPtrFromFunctionRef);
-#endif
+    };
+    return lib->api().occurrence_relations_apply_f(obj, &forwarder, functionPtrFromFunctionRef<decltype(forwarder)>);
   }
 
   std::pair<unsigned, unsigned> getLineCol() {
@@ -154,20 +152,17 @@ public:
   explicit operator bool() const { return isValid(); }
 
   bool foreachUnit(bool sorted, llvm::function_ref<bool(StringRef unitName)> receiver) {
-#if INDEXSTORE_HAS_BLOCKS
-    return api().store_units_apply(obj, sorted, ^bool(indexstore_string_ref_t unit_name) {
+    auto forwarder = [&](indexstore_string_ref_t unit_name) -> bool {
       return receiver(stringFromIndexStoreStringRef(unit_name));
-    });
-#else
-    return api().store_units_apply_f(obj, sorted, &receiver, functionPtrFromFunctionRef);
-#endif
+    };
+    return api().store_units_apply_f(obj, sorted, &forwarder, functionPtrFromFunctionRef<decltype(forwarder)>);
   }
 
   class UnitEvent {
     indexstore_unit_event_t obj;
     IndexStoreLibraryRef lib;
   public:
-    UnitEvent(indexstore_unit_event_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(lib) {}
+    UnitEvent(indexstore_unit_event_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(std::move(lib)) {}
 
     enum class Kind {
       Added,
@@ -198,7 +193,7 @@ public:
     indexstore_unit_event_notification_t obj;
     IndexStoreLibraryRef lib;
   public:
-    UnitEventNotification(indexstore_unit_event_notification_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(lib) {}
+    UnitEventNotification(indexstore_unit_event_notification_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(std::move(lib)) {}
 
     bool isInitial() const { return lib->api().unit_event_notification_is_initial(obj); }
     size_t getEventsCount() const { return lib->api().unit_event_notification_get_events_count(obj); }
@@ -212,18 +207,6 @@ public:
 
   void setUnitEventHandler(UnitEventHandler handler) {
     auto localLib = std::weak_ptr<IndexStoreLibrary>(library);
-#if INDEXSTORE_HAS_BLOCKS
-    if (!handler) {
-      api().store_set_unit_event_handler(obj, nullptr);
-      return;
-    }
-
-    api().store_set_unit_event_handler(obj, ^(indexstore_unit_event_notification_t evt_note) {
-      if (auto lib = localLib.lock()) {
-        handler(UnitEventNotification(evt_note, lib));
-      }
-    });
-#else
     if (!handler) {
       api().store_set_unit_event_handler_f(obj, nullptr, nullptr, nullptr);
       return;
@@ -236,7 +219,6 @@ public:
       }
     });
     api().store_set_unit_event_handler_f(obj, fnPtr, event_handler, event_handler_finalizer);
-#endif
   }
 
 private:
@@ -346,26 +328,21 @@ public:
   /// interested in.
   bool searchSymbols(llvm::function_ref<bool(IndexRecordSymbol, bool &stop)> filter,
                      llvm::function_ref<void(IndexRecordSymbol)> receiver) {
-#if INDEXSTORE_HAS_BLOCKS
-    return lib->api().record_reader_search_symbols(obj, ^bool(indexstore_symbol_t symbol, bool *stop) {
+    auto forwarder_filter = [&](indexstore_symbol_t symbol, bool *stop) -> bool {
       return filter({symbol, lib}, *stop);
-    }, ^(indexstore_symbol_t symbol) {
+    };
+    auto forwarder_receiver = [&](indexstore_symbol_t symbol) {
       receiver({symbol, lib});
-    });
-#else
-    return lib->api().record_reader_search_symbols_f(obj, &filter, functionPtrFromFunctionRef,
-                                                     &receiver, functionPtrFromFunctionRef);
-#endif
+    };
+    return lib->api().record_reader_search_symbols_f(obj, &forwarder_filter, functionPtrFromFunctionRef<decltype(forwarder_filter)>,
+                                                     &forwarder_receiver, functionPtrFromFunctionRef<decltype(forwarder_receiver)>);
   }
 
   bool foreachSymbol(bool noCache, llvm::function_ref<bool(IndexRecordSymbol)> receiver) {
-#if INDEXSTORE_HAS_BLOCKS
-    return lib->api().record_reader_symbols_apply(obj, noCache, ^bool(indexstore_symbol_t sym) {
+    auto forwarder = [&](indexstore_symbol_t sym) -> bool {
       return receiver({sym, lib});
-    });
-#else
-    return lib->api().record_reader_symbols_apply_f(obj, noCache, &receiver, functionPtrFromFunctionRef);
-#endif
+    };
+    return lib->api().record_reader_symbols_apply_f(obj, noCache, &forwarder, functionPtrFromFunctionRef<decltype(forwarder)>);
   }
 
   /// \param DeclsFilter if non-empty indicates the list of decls that we want
@@ -385,49 +362,33 @@ public:
     for (IndexRecordSymbol sym : relatedSymbolsFilter) {
       c_relatedSymbolsFilter.push_back(sym.obj);
     }
-#if INDEXSTORE_HAS_BLOCKS
-    return lib->api().record_reader_occurrences_of_symbols_apply(obj,
-                                c_symbolsFilter.data(), c_symbolsFilter.size(),
-                                c_relatedSymbolsFilter.data(),
-                                c_relatedSymbolsFilter.size(),
-                                ^bool(indexstore_occurrence_t occur) {
-                                  return receiver({occur, lib});
-                                });
-#else
+    auto forwarder = [&](indexstore_occurrence_t occur) -> bool {
+      return receiver({occur, lib});
+    };
     return lib->api().record_reader_occurrences_of_symbols_apply_f(obj,
                                 c_symbolsFilter.data(), c_symbolsFilter.size(),
                                 c_relatedSymbolsFilter.data(),
                                 c_relatedSymbolsFilter.size(),
-                                &receiver, functionPtrFromFunctionRef);
-#endif
+                                &forwarder, functionPtrFromFunctionRef<decltype(forwarder)>);
   }
 
   bool foreachOccurrence(
               llvm::function_ref<bool(IndexRecordOccurrence)> receiver) {
-#if INDEXSTORE_HAS_BLOCKS
-    return lib->api().record_reader_occurrences_apply(obj, ^bool(indexstore_occurrence_t occur) {
+    auto forwarder = [&](indexstore_occurrence_t occur) -> bool {
       return receiver({occur, lib});
-    });
-#else
-    return lib->api().record_reader_occurrences_apply_f(obj, &receiver, functionPtrFromFunctionRef);
-#endif
+    };
+    return lib->api().record_reader_occurrences_apply_f(obj, &forwarder, functionPtrFromFunctionRef<decltype(forwarder)>);
   }
 
   bool foreachOccurrenceInLineRange(unsigned lineStart, unsigned lineEnd,
               llvm::function_ref<bool(IndexRecordOccurrence)> receiver) {
-#if INDEXSTORE_HAS_BLOCKS
-    return lib->api().record_reader_occurrences_in_line_range_apply(obj,
-                                                                    lineStart,
-                                                                    lineEnd,
-                                          ^bool(indexstore_occurrence_t occur) {
+    auto forwarder = [&](indexstore_occurrence_t occur) -> bool {
       return receiver({occur, lib});
-    });
-#else
+    };
     return lib->api().record_reader_occurrences_in_line_range_apply_f(obj,
                                                                       lineStart,
                                                                       lineEnd,
-                                         &receiver, functionPtrFromFunctionRef);
-#endif
+                                         &forwarder, functionPtrFromFunctionRef<decltype(forwarder)>);
   }
 };
 
@@ -437,7 +398,7 @@ class IndexUnitDependency {
   friend class IndexUnitReader;
 
 public:
-  IndexUnitDependency(indexstore_unit_dependency_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(lib) {}
+  IndexUnitDependency(indexstore_unit_dependency_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(std::move(lib)) {}
 
   enum class DependencyKind {
     Unit,
@@ -464,7 +425,7 @@ class IndexUnitInclude {
   friend class IndexUnitReader;
 
 public:
-  IndexUnitInclude(indexstore_unit_include_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(lib) {}
+  IndexUnitInclude(indexstore_unit_include_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(std::move(lib)) {}
 
   StringRef getSourcePath() {
     return stringFromIndexStoreStringRef(lib->api().unit_include_get_source_path(obj));
@@ -545,23 +506,17 @@ public:
   }
 
   bool foreachDependency(llvm::function_ref<bool(IndexUnitDependency)> receiver) {
-#if INDEXSTORE_HAS_BLOCKS
-    return lib->api().unit_reader_dependencies_apply(obj, ^bool(indexstore_unit_dependency_t dep) {
+    auto forwarder = [&](indexstore_unit_dependency_t dep) -> bool {
       return receiver({dep, lib});
-    });
-#else
-    return lib->api().unit_reader_dependencies_apply_f(obj, &receiver, functionPtrFromFunctionRef);;
-#endif
+    };
+    return lib->api().unit_reader_dependencies_apply_f(obj, &forwarder, functionPtrFromFunctionRef<decltype(forwarder)>);;
   }
 
   bool foreachInclude(llvm::function_ref<bool(IndexUnitInclude)> receiver) {
-#if INDEXSTORE_HAS_BLOCKS
-    return lib->api().unit_reader_includes_apply(obj, ^bool(indexstore_unit_include_t inc) {
+    auto forwarder = [&](indexstore_unit_include_t inc) -> bool {
       return receiver({inc, lib});
-    });
-#else
-    return lib->api().unit_reader_includes_apply_f(obj, &receiver, functionPtrFromFunctionRef);
-#endif
+    };
+    return lib->api().unit_reader_includes_apply_f(obj, &forwarder, functionPtrFromFunctionRef<decltype(forwarder)>);
   }
 };
 
