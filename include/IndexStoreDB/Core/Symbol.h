@@ -195,8 +195,8 @@ public:
   SymbolKind getSymbolKind() const { return SymInfo.Kind; }
   SymbolSubKind getSymbolSubKind() const { return SymInfo.SubKind; }
   SymbolPropertySet getSymbolProperties() const { return SymInfo.Properties; }
-  StringRef getName() const { return Name; }
-  StringRef getUSR() const { return USR; }
+  const std::string &getName() const { return Name; }
+  const std::string &getUSR() const { return USR; }
   SymbolLanguage getLanguage() const { return SymInfo.Lang; }
 
   bool isCallable() const { return SymInfo.isCallable(); }
@@ -236,12 +236,12 @@ public:
     }
   }
 
-  StringRef getPathString() const { return Path; }
+  const std::string &getPathString() const { return Path; }
   llvm::sys::TimeValue getModificationTime() const { return ModificationTime; }
-  StringRef getModuleName() const { return ModuleName; }
+  const std::string &getModuleName() const { return ModuleName; }
   unsigned isSystem() const { return IsSystem; }
   StringRef getPathWithoutSysroot() const {
-    return getPathString().drop_front(sysrootPrefixLength);
+    return StringRef(getPathString()).drop_front(sysrootPrefixLength);
   }
 
   bool isInvalid() const { return Path.empty(); }
@@ -290,7 +290,7 @@ public:
   SymbolRef getSymbol() const { return Sym; }
   SymbolRoleSet getRoles() const { return Roles; }
   const SymbolLocation &getLocation() const { return SymLoc; }
-  StringRef getTarget() const { return Target; }
+  const std::string &getTarget() const { return Target; }
   ArrayRef<SymbolRelation> getRelations() const { return Relations; }
 
   bool isCanonical() const {
