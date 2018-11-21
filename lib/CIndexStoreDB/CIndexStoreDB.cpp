@@ -135,13 +135,13 @@ indexstoredb_index_related_symbol_occurrences_by_usr(
 const char *
 indexstoredb_symbol_usr(indexstoredb_symbol_t symbol) {
   auto obj = (IndexStoreDBObject<std::shared_ptr<Symbol>> *)symbol;
-  return obj->value->getUSR().str().c_str();
+  return obj->value->getUSR().c_str();
 }
 
 const char *
 indexstoredb_symbol_name(indexstoredb_symbol_t symbol) {
   auto obj = (IndexStoreDBObject<std::shared_ptr<Symbol>> *)symbol;
-  return obj->value->getName().str().c_str();
+  return obj->value->getName().c_str();
 }
 
 indexstoredb_symbol_t
@@ -165,7 +165,7 @@ indexstoredb_symbol_location_t indexstoredb_symbol_occurrence_location(
 const char *
 indexstoredb_symbol_location_path(indexstoredb_symbol_location_t loc) {
   auto obj = (SymbolLocation *)loc;
-  return obj->getPath().getPathString().str().c_str();
+  return obj->getPath().getPathString().c_str();
 }
 
 bool
