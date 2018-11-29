@@ -54,12 +54,12 @@ let package = Package(
     // Support code that is generally useful to the C++ implementation.
     .target(
       name: "IndexStoreDB_Support",
-      dependencies: ["LLVMSupport"],
+      dependencies: ["IndexStoreDB_LLVMSupport"],
       path: "lib/Support"),
 
     // Copy of a subset of llvm's ADT and Support libraries.
     .target(
-      name: "LLVMSupport",
+      name: "IndexStoreDB_LLVMSupport",
       dependencies: [],
       path: "lib/LLVMSupport"),
   ],
