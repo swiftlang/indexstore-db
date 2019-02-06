@@ -14,6 +14,8 @@
 #ifndef LLVM_SUPPORT_MANAGEDSTATIC_H
 #define LLVM_SUPPORT_MANAGEDSTATIC_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 #include <atomic>
 #include <cstddef>
 

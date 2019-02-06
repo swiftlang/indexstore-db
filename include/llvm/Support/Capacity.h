@@ -15,6 +15,8 @@
 #ifndef LLVM_SUPPORT_CAPACITY_H
 #define LLVM_SUPPORT_CAPACITY_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 #include <cstddef>
 
 namespace llvm {

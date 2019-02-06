@@ -56,6 +56,8 @@
 #ifndef LLVM_ADT_INTRUSIVEREFCNTPTR_H
 #define LLVM_ADT_INTRUSIVEREFCNTPTR_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 #include <atomic>
 #include <cassert>
 #include <cstddef>

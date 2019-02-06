@@ -90,6 +90,8 @@
 #ifndef LLVM_SUPPORT_CONVERTUTF_H
 #define LLVM_SUPPORT_CONVERTUTF_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 #include <cstddef>
 #include <string>
 #include <system_error>

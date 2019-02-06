@@ -9,10 +9,6 @@ let package = Package(
       name: "IndexStoreDB",
       targets: ["IndexStoreDB"]),
     .library(
-      name: "IndexStoreDB-dynamic",
-      type: .dynamic,
-      targets: ["IndexStoreDB"]),
-    .library(
       name: "IndexStoreDB_CXX",
       targets: ["IndexStoreDB_Index"]),
   ],

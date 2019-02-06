@@ -30,6 +30,8 @@
 #ifndef LLVM_SUPPORT_ERRC_H
 #define LLVM_SUPPORT_ERRC_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 #include <system_error>
 
 namespace llvm {
