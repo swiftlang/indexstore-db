@@ -9,8 +9,10 @@
 import errno
 import optparse
 import os
+import re
 import shutil
 import sys
+import subprocess
 
 # ADT types.
 ADT_imports = ['EpochTracker', 'iterator', 'iterator_range', 'Hashing', 'None', 'Optional',
@@ -78,6 +80,52 @@ def copyfile(src, dst):
     note("cp %r %r" % (src, dst))
     shutil.copyfile(src, dst)
 
+def includes_prefix(source, include_dir):
+    defs = subprocess.check_output([
+        'clang', '-std=c++14', '-dM', '-E',
+        '-I', include_dir,
+        '-x', 'c++', source])
+
+    return "INDEXSTOREDB_PREFIX_H" in defs
+
+def is_llvm_leaf_source(source):
+    # AIXDataTypes is a false negative.
+    return subprocess.call("grep '# *include *\"llvm' %s | grep --quiet -v AIXDataTypes" % source, shell=True)
+
+def add_prefix(str):
+    snippet = '#include "llvm/Config/indexstoredb-prefix.h"\n'
+
+    m = re.search(r'#ifndef *([A-Za-z_]*)\n#define *\1 *\n', str)
+    if m:
+        return str[:m.end()] + '\n' + snippet + str[m.end():]
+
+    i = str.find(r'#include')
+    if i != -1:
+        return str[:i] + snippet + str[i:]
+
+    # If we ever hit this, we could find the end of the copyright header comment.
+    print >>sys.stderr, 'error: could not find existing #include or header guards'
+    sys.exit(1)
+
+def maybe_add_prefix(source, include_dir):
+    ext = os.path.splitext(source)[1]
+    if not ext in ['.h', '.cpp', '.c']:
+        return
+    if not is_llvm_leaf_source(source):
+        # Skip files that include other llvm headers; we will add the include to
+        # the leaf header.
+        return
+    if includes_prefix(source, include_dir):
+        # Skip files that already include the prefix header.
+        return
+
+    note("adding prefix header to %r" % source)
+    with open(source, 'r+') as file:
+        new = add_prefix(file.read())
+        file.seek(0)
+        file.write(new)
+        file.truncate()
+
 def main():
     parser = optparse.OptionParser("usage: %prog <llvm-source-path>")
     (opts, args) = parser.parse_args()
@@ -130,6 +178,22 @@ def main():
 
     for name in C_imports:
         import_c_header(name + '.h')
+
+    print ""
+    print "Adding prefix header includes"
+
+    base_dirs = [
+        os.path.join(sourcekit_srcroot, 'include', 'llvm'),
+        os.path.join(sourcekit_srcroot, 'include', 'llvm-c'),
+        os.path.join(sourcekit_srcroot, 'lib', 'LLVMSupport'),
+    ]
+
+    include_dir = os.path.join(sourcekit_srcroot, 'include')
+
+    for base in base_dirs:
+        for root, dirs, files in os.walk(base):
+            for file in files:
+                maybe_add_prefix(os.path.join(root, file), include_dir)
 
 if __name__ == '__main__':
     main()
