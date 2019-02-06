@@ -19,6 +19,8 @@
 #ifndef LLVM_SUPPORT_ARMBUILDATTRIBUTES_H
 #define LLVM_SUPPORT_ARMBUILDATTRIBUTES_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 namespace llvm {
 class StringRef;
 

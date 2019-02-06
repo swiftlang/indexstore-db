@@ -16,6 +16,8 @@
 #ifndef LLVM_ADT_NONE_H
 #define LLVM_ADT_NONE_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 namespace llvm {
 /// A simple null object to allow implicit construction of Optional<T>
 /// and similar types without having to spell out the specialization's name.

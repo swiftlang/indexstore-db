@@ -10,6 +10,8 @@
 #ifndef LLVM_SUPPORT_WINDOWSERROR_H
 #define LLVM_SUPPORT_WINDOWSERROR_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 #include <system_error>
 
 namespace llvm {

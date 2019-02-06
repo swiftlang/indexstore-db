@@ -15,6 +15,8 @@
 #ifndef LLVM_SUPPORT_UNICODE_H
 #define LLVM_SUPPORT_UNICODE_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 namespace llvm {
 class StringRef;
 

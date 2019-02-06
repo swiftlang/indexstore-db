@@ -14,6 +14,8 @@
 #ifndef LLVM_CONFIG_H
 #define LLVM_CONFIG_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 /* Define if LLVM_ENABLE_DUMP is enabled */
 /* #undef LLVM_ENABLE_DUMP */
 

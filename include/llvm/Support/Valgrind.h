@@ -16,6 +16,8 @@
 #ifndef LLVM_SUPPORT_VALGRIND_H
 #define LLVM_SUPPORT_VALGRIND_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 #include <cstddef>
 
 namespace llvm {

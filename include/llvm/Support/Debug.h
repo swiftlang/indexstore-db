@@ -29,6 +29,8 @@
 #ifndef LLVM_SUPPORT_DEBUG_H
 #define LLVM_SUPPORT_DEBUG_H
 
+#include "llvm/Config/indexstoredb-prefix.h"
+
 namespace llvm {
 
 class raw_ostream;
