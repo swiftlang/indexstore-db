@@ -212,12 +212,15 @@ public:
       return;
     }
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wc++14-extensions"
     auto fnPtr = new RawUnitEventHandler([handler, localLib=std::move(localLib)](
         indexstore_unit_event_notification_t evt_note) {
       if (auto lib = localLib.lock()) {
         handler(UnitEventNotification(evt_note, lib));
       }
     });
+#pragma clang diagnostic pop
     api().store_set_unit_event_handler_f(obj, fnPtr, event_handler, event_handler_finalizer);
   }
 
