@@ -155,14 +155,23 @@ public:
 };
 
 class UnitMonitor {
+  struct OutOfDateTrigger {
+    OutOfDateTriggerHintRef hint;
+    sys::TimeValue outOfDateModTime;
+
+    std::string getTriggerFilePath() const {
+      return hint->originalFileTrigger();
+    }
+  };
+
   std::weak_ptr<StoreUnitRepo> UnitRepo;
   IDCode UnitCode;
   std::string UnitName;
   sys::TimeValue ModTime;
 
   mutable llvm::sys::Mutex StateMtx;
-  Optional<sys::TimeValue> OutOfDateModTime;
-  OutOfDateTriggerHintRef OutOfDateHint;
+  /// Map of out-of-date file path to its associated info.
+  StringMap<OutOfDateTrigger> OutOfDateTriggers;
 
 public:
   UnitMonitor(std::shared_ptr<StoreUnitRepo> unitRepo);
@@ -178,8 +187,7 @@ public:
   StringRef getUnitName() const { return UnitName; }
   sys::TimeValue getModTime() const { return ModTime; }
 
-  Optional<sys::TimeValue> getOutOfDateModTime() const;
-  OutOfDateTriggerHintRef getOutOfDateHint() const { return OutOfDateHint; }
+  std::vector<OutOfDateTrigger> getOutOfDateTriggers() const;
 
   void checkForOutOfDate(sys::TimeValue outOfDateModTime, StringRef filePath, bool synchronous=false);
   void markOutOfDate(sys::TimeValue outOfDateModTime, OutOfDateTriggerHintRef hint, bool synchronous=false);
@@ -584,12 +592,11 @@ void UnitMonitor::initialize(IDCode unitCode,
   this->ModTime = modTime;
   for (IDCode unitDepCode : userUnitDepends) {
     if (auto depMonitor = unitRepo->getUnitMonitor(unitDepCode)) {
-      if (auto optDepOutOfDateTime = depMonitor->getOutOfDateModTime()) {
-        if (optDepOutOfDateTime.getValue() > modTime) {
-          markOutOfDate(optDepOutOfDateTime.getValue(),
+      for (const auto &trigger : depMonitor->getOutOfDateTriggers()) {
+        if (trigger.outOfDateModTime > modTime) {
+          markOutOfDate(trigger.outOfDateModTime,
                         DependentUnitOutOfDateTriggerHint::create(depMonitor->getUnitName(),
-                                                                  depMonitor->getOutOfDateHint()));
-          return;
+                                                                  trigger.hint));
         }
       }
     }
@@ -609,15 +616,21 @@ void UnitMonitor::initialize(IDCode unitCode,
 
 UnitMonitor::~UnitMonitor() {}
 
-Optional<sys::TimeValue> UnitMonitor::getOutOfDateModTime() const {
+std::vector<UnitMonitor::OutOfDateTrigger> UnitMonitor::getOutOfDateTriggers() const {
   sys::ScopedLock L(StateMtx);
-  return OutOfDateModTime;
+  std::vector<OutOfDateTrigger> triggers;
+  for (const auto &entry : OutOfDateTriggers) {
+    triggers.push_back(entry.getValue());
+  }
+  return triggers;
 }
 
 void UnitMonitor::checkForOutOfDate(sys::TimeValue outOfDateModTime, StringRef filePath, bool synchronous) {
   sys::ScopedLock L(StateMtx);
-  if (OutOfDateModTime.hasValue())
-    return; // already marked as out-of-date.
+  auto findIt = OutOfDateTriggers.find(filePath);
+  if (findIt != OutOfDateTriggers.end() && findIt->getValue().outOfDateModTime >= outOfDateModTime) {
+    return; // already marked as out-of-date related to this trigger file.
+  }
   if (ModTime < outOfDateModTime)
     markOutOfDate(outOfDateModTime, DependentFileOutOfDateTriggerHint::create(filePath), synchronous);
 }
@@ -625,10 +638,11 @@ void UnitMonitor::checkForOutOfDate(sys::TimeValue outOfDateModTime, StringRef f
 void UnitMonitor::markOutOfDate(sys::TimeValue outOfDateModTime, OutOfDateTriggerHintRef hint, bool synchronous) {
   {
     sys::ScopedLock L(StateMtx);
-    if (OutOfDateModTime.hasValue())
-      return; // already marked as out-of-date.
-    this->OutOfDateModTime = outOfDateModTime;
-    this->OutOfDateHint = hint;
+    OutOfDateTrigger trigger{ hint, outOfDateModTime};
+    auto &entry = OutOfDateTriggers[trigger.getTriggerFilePath()];
+    if (entry.outOfDateModTime >= outOfDateModTime)
+      return; // already marked as out-of-date related to this trigger file.
+    entry = trigger;
   }
   if (auto localUnitRepo = UnitRepo.lock())
     localUnitRepo->onUnitOutOfDate(UnitCode, UnitName, outOfDateModTime, hint, synchronous);
