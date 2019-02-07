@@ -81,7 +81,7 @@ Logger::Level Logger::getLogLevelByNum(unsigned LevelNum) {
 }
 
 unsigned Logger::getCurrentLogLevelNum() {
-  switch (LoggingLevel) {
+  switch (LoggingLevel.load()) {
     case Level::None:
     case Level::Warning:
       return 0;
