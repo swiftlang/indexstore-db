@@ -27,6 +27,7 @@ namespace index {
 class OutOfDateTriggerHint {
 public:
   virtual ~OutOfDateTriggerHint() {}
+  virtual std::string originalFileTrigger() = 0;
   virtual std::string description() = 0;
 
 private:
@@ -44,6 +45,7 @@ public:
     return std::make_shared<DependentFileOutOfDateTriggerHint>(filePath);
   }
 
+  virtual std::string originalFileTrigger() override;
   virtual std::string description() override;
 };
 
@@ -59,6 +61,7 @@ public:
     return std::make_shared<DependentUnitOutOfDateTriggerHint>(unitName, std::move(depHint));
   }
 
+  virtual std::string originalFileTrigger() override;
   virtual std::string description() override;
 };
 

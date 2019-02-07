@@ -525,8 +525,16 @@ bool IndexSystemImpl::foreachFileIncludedByFile(StringRef SourcePath,
 
 void OutOfDateTriggerHint::_anchor() {}
 
+std::string DependentFileOutOfDateTriggerHint::originalFileTrigger() {
+  return FilePath;
+}
+
 std::string DependentFileOutOfDateTriggerHint::description() {
   return FilePath;
+}
+
+std::string DependentUnitOutOfDateTriggerHint::originalFileTrigger() {
+  return DepHint->originalFileTrigger();
 }
 
 std::string DependentUnitOutOfDateTriggerHint::description() {
