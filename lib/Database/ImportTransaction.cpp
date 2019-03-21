@@ -158,13 +158,14 @@ IDCode ImportTransaction::Implementation::addModuleName(StringRef moduleName) {
 }
 
 void ImportTransaction::Implementation::addFileAssociationForProvider(IDCode provider, IDCode file, IDCode unit,
-                                                                      llvm::sys::TimeValue modTime, IDCode module, bool isSystem) {
+                                                                      llvm::sys::TimePoint<> modTime, IDCode module, bool isSystem) {
   auto &db = DBase->impl();
   auto &dbiFilesByProvider = db.getDBITimestampedFilesByProvider();
 
   auto cursor = lmdb::cursor::open(Txn, dbiFilesByProvider);
 
-  TimestampedFileForProviderData entry{file, unit, module, modTime.seconds(), modTime.nanoseconds(), isSystem};
+  uint64_t nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(modTime.time_since_epoch()).count();
+  TimestampedFileForProviderData entry{file, unit, module, nanos, isSystem};
   lmdb::val key{&provider, sizeof(provider)};
   lmdb::val value{&entry, sizeof(entry)};
   bool added = cursor.put(key, value, MDB_NODUPDATA);
@@ -174,7 +175,7 @@ void ImportTransaction::Implementation::addFileAssociationForProvider(IDCode pro
     lmdb::val existingValue;
     cursor.get(existingKey, existingValue, MDB_GET_CURRENT);
     const auto &existingData = *(TimestampedFileForProviderData*)existingValue.data();
-    llvm::sys::TimeValue existingModTime(existingData.Seconds, existingData.Nanoseconds);
+    llvm::sys::TimePoint<> existingModTime = llvm::sys::TimePoint<>(std::chrono::nanoseconds(existingData.NanoTime));
     if (modTime > existingModTime)
       cursor.put(key, value, MDB_CURRENT);
   }
@@ -185,7 +186,7 @@ bool ImportTransaction::Implementation::removeFileAssociationFromProvider(IDCode
   auto &dbiFilesByProvider = db.getDBITimestampedFilesByProvider();
   auto cursor = lmdb::cursor::open(Txn, dbiFilesByProvider);
 
-  TimestampedFileForProviderData entry{file, unit, IDCode(), 0, 0, false};
+  TimestampedFileForProviderData entry{file, unit, IDCode(), 0, false};
   lmdb::val key{&provider, sizeof(provider)};
   lmdb::val value{&entry, sizeof(entry)};
   bool found = cursor.get(key, value, MDB_GET_BOTH_RANGE);
@@ -218,9 +219,10 @@ void ImportTransaction::Implementation::addUnitInfo(const UnitInfo &info) {
   assert(static_cast<uint32_t>(info.FileDepends.size()) == info.FileDepends.size());
   assert(static_cast<uint32_t>(info.UnitDepends.size()) == info.UnitDepends.size());
   assert(static_cast<uint32_t>(info.ProviderDepends.size()) == info.ProviderDepends.size());
+  auto nanoTime = std::chrono::duration_cast<std::chrono::nanoseconds>(info.ModTime.time_since_epoch()).count();
   UnitInfoData infoData{ info.MainFileCode, info.OutFileCode, info.SysrootCode,
     info.TargetCode,
-    info.ModTime.seconds(), info.ModTime.nanoseconds(),
+    nanoTime,
     static_cast<uint16_t>(info.UnitName.size()),
     uint8_t(info.SymProviderKind),
     info.HasMainFile, info.HasSysroot, info.IsSystem,
@@ -370,7 +372,7 @@ void ImportTransaction::commit() {
   return Impl->commit();
 }
 
-UnitDataImport::UnitDataImport(ImportTransaction &import, StringRef unitName, llvm::sys::TimeValue modTime)
+UnitDataImport::UnitDataImport(ImportTransaction &import, StringRef unitName, llvm::sys::TimePoint<> modTime)
 : Import(import), UnitName(unitName), ModTime(modTime), IsSystem(false) {
 
   auto dbUnit = import._impl()->getUnitInfo(makeIDCodeFromString(unitName));

@@ -148,7 +148,7 @@ void SymbolIndexImpl::printStats(raw_ostream &OS) {
 void SymbolIndexImpl::dumpProviderFileAssociations(raw_ostream &OS) {
   ReadTransaction reader(DBase);
   Optional<IDCode> prevProvCode;
-  reader.foreachProviderAndFileCodeReference([&](IDCode providerCode, IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem) -> bool {
+  reader.foreachProviderAndFileCodeReference([&](IDCode providerCode, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
     if (!prevProvCode.hasValue() || prevProvCode.getValue() != providerCode) {
       OS << reader.getProviderName(providerCode) << '\n';
       prevProvCode = providerCode;
@@ -156,7 +156,8 @@ void SymbolIndexImpl::dumpProviderFileAssociations(raw_ostream &OS) {
     auto path = reader.getFullFilePathFromCode(pathCode);
     auto unit = reader.getUnitInfo(unitCode);
     auto moduleName = reader.getModuleName(moduleNameCode);
-    OS << "---- " << path.getPath() << ", " << unit.UnitName << ", module: " << moduleName << ", sys: " << isSystem << ", " << modTime.seconds() << '\n';
+    auto seconds = llvm::sys::toTimeT(modTime);
+    OS << "---- " << path.getPath() << ", " << unit.UnitName << ", module: " << moduleName << ", sys: " << isSystem << ", " << seconds << '\n';
     return true;
   });
 }
@@ -170,7 +171,7 @@ SymbolDataProviderRef SymbolIndexImpl::createProviderForCode(IDCode providerCode
 
   Optional<SymbolProviderKind> providerKind;
   SmallVector<FileAndTarget, 8> fileRefs;
-  reader.getProviderFileCodeReferences(providerCode, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem) -> bool {
+  reader.getProviderFileCodeReferences(providerCode, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
     auto unitInfo = reader.getUnitInfo(unitCode);
     if (unitInfo.isInvalid())
       return true;

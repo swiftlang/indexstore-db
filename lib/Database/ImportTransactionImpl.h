@@ -37,7 +37,7 @@ public:
   IDCode addTargetName(StringRef target);
   IDCode addModuleName(StringRef moduleName);
   /// If file is already associated, its timestamp is updated if \c modTime is more recent.
-  void addFileAssociationForProvider(IDCode provider, IDCode file, IDCode unit, llvm::sys::TimeValue modTime, IDCode module, bool isSystem);
+  void addFileAssociationForProvider(IDCode provider, IDCode file, IDCode unit, llvm::sys::TimePoint<> modTime, IDCode module, bool isSystem);
   /// \returns true if there is no remaining file reference, false otherwise.
   bool removeFileAssociationFromProvider(IDCode provider, IDCode file, IDCode unit);
 

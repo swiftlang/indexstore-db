@@ -50,8 +50,8 @@ public:
   bool getProviderFileReferences(IDCode provider,
                                  llvm::function_ref<bool(TimestampedPath path)> receiver);
   bool getProviderFileCodeReferences(IDCode provider,
-                                     llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem)> receiver);
-  bool foreachProviderAndFileCodeReference(llvm::function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem)> receiver);
+                                     llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver);
+  bool foreachProviderAndFileCodeReference(llvm::function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver);
 
   bool foreachUSROfGlobalSymbolKind(SymbolKind symKind, llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver);
   bool foreachUSROfGlobalSymbolKind(GlobalSymbolKind globalSymKind, function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver);

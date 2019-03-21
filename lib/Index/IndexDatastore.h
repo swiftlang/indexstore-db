@@ -46,7 +46,7 @@ public:
   void waitUntilDoneInitializing();
 
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
-  bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimeValue outOfDateModTime);
+  bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);
 
   /// Check whether any unit(s) containing \p file are out of date and if so,
   /// *synchronously* notify the delegate.

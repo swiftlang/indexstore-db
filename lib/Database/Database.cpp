@@ -32,7 +32,7 @@
 using namespace IndexStoreDB;
 using namespace IndexStoreDB::db;
 
-const unsigned Database::DATABASE_FORMAT_VERSION = 11;
+const unsigned Database::DATABASE_FORMAT_VERSION = 12;
 
 static const char *DeadProcessDBSuffix = "-dead";
 
@@ -237,7 +237,7 @@ UnitInfo Database::Implementation::getUnitInfo(IDCode unitCode, lmdb::txn &Txn) 
   ptr += sizeof(UnitInfo::Provider)*providerDepends.size();
   unitName = StringRef(ptr, infoData.NameLength);
 
-  llvm::sys::TimeValue modTime(infoData.Seconds, infoData.Nanoseconds);
+  llvm::sys::TimePoint<> modTime = llvm::sys::TimePoint<>(std::chrono::nanoseconds(infoData.NanoTime));
   return UnitInfo{ unitName, unitCode, modTime,
     infoData.OutFileCode, infoData.MainFileCode, infoData.SysrootCode, infoData.TargetCode,
     infoData.HasMainFile, infoData.HasSysroot, infoData.IsSystem,
