@@ -15,6 +15,7 @@
 
 #include "IndexStoreDB/Database/IDCode.h"
 #include "IndexStoreDB/Support/LLVM.h"
+#include "IndexStoreDB/Support/Visibility.h"
 #include <memory>
 
 namespace IndexStoreDB {
@@ -22,7 +23,7 @@ namespace db {
   class Database;
   typedef std::shared_ptr<Database> DatabaseRef;
 
-class LLVM_EXPORT Database {
+class INDEXSTOREDB_EXPORT Database {
 public:
   static DatabaseRef create(StringRef dbPath, bool readonly, Optional<size_t> initialDBSize, std::string &error);
   ~Database();
@@ -43,7 +44,7 @@ public:
   static const unsigned DATABASE_FORMAT_VERSION;
 };
 
-LLVM_EXPORT IDCode makeIDCodeFromString(StringRef name);
+INDEXSTOREDB_EXPORT IDCode makeIDCodeFromString(StringRef name);
 
 } // namespace db
 } // namespace IndexStoreDB

@@ -14,6 +14,7 @@
 #define INDEXSTOREDB_INDEX_SYMBOLDATAPROVIDER_H
 
 #include "IndexStoreDB/Support/LLVM.h"
+#include "IndexStoreDB/Support/Visibility.h"
 #include "llvm/ADT/StringRef.h"
 #include <memory>
 
@@ -29,7 +30,7 @@ namespace index {
 using IndexStoreLibrary = ::indexstore::IndexStoreLibrary;
 using IndexStoreLibraryRef = ::indexstore::IndexStoreLibraryRef;
 
-class LLVM_EXPORT IndexStoreLibraryProvider {
+class INDEXSTOREDB_EXPORT IndexStoreLibraryProvider {
 public:
   virtual ~IndexStoreLibraryProvider() {}
 
@@ -41,12 +42,12 @@ private:
 };
 
 /// A simple library provider that can be used if libIndexStore is linked to your binary.
-class LLVM_EXPORT GlobalIndexStoreLibraryProvider: public IndexStoreLibraryProvider {
+class INDEXSTOREDB_EXPORT GlobalIndexStoreLibraryProvider: public IndexStoreLibraryProvider {
 public:
   IndexStoreLibraryRef getLibraryForStorePath(StringRef storePath) override;
 };
 
-LLVM_EXPORT IndexStoreLibraryRef loadIndexStoreLibrary(std::string dylibPath,
+INDEXSTOREDB_EXPORT IndexStoreLibraryRef loadIndexStoreLibrary(std::string dylibPath,
                                                        std::string &error);
 
 } // namespace index

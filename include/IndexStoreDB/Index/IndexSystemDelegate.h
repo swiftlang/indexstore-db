@@ -65,7 +65,7 @@ public:
   virtual std::string description() override;
 };
 
-class LLVM_EXPORT IndexSystemDelegate {
+class INDEXSTOREDB_EXPORT IndexSystemDelegate {
 public:
   virtual ~IndexSystemDelegate() {}
 

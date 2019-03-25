@@ -24,7 +24,7 @@ namespace db {
   class Database;
   typedef std::shared_ptr<Database> DatabaseRef;
 
-class LLVM_EXPORT ImportTransaction {
+class INDEXSTOREDB_EXPORT ImportTransaction {
 public:
   explicit ImportTransaction(DatabaseRef dbase);
   ~ImportTransaction();
@@ -48,7 +48,7 @@ private:
   std::unique_ptr<Implementation> Impl;
 };
 
-class LLVM_EXPORT UnitDataImport {
+class INDEXSTOREDB_EXPORT UnitDataImport {
   ImportTransaction &Import;
   std::string UnitName;
   CanonicalFilePath MainFile;

@@ -13,11 +13,12 @@
 #ifndef LLVM_INDEXSTOREDB_SUPPORT_CONCURRENCY_H
 #define LLVM_INDEXSTOREDB_SUPPORT_CONCURRENCY_H
 
+#include "IndexStoreDB/Support/Visibility.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace IndexStoreDB {
 
-class LLVM_EXPORT WorkQueue {
+class INDEXSTOREDB_EXPORT WorkQueue {
 public:
   enum class Dequeuing {
     Serial,

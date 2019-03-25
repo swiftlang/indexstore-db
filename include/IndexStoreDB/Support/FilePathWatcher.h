@@ -14,13 +14,14 @@
 #define INDEXSTOREDB_SUPPORT_FILEPATHWATCHER_H
 
 #include "IndexStoreDB/Support/LLVM.h"
+#include "IndexStoreDB/Support/Visibility.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include <functional>
 
 namespace IndexStoreDB {
 
-class LLVM_EXPORT FilePathWatcher {
+class INDEXSTOREDB_EXPORT FilePathWatcher {
   struct Implementation;
 
 public:
