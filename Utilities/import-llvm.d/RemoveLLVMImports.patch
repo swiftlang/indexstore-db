@@ -1,0 +1,67 @@
+diff --git a/lib/LLVMSupport/Support/Statistic.cpp b/lib/LLVMSupport/Support/Statistic.cpp
+index d57300a..86e6dc1 100644
+--- a/lib/LLVMSupport/Support/Statistic.cpp
++++ b/lib/LLVMSupport/Support/Statistic.cpp
+@@ -30,7 +30,6 @@
+ #include "llvm/Support/ManagedStatic.h"
+ #include "llvm/Support/Mutex.h"
+ #include "llvm/Support/Timer.h"
+-#include "llvm/Support/YAMLTraits.h"
+ #include "llvm/Support/raw_ostream.h"
+ #include <algorithm>
+ #include <cstring>
+@@ -211,10 +210,6 @@ void llvm::PrintStatisticsJSON(raw_ostream &OS) {
+   const char *delim = "";
+   for (const Statistic *Stat : Stats.Stats) {
+     OS << delim;
+-    assert(yaml::needsQuotes(Stat->getDebugType()) == yaml::QuotingType::None &&
+-           "Statistic group/type name is simple.");
+-    assert(yaml::needsQuotes(Stat->getName()) == yaml::QuotingType::None &&
+-           "Statistic name is simple");
+     OS << "\t\"" << Stat->getDebugType() << '.' << Stat->getName() << "\": "
+        << Stat->getValue();
+     delim = ",\n";
+diff --git a/lib/LLVMSupport/Support/Timer.cpp b/lib/LLVMSupport/Support/Timer.cpp
+index 82f5810..3ec1801 100644
+--- a/lib/LLVMSupport/Support/Timer.cpp
++++ b/lib/LLVMSupport/Support/Timer.cpp
+@@ -20,7 +20,6 @@
+ #include "llvm/Support/ManagedStatic.h"
+ #include "llvm/Support/Mutex.h"
+ #include "llvm/Support/Process.h"
+-#include "llvm/Support/YAMLTraits.h"
+ #include "llvm/Support/raw_ostream.h"
+ #include <limits>
+ 
+@@ -388,10 +387,6 @@ void TimerGroup::clearAll() {
+ 
+ void TimerGroup::printJSONValue(raw_ostream &OS, const PrintRecord &R,
+                                 const char *suffix, double Value) {
+-  assert(yaml::needsQuotes(Name) == yaml::QuotingType::None &&
+-         "TimerGroup name should not need quotes");
+-  assert(yaml::needsQuotes(R.Name) == yaml::QuotingType::None &&
+-         "Timer name should not need quotes");
+   constexpr auto max_digits10 = std::numeric_limits<double>::max_digits10;
+   OS << "\t\"time." << Name << '.' << R.Name << suffix
+      << "\": " << format("%.*e", max_digits10 - 1, Value);
+diff --git a/lib/LLVMSupport/Support/Unix/Signals.inc b/lib/LLVMSupport/Support/Unix/Signals.inc
+index ad88d5e..7ed843d 100644
+--- a/lib/LLVMSupport/Support/Unix/Signals.inc
++++ b/lib/LLVMSupport/Support/Unix/Signals.inc
+@@ -36,7 +36,6 @@
+ #include "Unix.h"
+ #include "llvm/ADT/STLExtras.h"
+ #include "llvm/Config/config.h"
+-#include "llvm/Demangle/Demangle.h"
+ #include "llvm/Support/FileSystem.h"
+ #include "llvm/Support/FileUtilities.h"
+ #include "llvm/Support/Format.h"
+@@ -535,7 +534,7 @@ void llvm::sys::PrintStackTrace(raw_ostream &OS) {
+     if (dlinfo.dli_sname != nullptr) {
+       OS << ' ';
+       int res;
+-      char* d = itaniumDemangle(dlinfo.dli_sname, nullptr, nullptr, &res);
++      char* d = NULL;
+       if (!d) OS << dlinfo.dli_sname;
+       else    OS << d;
+       free(d);

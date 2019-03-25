@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 
 # This is a helper script for importing the things we use from LLVM.
-#
-# NOTE: We have slightly modified copies of some of the files, to reduce the
-# dependency surface area, so if you run this to update the sources, please
-# examine the diffs to remove things that don't make sense.
 
 import errno
 import optparse
@@ -13,52 +9,139 @@ import re
 import shutil
 import sys
 import subprocess
+import platform
 
 # ADT types.
-ADT_imports = ['EpochTracker', 'iterator', 'iterator_range', 'Hashing', 'None', 'Optional',
-               'Statistic', 'StringExtras', 'STLExtras', 'AllocatorList', 'Triple']
-
-# ADT basic data structures.
-ADT_imports += ['APFloat', 'APInt', 'APSInt', 'ArrayRef', 'PointerIntPair', 'SetVector', 'StringRef', 'StringSwitch',
-                'Twine', 'IntrusiveRefCntPtr', 'ilist', 'ilist_base', 'ilist_node', 'ilist_node_base',
-                'ilist_node_options', 'ilist_iterator', 'simple_ilist', 'OptionSet', 'PointerUnion']
-
-# ADT Mapping structures.
-ADT_imports += ['DenseMap', 'DenseMapInfo', 'DenseSet', 'FoldingSet', 'StringMap', 'StringSet']
-
-# ADT "Small" structures.
-ADT_imports += ['SmallPtrSet', 'SmallSet', 'SmallString', 'SmallVector']
-
-# ADT Algorithms.
-ADT_imports += ['edit_distance']
+ADT_imports = [
+    'APFloat',
+    'APInt',
+    'APSInt',
+    'AllocatorList',
+    'ArrayRef',
+    'Bit',
+    'DenseMap',
+    'DenseMapInfo',
+    'DenseSet',
+    'EpochTracker',
+    'FoldingSet',
+    'Hashing',
+    'IntrusiveRefCntPtr',
+    'None',
+    'Optional',
+    'PointerIntPair',
+    'PointerUnion',
+    'STLExtras',
+    'SmallPtrSet',
+    'SmallSet',
+    'SmallString',
+    'SmallVector',
+    'Statistic',
+    'StringExtras',
+    'StringMap',
+    'StringRef',
+    'StringSet',
+    'StringSwitch',
+    'Triple',
+    'Twine',
+    'edit_distance',
+    'ilist',
+    'ilist_base',
+    'ilist_iterator',
+    'ilist_node',
+    'ilist_node_base',
+    'ilist_node_options',
+    'iterator',
+    'iterator_range',
+    'simple_ilist'
+]
 
 # Support types and infrastructure.
 Support_imports = [
-    'AlignOf', 'Allocator', 'Atomic', 'CBindingWrapping', 'Casting', 'Capacity', 'CommandLine', 'Compiler',
-    'Endian', 'Errno', 'ErrorHandling', 'Errc', 'ErrorOr', 'Error', 'Format',
-    'ManagedStatic', 'MathExtras', 'Mutex', 'MutexGuard', 'Memory',
-    'MemoryBuffer', 'PointerLikeTypeTraits', 'Recycler', 'SwapByteOrder',
-    'Timer', 'TimeValue', 'Threading', 'Unicode', 'UniqueLock', 'Unix', 'WindowsError',
-    'Valgrind', 'circular_raw_ostream', 'raw_ostream', 'type_traits', 'JSON']
-
-# Stuff we don't want, but have to pull in.
-Support_imports += [
-    'COFF', 'ConvertUTF', 'ConvertUTFWrapper', 'Debug', 'FileSystem',
-    'FileUtilities', 'Host', 'Locale', 'MachO', 'Path', 'Process', 'Program', 'SMLoc',
-    'SourceMgr', 'Signals', 'StringSaver', 'ToolOutputFile', 'TrailingObjects', 'Unicode', 'UnicodeCharRanges',
-    'MemAlloc', 'Chrono', 'FormatProviders', 'FormatVariadic', 'FormatCommon',
-    'FormatVariadicDetails', 'NativeFormatting', 'DJB', 'ReverseIteration', 'MD5',
-    'SmallVectorMemoryBuffer', 'WithColor', 'Options', 'PrettyStackTrace', 'Watchdog',
-    'TargetParser', 'ARMBuildAttributes', 'ARMTargetParser.def', 'AArch64TargetParser.def', 'X86TargetParser.def', 'LineIterator']
+    'AArch64TargetParser',
+    'APFloat',
+    'ARMBuildAttributes',
+    'ARMTargetParser',
+    'AlignOf',
+    'Allocator',
+    'Atomic',
+    'CBindingWrapping',
+    'Casting',
+    'Chrono',
+    'CommandLine',
+    'Compiler',
+    'ConvertUTF',
+    'ConvertUTFWrapper',
+    'DJB',
+    'DataTypes',
+    'Debug',
+    'Endian',
+    'Errc',
+    'Errno',
+    'Error',
+    'ErrorHandling',
+    'ErrorOr',
+    'FileSystem',
+    'FileUtilities',
+    'Format',
+    'FormatAdapters',
+    'FormatCommon',
+    'FormatProviders',
+    'FormatVariadic',
+    'FormatVariadicDetails',
+    'Host',
+    'LineIterator',
+    'Locale',
+    'MD5',
+    'ManagedStatic',
+    'MathExtras',
+    'MemAlloc',
+    'Memory',
+    'MemoryBuffer',
+    'Mutex',
+    'MutexGuard',
+    'NativeFormatting',
+    'Options',
+    'Path',
+    'PointerLikeTypeTraits',
+    'Process',
+    'Program',
+    'Recycler',
+    'ReverseIteration',
+    'SMLoc',
+    'Signals',
+    'SmallVectorMemoryBuffer',
+    'SourceMgr',
+    'StringSaver',
+    'Support',
+    'SwapByteOrder',
+    'TargetParser',
+    'Threading',
+    'Timer',
+    'Types',
+    'Unicode',
+    'Unicode',
+    'UnicodeCaseFold',
+    'UnicodeCharRanges',
+    'UniqueLock',
+    'Unix',
+    'Valgrind',
+    'VersionTuple',
+    'WindowsError',
+    'WindowsSupport',
+    'WithColor',
+    'X86TargetParser',
+    'circular_raw_ostream',
+    'raw_ostream',
+    'type_traits'
+]
 
 # Dependencies from llvm-c needed by Support.
-C_imports = ['Types', 'DataTypes', 'Support', 'ErrorHandling']
-
-# Support data structures.
-Support_imports += ['YAMLParser', 'YAMLTraits']
-
-# Source files to exclude.
-Support_source_excludes = set(['Host'])
+C_imports = [
+    'DataTypes',
+    'ErrorHandling',
+    'Support',
+    'Types'
+]
 
 llvm_srcroot = None
 sourcekit_srcroot = None
@@ -79,6 +162,10 @@ def mkdir_p(path):
 def copyfile(src, dst):
     note("cp %r %r" % (src, dst))
     shutil.copyfile(src, dst)
+
+def movefile(src, dst):
+    note("mv %r %r" % (src, dst))
+    shutil.movefile(src, dst)
 
 def includes_prefix(source, include_dir):
     defs = subprocess.check_output([
@@ -137,12 +224,32 @@ def main():
     llvm_srcroot, = args
     sourcekit_srcroot = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+    # Remove the old llvm import
+    sourcekit_llvm_include = os.path.join(sourcekit_srcroot, 'include', 'llvm')
+    sourcekit_llvm_lib = os.path.join(sourcekit_srcroot, 'lib', 'LLVMSupport')
+    if os.path.exists(sourcekit_llvm_include):
+        shutil.rmtree(sourcekit_llvm_include)
+    if os.path.exists(sourcekit_llvm_lib):
+        shutil.rmtree(sourcekit_llvm_lib)
+
+    # Add the platform specific config files
+    #
+    # NOTE: If you're updating to a newer llvm, you may have to manually merge
+    # these with the newer version produced by the llvm build
+    sourcekit_llvm_config = os.path.join(sourcekit_srcroot, 'Utilities', 'import-llvm.d', 'include', 'llvm', 'Config')
+    shutil.copytree(sourcekit_llvm_config, os.path.join(sourcekit_llvm_include, 'Config'))
+
     def import_header(dir, name):
         src = os.path.join(llvm_srcroot, 'include', 'llvm', dir, name)
+        c_src = os.path.join(llvm_srcroot, 'include', 'llvm-c', name)
         if os.path.exists(src):
             dst = os.path.join(sourcekit_srcroot, 'include', 'llvm', dir, name)
             mkdir_p(os.path.dirname(dst))
             copyfile(src, dst)
+        if os.path.exists(c_src):
+            dst = os.path.join(sourcekit_srcroot, 'include', 'llvm-c', name)
+            mkdir_p(os.path.dirname(dst))
+            copyfile(c_src, dst)
 
     def import_c_header(name):
         src = os.path.join(llvm_srcroot, 'include', 'llvm-c', name)
@@ -162,22 +269,31 @@ def main():
 
     for name in ADT_imports:
         import_header('ADT', name+'.h')
-        if name not in Support_source_excludes:
-            import_source('Support', name+'.c')
-            import_source('Support', name+'.cpp')
+        import_source('Support', name+'.c')
+        import_source('Support', name+'.cpp')
     for name in Support_imports:
-        if name.endswith('.def'):
-            import_header('Support', name)
-            continue
         import_header('Support', name+'.h')
-        if name not in Support_source_excludes:
-            import_source('Support', name+'.c')
-            import_source('Support', name+'.cpp')
-            import_source('Support', os.path.join('Unix', name+'.h'))
-            import_source('Support', os.path.join('Unix', name+'.inc'))
-
+        import_header('Support', name+'.def')
+        import_source('Support', name+'.c')
+        import_source('Support', name+'.cpp')
+        import_source('Support', name+'.inc')
+        import_source('Support', name+'.h')
+        import_source('Support', os.path.join('Unix', name+'.h'))
+        import_source('Support', os.path.join('Unix', name+'.inc'))
+        import_source('Support', os.path.join('Windows', name+'.h'))
+        import_source('Support', os.path.join('Windows', name+'.inc'))
     for name in C_imports:
         import_c_header(name + '.h')
+
+    # Create symlinks so SwiftPM can find headers
+    os.makedirs(os.path.join(sourcekit_llvm_lib, 'include'))
+    os.symlink(os.path.join('..', '..', '..', 'include', 'llvm'),
+               os.path.join(sourcekit_llvm_lib, 'include', 'llvm'))
+    os.symlink(os.path.join('..', '..', '..', 'include', 'llvm-c'),
+               os.path.join(sourcekit_llvm_lib, 'include', 'llvm-c'))
+
+    copyfile(os.path.join(sourcekit_srcroot, 'Utilities', 'import-llvm.d', 'lib', 'LLVMSupport', 'include', 'module.modulemap'),
+             os.path.join(sourcekit_srcroot, 'lib', 'LLVMSupport', 'include', 'module.modulemap'))
 
     print ""
     print "Adding prefix header includes"
@@ -189,11 +305,32 @@ def main():
     ]
 
     include_dir = os.path.join(sourcekit_srcroot, 'include')
-
     for base in base_dirs:
         for root, dirs, files in os.walk(base):
             for file in files:
                 maybe_add_prefix(os.path.join(root, file), include_dir)
+
+    # Finish off with a bunch of really gross hacks. These all offend my better
+    # sensibilities and what have you.
+
+    # TODO: Indexstoredb uses an out of tree/non merged OptionSet.h We should
+    # remove uses of this or get it merged upstream.
+    copyfile(os.path.join(sourcekit_srcroot, 'Utilities', 'import-llvm.d', 'include', 'llvm', 'ADT', 'OptionSet.h'),
+             os.path.join(sourcekit_srcroot, 'include', 'llvm', 'ADT', 'OptionSet.h'))
+
+    # AArch64TargetParser uses a relative path to find the .def file, so we
+    # copy this one to the expected location :(
+    def_location = os.path.join(sourcekit_srcroot, 'lib', 'include', 'llvm', 'Support')
+    if os.path.exists(def_location):
+        shutil.rmtree(def_location)
+    os.makedirs(def_location)
+    copyfile(os.path.join(sourcekit_srcroot, 'include', 'llvm', 'Support', 'AArch64TargetParser.def'),
+             os.path.join(def_location, 'AArch64TargetParser.def'))
+
+    # Patch out requirements for Demangle and YAML/Regex from the LLVM support we imported
+    patch_file = os.path.join(sourcekit_srcroot, 'Utilities', 'import-llvm.d', 'RemoveLLVMImports.patch')
+    with open(patch_file, 'r') as f:
+        subprocess.Popen(['patch', '-p1'], stdin=f, cwd=sourcekit_srcroot)
 
 if __name__ == '__main__':
     main()
