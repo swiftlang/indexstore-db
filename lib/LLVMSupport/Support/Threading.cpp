@@ -67,7 +67,7 @@ unsigned llvm::heavyweight_hardware_concurrency() {
   // with some platforms such as FreeBSD whose headers also define a struct
   // called `thread` in the global namespace which can cause ambiguity due to
   // ADL.
-  int NumPhysical = -1;// sys::getHostNumPhysicalCores();
+  int NumPhysical = sys::getHostNumPhysicalCores();
   if (NumPhysical == -1)
     return std::thread::hardware_concurrency();
   return NumPhysical;

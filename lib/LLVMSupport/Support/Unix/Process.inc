@@ -36,7 +36,7 @@
 // DragonFlyBSD, and OpenBSD have deprecated <malloc.h> for
 // <stdlib.h> instead. Unix.h includes this for us already.
 #if defined(HAVE_MALLOC_H) && !defined(__DragonFly__) && \
-    !defined(__OpenBSD__)
+    !defined(__OpenBSD__) 
 #include <malloc.h>
 #endif
 #if defined(HAVE_MALLCTL)
@@ -211,7 +211,10 @@ std::error_code Process::FixupStandardFileDescriptors() {
     assert(errno == EBADF && "expected errno to have EBADF at this point!");
 
     if (NullFD < 0) {
-      if ((NullFD = RetryAfterSignal(-1, ::open, "/dev/null", O_RDWR)) < 0)
+      // Call ::open in a lambda to avoid overload resolution in
+      // RetryAfterSignal when open is overloaded, such as in Bionic.
+      auto Open = [&]() { return ::open("/dev/null", O_RDWR); };
+      if ((NullFD = RetryAfterSignal(-1, Open)) < 0)
         return std::error_code(errno, std::generic_category());
     }
 

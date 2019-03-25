@@ -38,13 +38,10 @@ template <typename T, typename U = void> struct HasPointerLikeTypeTraits {
 };
 
 // sizeof(T) is valid only for a complete T.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wcomma"
 template <typename T> struct HasPointerLikeTypeTraits<
   T, decltype((sizeof(PointerLikeTypeTraits<T>) + sizeof(T)), void())> {
   static const bool value = true;
 };
-#pragma clang diagnostic pop
 
 template <typename T> struct IsPointerLike {
   static const bool value = HasPointerLikeTypeTraits<T>::value;

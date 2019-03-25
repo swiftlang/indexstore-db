@@ -127,7 +127,7 @@ public:
     // If we're adding this to all sub-commands, add it to the ones that have
     // already been registered.
     if (SC == &*AllSubCommands) {
-      for (const auto Sub : RegisteredSubCommands) {
+      for (const auto &Sub : RegisteredSubCommands) {
         if (SC == Sub)
           continue;
         addLiteralOption(Opt, Sub, Name);
@@ -178,7 +178,7 @@ public:
     // If we're adding this to all sub-commands, add it to the ones that have
     // already been registered.
     if (SC == &*AllSubCommands) {
-      for (const auto Sub : RegisteredSubCommands) {
+      for (const auto &Sub : RegisteredSubCommands) {
         if (SC == Sub)
           continue;
         addOption(O, Sub);
@@ -244,7 +244,7 @@ public:
   }
 
   bool hasOptions() const {
-    for (const auto S : RegisteredSubCommands) {
+    for (const auto &S : RegisteredSubCommands) {
       if (hasOptions(*S))
         return true;
     }
@@ -693,6 +693,10 @@ static bool isWhitespace(char C) {
   return C == ' ' || C == '\t' || C == '\r' || C == '\n';
 }
 
+static bool isWhitespaceOrNull(char C) {
+  return isWhitespace(C) || C == '\0';
+}
+
 static bool isQuote(char C) { return C == '\"' || C == '\''; }
 
 void cl::TokenizeGNUCommandLine(StringRef Src, StringSaver &Saver,
@@ -808,7 +812,7 @@ void cl::TokenizeWindowsCommandLine(StringRef Src, StringSaver &Saver,
     // INIT state indicates that the current input index is at the start of
     // the string or between tokens.
     if (State == INIT) {
-      if (isWhitespace(C)) {
+      if (isWhitespaceOrNull(C)) {
         // Mark the end of lines in response files
         if (MarkEOLs && C == '\n')
           NewArgv.push_back(nullptr);
@@ -832,7 +836,7 @@ void cl::TokenizeWindowsCommandLine(StringRef Src, StringSaver &Saver,
     // quotes.
     if (State == UNQUOTED) {
       // Whitespace means the end of the token.
-      if (isWhitespace(C)) {
+      if (isWhitespaceOrNull(C)) {
         NewArgv.push_back(Saver.save(StringRef(Token)).data());
         Token.clear();
         State = INIT;
@@ -1057,8 +1061,27 @@ void cl::ParseEnvironmentOptions(const char *progName, const char *envVar,
 }
 
 bool cl::ParseCommandLineOptions(int argc, const char *const *argv,
-                                 StringRef Overview, raw_ostream *Errs) {
-  return GlobalParser->ParseCommandLineOptions(argc, argv, Overview,
+                                 StringRef Overview, raw_ostream *Errs,
+                                 const char *EnvVar) {
+  SmallVector<const char *, 20> NewArgv;
+  BumpPtrAllocator A;
+  StringSaver Saver(A);
+  NewArgv.push_back(argv[0]);
+
+  // Parse options from environment variable.
+  if (EnvVar) {
+    if (llvm::Optional<std::string> EnvValue =
+            sys::Process::GetEnv(StringRef(EnvVar)))
+      TokenizeGNUCommandLine(*EnvValue, Saver, NewArgv);
+  }
+
+  // Append options from command line.
+  for (int I = 1; I < argc; ++I)
+    NewArgv.push_back(argv[I]);
+  int NewArgc = static_cast<int>(NewArgv.size());
+
+  // Parse all options.
+  return GlobalParser->ParseCommandLineOptions(NewArgc, &NewArgv[0], Overview,
                                                Errs);
 }
 
@@ -1082,7 +1105,8 @@ bool CommandLineParser::ParseCommandLineOptions(int argc,
   BumpPtrAllocator A;
   StringSaver Saver(A);
   ExpandResponseFiles(Saver,
-         cl::TokenizeGNUCommandLine,
+         Triple(sys::getProcessTriple()).isOSWindows() ?
+         cl::TokenizeWindowsCommandLine : cl::TokenizeGNUCommandLine,
          newArgv);
   argv = &newArgv[0];
   argc = static_cast<int>(newArgv.size());
@@ -1788,7 +1812,7 @@ static void sortOpts(StringMap<Option *> &OptMap,
 static void
 sortSubCommands(const SmallPtrSetImpl<SubCommand *> &SubMap,
                 SmallVectorImpl<std::pair<const char *, SubCommand *>> &Subs) {
-  for (const auto S : SubMap) {
+  for (const auto &S : SubMap) {
     if (S->getName().empty())
       continue;
     Subs.push_back(std::make_pair(S->getName().data(), S));
@@ -2130,6 +2154,14 @@ public:
 #ifndef NDEBUG
     OS << " with assertions";
 #endif
+#if LLVM_VERSION_PRINTER_SHOW_HOST_TARGET_INFO
+    std::string CPU = sys::getHostCPUName();
+    if (CPU == "generic")
+      CPU = "(unknown)";
+    OS << ".\n"
+       << "  Default target: " << sys::getDefaultTargetTriple() << '\n'
+       << "  Host CPU: " << CPU;
+#endif
     OS << '\n';
   }
   void operator=(bool OptionWasSpecified) {
@@ -2222,4 +2254,10 @@ void cl::HideUnrelatedOptions(ArrayRef<const cl::OptionCategory *> Categories,
 void cl::ResetCommandLineParser() { GlobalParser->reset(); }
 void cl::ResetAllOptionOccurrences() {
   GlobalParser->ResetAllOptionOccurrences();
+}
+
+void LLVMParseCommandLineOptions(int argc, const char *const *argv,
+                                 const char *Overview) {
+  llvm::cl::ParseCommandLineOptions(argc, argv, StringRef(Overview),
+                                    &llvm::nulls());
 }

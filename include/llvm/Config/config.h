@@ -13,6 +13,8 @@
 /* Define to 1 to enable crash overrides, and to 0 otherwise. */
 #define ENABLE_CRASH_OVERRIDES 1
 
+#define LLVM_ENABLE_CRASH_DUMPS false
+
 /* Define to 1 if you have the `backtrace' function. */
 #define HAVE_BACKTRACE TRUE
 
@@ -48,7 +50,9 @@
 #define LLVM_ENABLE_DIA_SDK 0
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
+#if __has_include(<dlfcn.h>)
 #define HAVE_DLFCN_H 1
+#endif
 
 /* Define if dlopen() is available on this platform. */
 #define HAVE_DLOPEN 1
@@ -148,6 +152,7 @@
 #define HAVE_POSIX_SPAWN 1
 
 /* Define to 1 if you have the `pread' function. */
+#if !defined(LLVM_ON_WIN32)
 #define HAVE_PREAD 1
 
 /* Have pthread_getspecific */
@@ -170,6 +175,7 @@
 
 /* Define to 1 if you have the `setenv' function. */
 #define HAVE_SETENV 1
+#endif
 
 /* Define to 1 if you have the `sched_getaffinity' function. */
 /* #undef HAVE_SCHED_GETAFFINITY */
@@ -190,7 +196,9 @@
 #define HAVE_STRERROR 1
 
 /* Define to 1 if you have the `strerror_r' function. */
+#if !defined(LLVM_ON_WIN32)
 #define HAVE_STRERROR_R 1
+#endif
 
 /* Define to 1 if you have the `sysconf' function. */
 #define HAVE_SYSCONF 1
@@ -226,7 +234,9 @@
 #define HAVE_TERMIOS_H 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
+#if __has_include(<unistd.h>)
 #define HAVE_UNISTD_H 1
+#endif
 
 /* Define to 1 if you have the <valgrind/valgrind.h> header file. */
 /* #undef HAVE_VALGRIND_VALGRIND_H */
@@ -299,7 +309,7 @@
 
 /* Target triple LLVM will generate code for by default */
 /* Doesn't use `cmakedefine` because it is allowed to be empty. */
-#define LLVM_DEFAULT_TARGET_TRIPLE "x86_64-apple-darwin17.5.0"
+#define LLVM_DEFAULT_TARGET_TRIPLE ""
 
 /* Define if zlib compression is available */
 #define LLVM_ENABLE_ZLIB 1

@@ -20,7 +20,6 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/Process.h"
-#include "llvm/Support/YAMLTraits.h"
 #include "llvm/Support/raw_ostream.h"
 #include <limits>
 
@@ -295,7 +294,7 @@ void TimerGroup::addTimer(Timer &T) {
 
 void TimerGroup::PrintQueuedTimers(raw_ostream &OS) {
   // Sort the timers in descending order by amount of time taken.
-  llvm::sort(TimersToPrint.begin(), TimersToPrint.end());
+  llvm::sort(TimersToPrint);
 
   TimeRecord Total;
   for (const PrintRecord &Record : TimersToPrint)
@@ -343,8 +342,7 @@ void TimerGroup::PrintQueuedTimers(raw_ostream &OS) {
 }
 
 void TimerGroup::prepareToPrintList() {
-  // See if any of our timers were started, if so add them to TimersToPrint and
-  // reset them.
+  // See if any of our timers were started, if so add them to TimersToPrint.
   for (Timer *T = FirstTimer; T; T = T->Next) {
     if (!T->hasTriggered()) continue;
     bool WasRunning = T->isRunning();
@@ -368,6 +366,12 @@ void TimerGroup::print(raw_ostream &OS) {
     PrintQueuedTimers(OS);
 }
 
+void TimerGroup::clear() {
+  sys::SmartScopedLock<true> L(*TimerLock);
+  for (Timer *T = FirstTimer; T; T = T->Next)
+    T->clear();
+}
+
 void TimerGroup::printAll(raw_ostream &OS) {
   sys::SmartScopedLock<true> L(*TimerLock);
 
@@ -375,12 +379,14 @@ void TimerGroup::printAll(raw_ostream &OS) {
     TG->print(OS);
 }
 
+void TimerGroup::clearAll() {
+  sys::SmartScopedLock<true> L(*TimerLock);
+  for (TimerGroup *TG = TimerGroupList; TG; TG = TG->Next)
+    TG->clear();
+}
+
 void TimerGroup::printJSONValue(raw_ostream &OS, const PrintRecord &R,
                                 const char *suffix, double Value) {
-  assert(yaml::needsQuotes(Name) == yaml::QuotingType::None &&
-         "TimerGroup name should not need quotes");
-  assert(yaml::needsQuotes(R.Name) == yaml::QuotingType::None &&
-         "Timer name should not need quotes");
   constexpr auto max_digits10 = std::numeric_limits<double>::max_digits10;
   OS << "\t\"time." << Name << '.' << R.Name << suffix
      << "\": " << format("%.*e", max_digits10 - 1, Value);

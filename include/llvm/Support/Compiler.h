@@ -108,12 +108,6 @@
 #define LLVM_LIBRARY_VISIBILITY
 #endif
 
-#if __has_attribute(visibility)
-#define LLVM_EXPORT __attribute__ ((visibility("default")))
-#else
-#define LLVM_EXPORT
-#endif
-
 #if defined(__GNUC__)
 #define LLVM_PREFETCH(addr, rw, locality) __builtin_prefetch(addr, rw, locality)
 #else
@@ -137,6 +131,19 @@
 #define LLVM_NODISCARD [[clang::warn_unused_result]]
 #else
 #define LLVM_NODISCARD
+#endif
+
+// Indicate that a non-static, non-const C++ member function reinitializes
+// the entire object to a known state, independent of the previous state of
+// the object.
+//
+// The clang-tidy check bugprone-use-after-move recognizes this attribute as a
+// marker that a moved-from object has left the indeterminate state and can be
+// reused.
+#if __has_cpp_attribute(clang::reinitializes)
+#define LLVM_ATTRIBUTE_REINITIALIZES [[clang::reinitializes]]
+#else
+#define LLVM_ATTRIBUTE_REINITIALIZES
 #endif
 
 // Some compilers warn about unused functions. When a function is sometimes
@@ -525,7 +532,7 @@ namespace llvm {
 /// reduced default alignment.
 inline void *allocate_buffer(size_t Size, size_t Alignment) {
   return ::operator new(Size
-#if __cpp_aligned_new
+#ifdef __cpp_aligned_new
                         ,
                         std::align_val_t(Alignment)
 #endif
@@ -541,11 +548,11 @@ inline void *allocate_buffer(size_t Size, size_t Alignment) {
 /// most likely using the above helper.
 inline void deallocate_buffer(void *Ptr, size_t Size, size_t Alignment) {
   ::operator delete(Ptr
-#if __cpp_sized_deallocation
+#ifdef __cpp_sized_deallocation
                     ,
                     Size
 #endif
-#if __cpp_aligned_new
+#ifdef __cpp_aligned_new
                     ,
                     std::align_val_t(Alignment)
 #endif
