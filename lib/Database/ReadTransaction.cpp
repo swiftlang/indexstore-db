@@ -121,7 +121,7 @@ StringRef ReadTransaction::Implementation::getModuleName(IDCode moduleNameCode) 
 
 bool ReadTransaction::Implementation::getProviderFileReferences(IDCode provider,
     llvm::function_ref<bool(TimestampedPath path)> receiver) {
-  return getProviderFileCodeReferences(provider, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem) -> bool {
+  return getProviderFileCodeReferences(provider, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
     std::string pathString;
     llvm::raw_string_ostream OS(pathString);
     if (!getFullFilePathFromCode(pathCode, OS)) {
@@ -141,14 +141,14 @@ bool ReadTransaction::Implementation::getProviderFileReferences(IDCode provider,
 static bool passFileReferencesForProviderCursor(lmdb::val &key,
                                                 lmdb::val &value,
                                                 lmdb::cursor &cursor,
-                                                llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
+                                                llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
   // Entries are sorted by file code and there can be multiple same file entries
   // from different units. We want to pass each file only once with its most recent
   // timestamp. Visit the entries and keep track of current file and recent timestamp;
   // when file changes pass it to the receiver.
   Optional<IDCode> currFileCode;
   Optional<IDCode> currUnitCode;
-  llvm::sys::TimeValue currModTime;
+  llvm::sys::TimePoint<> currModTime;
   IDCode currModuleNameCode;
   bool currIsSystem = false;
   auto passCurrFile = [&]() -> bool {
@@ -157,7 +157,7 @@ static bool passFileReferencesForProviderCursor(lmdb::val &key,
 
   do {
     const auto &entry = *(TimestampedFileForProviderData*)value.data();
-    llvm::sys::TimeValue modTime{entry.Seconds, entry.Nanoseconds};
+    llvm::sys::TimePoint<> modTime = llvm::sys::TimePoint<>(std::chrono::nanoseconds(entry.NanoTime));
     if (!currFileCode) {
       currFileCode = entry.FileCode;
       currUnitCode = entry.UnitCode;
@@ -184,7 +184,7 @@ static bool passFileReferencesForProviderCursor(lmdb::val &key,
 }
 
 bool ReadTransaction::Implementation::getProviderFileCodeReferences(IDCode provider,
-    llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
+    llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
   auto &db = DBase->impl();
   auto &dbiFilesByProvider = db.getDBITimestampedFilesByProvider();
   auto cursor = lmdb::cursor::open(Txn, dbiFilesByProvider);
@@ -198,7 +198,7 @@ bool ReadTransaction::Implementation::getProviderFileCodeReferences(IDCode provi
   return passFileReferencesForProviderCursor(key, value, cursor, std::move(receiver));
 }
 
-bool ReadTransaction::Implementation::foreachProviderAndFileCodeReference(llvm::function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
+bool ReadTransaction::Implementation::foreachProviderAndFileCodeReference(llvm::function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
   auto &db = DBase->impl();
   auto &dbiFilesByProvider = db.getDBITimestampedFilesByProvider();
   auto cursor = lmdb::cursor::open(Txn, dbiFilesByProvider);
@@ -207,7 +207,7 @@ bool ReadTransaction::Implementation::foreachProviderAndFileCodeReference(llvm::
   lmdb::val value{};
   while (cursor.get(key, value, MDB_NEXT_NODUP)) {
     IDCode providerCode = *(IDCode*)key.data();
-    bool cont = passFileReferencesForProviderCursor(key, value, cursor, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem) -> bool {
+    bool cont = passFileReferencesForProviderCursor(key, value, cursor, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
       return receiver(providerCode, pathCode, unitCode, modTime, moduleNameCode, isSystem);
     });
     if (!cont)
@@ -627,11 +627,11 @@ bool ReadTransaction::getProviderFileReferences(IDCode provider,
 }
 
 bool ReadTransaction::getProviderFileCodeReferences(IDCode provider,
-    llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
+    llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
   return Impl->getProviderFileCodeReferences(provider, std::move(receiver));
 }
 
-bool ReadTransaction::foreachProviderAndFileCodeReference(llvm::function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
+bool ReadTransaction::foreachProviderAndFileCodeReference(llvm::function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
   return Impl->foreachProviderAndFileCodeReference(std::move(receiver));
 }
 

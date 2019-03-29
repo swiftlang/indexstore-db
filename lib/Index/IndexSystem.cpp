@@ -77,7 +77,7 @@ private:
   }
 
   virtual void unitIsOutOfDate(StoreUnitInfo unitInfo,
-                               llvm::sys::TimeValue outOfDateModTime,
+                               llvm::sys::TimePoint<> outOfDateModTime,
                                OutOfDateTriggerHintRef hint,
                                bool synchronous) override {
     if (!Other)
@@ -116,7 +116,7 @@ public:
   void waitUntilDoneInitializing();
 
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
-  bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimeValue outOfDateModTime);
+  bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);
   void checkUnitContainingFileIsOutOfDate(StringRef file);
 
   void registerMainFiles(ArrayRef<StringRef> filePaths, StringRef productName);
@@ -233,7 +233,7 @@ bool IndexSystemImpl::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringR
   return IndexStore->isUnitOutOfDate(unitOutputPath, dirtyFiles);
 }
 
-bool IndexSystemImpl::isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimeValue outOfDateModTime) {
+bool IndexSystemImpl::isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime) {
   return IndexStore->isUnitOutOfDate(unitOutputPath, outOfDateModTime);
 }
 
@@ -577,7 +577,7 @@ bool IndexSystem::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> 
   return IMPL->isUnitOutOfDate(unitOutputPath, dirtyFiles);
 }
 
-bool IndexSystem::isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimeValue outOfDateModTime) {
+bool IndexSystem::isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime) {
   return IMPL->isUnitOutOfDate(unitOutputPath, outOfDateModTime);
 }
 

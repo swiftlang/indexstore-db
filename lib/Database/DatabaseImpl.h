@@ -111,8 +111,7 @@ struct TimestampedFileForProviderData {
   IDCode FileCode;
   IDCode UnitCode;
   IDCode ModuleNameCode;
-  int64_t Seconds;
-  int32_t Nanoseconds;
+  uint64_t NanoTime;
   bool IsSystem;
 };
 
@@ -132,8 +131,7 @@ struct UnitInfoData {
   IDCode OutFileCode;
   IDCode SysrootCode;
   IDCode TargetCode;
-  int64_t Seconds;
-  int32_t Nanoseconds;
+  int64_t NanoTime;
   uint16_t NameLength;
   uint8_t SymProviderKind;
   bool HasMainFile : 1;

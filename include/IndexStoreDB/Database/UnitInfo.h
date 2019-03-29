@@ -18,7 +18,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/TimeValue.h"
+#include "llvm/Support/Chrono.h"
 
 namespace IndexStoreDB {
 namespace db {
@@ -38,7 +38,7 @@ struct UnitInfo {
 
   StringRef UnitName;
   IDCode UnitCode;
-  llvm::sys::TimeValue ModTime;
+  llvm::sys::TimePoint<> ModTime;
   IDCode OutFileCode;
   IDCode MainFileCode;
   IDCode SysrootCode;

@@ -14,7 +14,7 @@
 #define INDEXSTOREDB_INDEX_STOREUNITINFO_H
 
 #include "IndexStoreDB/Support/Path.h"
-#include "llvm/Support/TimeValue.h"
+#include "llvm/Support/Chrono.h"
 #include <string>
 
 namespace IndexStoreDB {
@@ -24,7 +24,7 @@ struct StoreUnitInfo {
   std::string UnitName;
   CanonicalFilePath MainFilePath;
   CanonicalFilePath OutFilePath;
-  llvm::sys::TimeValue ModTime;
+  llvm::sys::TimePoint<> ModTime;
 };
 
 } // namespace index

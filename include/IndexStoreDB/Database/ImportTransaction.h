@@ -54,7 +54,7 @@ class LLVM_EXPORT UnitDataImport {
   CanonicalFilePath MainFile;
   CanonicalFilePath OutFile;
   CanonicalFilePath Sysroot;
-  llvm::sys::TimeValue ModTime;
+  llvm::sys::TimePoint<> ModTime;
   Optional<bool> IsSystem;
   Optional<SymbolProviderKind> SymProviderKind;
   std::string Target;
@@ -75,7 +75,7 @@ class LLVM_EXPORT UnitDataImport {
   std::vector<UnitInfo::Provider> ProviderDepends;
 
 public:
-  UnitDataImport(ImportTransaction &import, StringRef unitName, llvm::sys::TimeValue modTime);
+  UnitDataImport(ImportTransaction &import, StringRef unitName, llvm::sys::TimePoint<> modTime);
   ~UnitDataImport();
 
   IDCode getUnitCode() const { return UnitCode; }
