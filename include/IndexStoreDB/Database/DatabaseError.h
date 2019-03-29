@@ -13,14 +13,14 @@
 #ifndef INDEXSTOREDB_SKDATABASE_DATABASEERROR_H
 #define INDEXSTOREDB_SKDATABASE_DATABASEERROR_H
 
-#include "llvm/Support/Compiler.h"
+#include "IndexStoreDB/Support/Visibility.h"
 #include <string>
 #include <stdexcept>
 
 namespace IndexStoreDB {
 namespace db {
 
-class LLVM_EXPORT DatabaseError : public std::runtime_error {
+class INDEXSTOREDB_EXPORT DatabaseError : public std::runtime_error {
 protected:
   const int _code;
 
@@ -51,7 +51,7 @@ public:
 ///
 /// @see http://symas.com/mdb/doc/group__errors.html#ga0a83370402a060c9175100d4bbfb9f25
 ///
-class LLVM_EXPORT MapFullError final : public DatabaseError {
+class INDEXSTOREDB_EXPORT MapFullError final : public DatabaseError {
   virtual void _anchor();
 public:
   using DatabaseError::DatabaseError;

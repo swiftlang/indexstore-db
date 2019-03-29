@@ -26,7 +26,7 @@ namespace db {
   class Database;
   typedef std::shared_ptr<Database> DatabaseRef;
 
-class LLVM_EXPORT ReadTransaction {
+class INDEXSTOREDB_EXPORT ReadTransaction {
 public:
   explicit ReadTransaction(DatabaseRef dbase);
   ~ReadTransaction();

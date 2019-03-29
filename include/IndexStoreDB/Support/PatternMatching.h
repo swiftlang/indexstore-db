@@ -14,10 +14,11 @@
 #define INDEXSTOREDB_SUPPORT_PATTERNMATCHING_H
 
 #include "IndexStoreDB/Support/LLVM.h"
+#include "IndexStoreDB/Support/Visibility.h"
 
 namespace IndexStoreDB {
 
-LLVM_EXPORT
+INDEXSTOREDB_EXPORT
 bool matchesPattern(StringRef Input,
                     StringRef Pattern,
                     bool AnchorStart,

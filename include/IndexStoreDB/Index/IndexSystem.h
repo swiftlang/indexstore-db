@@ -14,6 +14,7 @@
 #define INDEXSTOREDB_INDEX_INDEXSYSTEM_H
 
 #include "IndexStoreDB/Support/LLVM.h"
+#include "IndexStoreDB/Support/Visibility.h"
 #include "llvm/ADT/OptionSet.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Chrono.h"
@@ -37,7 +38,7 @@ namespace index {
   struct StoreUnitInfo;
   class IndexStoreLibraryProvider;
 
-class LLVM_EXPORT IndexSystem {
+class INDEXSTOREDB_EXPORT IndexSystem {
 public:
   ~IndexSystem();
 
