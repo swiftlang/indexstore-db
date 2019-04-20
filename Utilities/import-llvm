@@ -4,7 +4,7 @@
 #
 # NOTE: We have slightly modified copies of some of the files, to reduce the
 # dependency surface area, so if you run this to update the sources, please
-# examine the diffs to remove things that don't make sense.
+# examine the diffs to remove things that don't make sense and update 'llvm-patch.diff'.
 
 import errno
 import optparse
@@ -19,7 +19,7 @@ ADT_imports = ['EpochTracker', 'iterator', 'iterator_range', 'Hashing', 'None', 
                'Statistic', 'StringExtras', 'STLExtras', 'AllocatorList', 'Triple']
 
 # ADT basic data structures.
-ADT_imports += ['APFloat', 'APInt', 'APSInt', 'ArrayRef', 'PointerIntPair', 'SetVector', 'StringRef', 'StringSwitch',
+ADT_imports += ['APFloat', 'APInt', 'APSInt', 'ArrayRef', 'bit', 'PointerIntPair', 'SetVector', 'StringRef', 'StringSwitch',
                 'Twine', 'IntrusiveRefCntPtr', 'ilist', 'ilist_base', 'ilist_node', 'ilist_node_base',
                 'ilist_node_options', 'ilist_iterator', 'simple_ilist', 'OptionSet', 'PointerUnion']
 
@@ -35,11 +35,11 @@ ADT_imports += ['edit_distance']
 # Support types and infrastructure.
 Support_imports = [
     'AlignOf', 'Allocator', 'Atomic', 'CBindingWrapping', 'Casting', 'Capacity', 'CommandLine', 'Compiler',
-    'Endian', 'Errno', 'ErrorHandling', 'Errc', 'ErrorOr', 'Error', 'Format',
+    'Endian', 'Errno', 'ErrorHandling', 'Errc', 'ErrorOr', 'Error', 'Format', 'FormatAdapters',
     'ManagedStatic', 'MathExtras', 'Mutex', 'MutexGuard', 'Memory',
     'MemoryBuffer', 'PointerLikeTypeTraits', 'Recycler', 'SwapByteOrder',
     'Timer', 'TimeValue', 'Threading', 'Unicode', 'UniqueLock', 'Unix', 'WindowsError',
-    'Valgrind', 'circular_raw_ostream', 'raw_ostream', 'type_traits', 'JSON']
+    'Valgrind', 'circular_raw_ostream', 'raw_ostream', 'Signposts', 'type_traits', 'JSON']
 
 # Stuff we don't want, but have to pull in.
 Support_imports += [
@@ -49,23 +49,24 @@ Support_imports += [
     'MemAlloc', 'Chrono', 'FormatProviders', 'FormatVariadic', 'FormatCommon',
     'FormatVariadicDetails', 'NativeFormatting', 'DJB', 'ReverseIteration', 'MD5',
     'SmallVectorMemoryBuffer', 'WithColor', 'Options', 'PrettyStackTrace', 'Watchdog',
-    'TargetParser', 'ARMBuildAttributes', 'ARMTargetParser.def', 'AArch64TargetParser.def', 'X86TargetParser.def', 'LineIterator']
+    'TargetParser', 'ARMBuildAttributes', 'ARMTargetParser', 'AArch64TargetParser',
+    'ARMTargetParser.def', 'AArch64TargetParser.def', 'X86TargetParser.def', 'LineIterator']
 
 # Dependencies from llvm-c needed by Support.
-C_imports = ['Types', 'DataTypes', 'Support', 'ErrorHandling']
+C_imports = ['Types', 'DataTypes', 'Support', 'Error', 'ErrorHandling']
 
 # Support data structures.
 Support_imports += ['YAMLParser', 'YAMLTraits']
 
 # Source files to exclude.
-Support_source_excludes = set(['Host'])
+Support_source_excludes = set([])
 
 llvm_srcroot = None
-sourcekit_srcroot = None
+indexstoredb_srcroot = None
 
 def note(msg):
     msg = msg.replace(llvm_srcroot, "<LLVM>")
-    msg = msg.replace(sourcekit_srcroot, "<INDEXSTOREDB>")
+    msg = msg.replace(indexstoredb_srcroot, "<INDEXSTOREDB>")
     print >>sys.stderr, "note: %s" % (msg,)
 
 def mkdir_p(path):
@@ -133,32 +134,32 @@ def main():
     if len(args) != 1:
         parser.error("unexpected number of arguments")
 
-    global llvm_srcroot, sourcekit_srcroot
+    global llvm_srcroot, indexstoredb_srcroot
     llvm_srcroot, = args
-    sourcekit_srcroot = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    indexstoredb_srcroot = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     def import_header(dir, name):
         src = os.path.join(llvm_srcroot, 'include', 'llvm', dir, name)
         if os.path.exists(src):
-            dst = os.path.join(sourcekit_srcroot, 'include', 'llvm', dir, name)
+            dst = os.path.join(indexstoredb_srcroot, 'include', 'llvm', dir, name)
             mkdir_p(os.path.dirname(dst))
             copyfile(src, dst)
 
     def import_c_header(name):
         src = os.path.join(llvm_srcroot, 'include', 'llvm-c', name)
         if os.path.exists(src):
-            dst = os.path.join(sourcekit_srcroot, 'include', 'llvm-c', name)
+            dst = os.path.join(indexstoredb_srcroot, 'include', 'llvm-c', name)
             mkdir_p(os.path.dirname(dst))
             copyfile(src, dst)
 
     def import_source(dir, name):
         src = os.path.join(llvm_srcroot, 'lib', dir, name)
         if os.path.exists(src):
-            dst = os.path.join(sourcekit_srcroot, 'lib', 'LLVMSupport', dir, name)
+            dst = os.path.join(indexstoredb_srcroot, 'lib', 'LLVMSupport', dir, name)
             mkdir_p(os.path.dirname(dst))
             copyfile(src, dst)
 
-    print "note: importing from %r to %r" % (llvm_srcroot, sourcekit_srcroot)
+    print "note: importing from %r to %r" % (llvm_srcroot, indexstoredb_srcroot)
 
     for name in ADT_imports:
         import_header('ADT', name+'.h')
@@ -175,6 +176,8 @@ def main():
             import_source('Support', name+'.cpp')
             import_source('Support', os.path.join('Unix', name+'.h'))
             import_source('Support', os.path.join('Unix', name+'.inc'))
+            import_source('Support', os.path.join('Windows', name+'.h'))
+            import_source('Support', os.path.join('Windows', name+'.inc'))
 
     for name in C_imports:
         import_c_header(name + '.h')
@@ -183,17 +186,23 @@ def main():
     print "Adding prefix header includes"
 
     base_dirs = [
-        os.path.join(sourcekit_srcroot, 'include', 'llvm'),
-        os.path.join(sourcekit_srcroot, 'include', 'llvm-c'),
-        os.path.join(sourcekit_srcroot, 'lib', 'LLVMSupport'),
+        os.path.join(indexstoredb_srcroot, 'include', 'llvm'),
+        os.path.join(indexstoredb_srcroot, 'include', 'llvm-c'),
+        os.path.join(indexstoredb_srcroot, 'lib', 'LLVMSupport'),
     ]
 
-    include_dir = os.path.join(sourcekit_srcroot, 'include')
+    include_dir = os.path.join(indexstoredb_srcroot, 'include')
 
     for base in base_dirs:
         for root, dirs, files in os.walk(base):
             for file in files:
                 maybe_add_prefix(os.path.join(root, file), include_dir)
+
+    print ""
+    print "Applying patch"
+
+    patch_path = os.path.join(indexstoredb_srcroot, 'Utilities', 'llvm-patch.diff'),
+    subprocess.call("patch -p1 < '%s'" % patch_path, shell=True)
 
 if __name__ == '__main__':
     main()

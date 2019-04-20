@@ -1,9 +1,9 @@
 /*===-- llvm-c/Support.h - C Interface Types declarations ---------*- C -*-===*\
 |*                                                                            *|
-|*                     The LLVM Compiler Infrastructure                       *|
-|*                                                                            *|
-|* This file is distributed under the University of Illinois Open Source      *|
-|* License. See LICENSE.TXT for details.                                      *|
+|* Part of the LLVM Project, under the Apache License v2.0 with LLVM          *|
+|* Exceptions.                                                                *|
+|* See https://llvm.org/LICENSE.txt for license information.                  *|
+|* SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception                    *|
 |*                                                                            *|
 |*===----------------------------------------------------------------------===*|
 |*                                                                            *|
@@ -90,6 +90,20 @@ typedef struct LLVMOpaqueBasicBlock *LLVMBasicBlockRef;
 typedef struct LLVMOpaqueMetadata *LLVMMetadataRef;
 
 /**
+ * Represents an LLVM Named Metadata Node.
+ *
+ * This models llvm::NamedMDNode.
+ */
+typedef struct LLVMOpaqueNamedMDNode *LLVMNamedMDNodeRef;
+
+/**
+ * Represents an entry in a Global Object's metadata attachments.
+ *
+ * This models std::pair<unsigned, MDNode *>
+ */
+typedef struct LLVMOpaqueValueMetadataEntry LLVMValueMetadataEntry;
+
+/**
  * Represents an LLVM basic block builder.
  *
  * This models llvm::IRBuilder.
@@ -148,6 +162,11 @@ typedef struct LLVMOpaqueModuleFlagEntry LLVMModuleFlagEntry;
  * @see llvm::JITEventListener
  */
 typedef struct LLVMOpaqueJITEventListener *LLVMJITEventListenerRef;
+
+/**
+ * @see llvm::object::Binary
+ */
+typedef struct LLVMOpaqueBinary *LLVMBinaryRef;
 
 /**
  * @}

@@ -1,9 +1,8 @@
 //===- lib/Support/ErrorHandling.cpp - Callbacks for errors ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -13,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm-c/ErrorHandling.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Config/config.h"
@@ -224,6 +224,22 @@ void llvm::llvm_unreachable_internal(const char *msg, const char *file,
   // so use the unreachable builtin to avoid a Clang self-host warning.
   LLVM_BUILTIN_UNREACHABLE;
 #endif
+}
+
+static void bindingsErrorHandler(void *user_data, const std::string& reason,
+                                 bool gen_crash_diag) {
+  LLVMFatalErrorHandler handler =
+      LLVM_EXTENSION reinterpret_cast<LLVMFatalErrorHandler>(user_data);
+  handler(reason.c_str());
+}
+
+void LLVMInstallFatalErrorHandler(LLVMFatalErrorHandler Handler) {
+  install_fatal_error_handler(bindingsErrorHandler,
+                              LLVM_EXTENSION reinterpret_cast<void *>(Handler));
+}
+
+void LLVMResetFatalErrorHandler() {
+  remove_fatal_error_handler();
 }
 
 #ifdef _WIN32
