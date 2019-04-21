@@ -1,0 +1,41 @@
+diff --git a/lib/LLVMSupport/Support/AArch64TargetParser.cpp b/lib/LLVMSupport/Support/AArch64TargetParser.cpp
+index faf8385c..8772d213 100644
+--- a/lib/LLVMSupport/Support/AArch64TargetParser.cpp
++++ b/lib/LLVMSupport/Support/AArch64TargetParser.cpp
+@@ -31,7 +31,7 @@ unsigned AArch64::getDefaultFPU(StringRef CPU, AArch64::ArchKind AK) {
+   return StringSwitch<unsigned>(CPU)
+ #define AARCH64_CPU_NAME(NAME, ID, DEFAULT_FPU, IS_DEFAULT, DEFAULT_EXT)       \
+   .Case(NAME, ARM::DEFAULT_FPU)
+-#include "../../include/llvm/Support/AArch64TargetParser.def"
++#include "llvm/Support/AArch64TargetParser.def"
+   .Default(ARM::FK_INVALID);
+ }
+ 
+@@ -44,7 +44,7 @@ unsigned AArch64::getDefaultExtensions(StringRef CPU, AArch64::ArchKind AK) {
+   .Case(NAME, AArch64ARCHNames[static_cast<unsigned>(ArchKind::ID)]            \
+                       .ArchBaseExtensions |                                    \
+                   DEFAULT_EXT)
+-#include "../../include/llvm/Support/AArch64TargetParser.def"
++#include "llvm/Support/AArch64TargetParser.def"
+   .Default(AArch64::AEK_INVALID);
+ }
+ 
+@@ -55,7 +55,7 @@ AArch64::ArchKind AArch64::getCPUArchKind(StringRef CPU) {
+   return StringSwitch<AArch64::ArchKind>(CPU)
+ #define AARCH64_CPU_NAME(NAME, ID, DEFAULT_FPU, IS_DEFAULT, DEFAULT_EXT)       \
+   .Case(NAME, ArchKind::ID)
+-#include "../../include/llvm/Support/AArch64TargetParser.def"
++#include "llvm/Support/AArch64TargetParser.def"
+   .Default(ArchKind::INVALID);
+ }
+ 
+--- a/include/llvm/Support/YAMLTraits.h
++++ b/include/llvm/Support/YAMLTraits.h
+@@ -18,7 +18,6 @@
+ #include "llvm/Support/AlignOf.h"
+ #include "llvm/Support/Allocator.h"
+ #include "llvm/Support/Endian.h"
+-#include "llvm/Support/Regex.h"
+ #include "llvm/Support/SourceMgr.h"
+ #include "llvm/Support/YAMLParser.h"
+ #include "llvm/Support/raw_ostream.h"

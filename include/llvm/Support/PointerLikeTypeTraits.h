@@ -1,9 +1,8 @@
 //===- llvm/Support/PointerLikeTypeTraits.h - Pointer Traits ----*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -38,13 +37,10 @@ template <typename T, typename U = void> struct HasPointerLikeTypeTraits {
 };
 
 // sizeof(T) is valid only for a complete T.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wcomma"
 template <typename T> struct HasPointerLikeTypeTraits<
   T, decltype((sizeof(PointerLikeTypeTraits<T>) + sizeof(T)), void())> {
   static const bool value = true;
 };
-#pragma clang diagnostic pop
 
 template <typename T> struct IsPointerLike {
   static const bool value = HasPointerLikeTypeTraits<T>::value;

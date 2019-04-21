@@ -1,9 +1,8 @@
 //===-- llvm/Support/Threading.cpp- Control multithreading mode --*- C++ -*-==//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -67,7 +66,7 @@ unsigned llvm::heavyweight_hardware_concurrency() {
   // with some platforms such as FreeBSD whose headers also define a struct
   // called `thread` in the global namespace which can cause ambiguity due to
   // ADL.
-  int NumPhysical = -1;// sys::getHostNumPhysicalCores();
+  int NumPhysical = sys::getHostNumPhysicalCores();
   if (NumPhysical == -1)
     return std::thread::hardware_concurrency();
   return NumPhysical;
