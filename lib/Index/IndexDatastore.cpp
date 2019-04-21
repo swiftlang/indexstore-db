@@ -527,9 +527,6 @@ void StoreUnitRepo::onFSEvent(std::vector<std::string> changedParentPaths) {
   {
     ReadTransaction reader(SymIndex->getDBase());
     reader.findFilePathsWithParentPaths(parentPathStrRefs, [&](IDCode pathCode, CanonicalFilePathRef filePath) -> bool {
-      // The timestamp that the file system returns has second precision, so if the file
-      // was touched in less than a second after it got indexed, it will look like it is not actually dirty.
-      // FIXME: Use modification-time + file-size to check for updated files.
       auto modTime = UnitMonitor::getModTimeForOutOfDateCheck(filePath.getPath());
       reader.foreachUnitContainingFile(pathCode, [&](ArrayRef<IDCode> unitCodes) -> bool {
         for (IDCode unitCode : unitCodes) {

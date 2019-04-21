@@ -35,8 +35,7 @@ struct FilePathWatcher::Implementation {
 
 FilePathWatcher::Implementation::Implementation(FileEventsReceiverTy pathsReceiver) {
   std::vector<std::string> pathsToWatch;
-  // FIXME: We should do something smarter than watching all of root. In the meantime
-  // this matches what DVTFoundation is doing as well for DVTFilePaths.
+  // FIXME: We should do something smarter than watching all of root.
   pathsToWatch.push_back("/");
 
   dispatch_queue_attr_t qosAttribute = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0);
