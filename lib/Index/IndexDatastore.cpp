@@ -693,6 +693,8 @@ sys::TimePoint<> UnitMonitor::getModTimeForOutOfDateCheck(StringRef filePath) {
 // IndexDatastoreImpl
 //===----------------------------------------------------------------------===//
 
+static const unsigned MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT = 10;
+
 namespace {
 /// A thread-safe deque object for UnitEventInfo objects.
 class UnitEventInfoDeque {
@@ -705,13 +707,17 @@ public:
     EventsDequeue.insert(EventsDequeue.end(), evts.begin(), evts.end());
   }
 
-  Optional<UnitEventInfo> popFront() {
+  std::vector<UnitEventInfo> popFront(unsigned N) {
     sys::ScopedLock L(StateMtx);
-    if (EventsDequeue.empty())
-      return None;
-    UnitEventInfo evt = EventsDequeue.front();
-    EventsDequeue.pop_front();
-    return evt;
+    std::vector<UnitEventInfo> evts;
+    for (unsigned i = 0; i < N; ++i) {
+      if (EventsDequeue.empty())
+        break;
+      UnitEventInfo evt = EventsDequeue.front();
+      EventsDequeue.pop_front();
+      evts.push_back(std::move(evt));
+    }
+    return evts;
   }
 };
 }
@@ -723,15 +729,14 @@ static void processUnitEventsIncrementally(std::shared_ptr<UnitEventInfoDeque> e
                                            std::weak_ptr<StoreUnitRepo> weakUnitRepo,
                                            std::shared_ptr<IndexSystemDelegate> delegate,
                                            dispatch_queue_t queue) {
-  Optional<UnitEventInfo> evtOpt = evts->popFront();
-  if (!evtOpt.hasValue())
+  std::vector<UnitEventInfo> poppedEvts = evts->popFront(MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT);
+  if (poppedEvts.empty())
     return;
   auto UnitRepo = weakUnitRepo.lock();
   if (!UnitRepo)
     return;
 
-  UnitEventInfo evt = evtOpt.getValue();
-  UnitRepo->onFilesChange({evt}, [&](unsigned NumCompleted){
+  UnitRepo->onFilesChange(poppedEvts, [&](unsigned NumCompleted){
     delegate->processingCompleted(NumCompleted);
   }, [&](){
     // FIXME: the database should recover.
