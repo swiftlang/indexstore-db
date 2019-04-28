@@ -84,6 +84,7 @@ struct UnitEventInfo {
 
 struct DoneInitState {
   std::atomic<bool> DoneInit{false};
+  unsigned RemainingInitUnits = 0; // this is not accessed concurrently.
 };
 
 class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
@@ -94,8 +95,7 @@ class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
 
   std::shared_ptr<FilePathWatcher> PathWatcher;
 
-  // This is shared so that it can be safely passed to an asynchronous block.
-  std::shared_ptr<DoneInitState> DoneInitializingPtr;
+  DoneInitState InitializingState;
   dispatch_semaphore_t InitSemaphore;
 
   mutable llvm::sys::Mutex StateMtx;
@@ -110,7 +110,6 @@ public:
     Delegate(std::move(Delegate)),
     CanonPathCache(std::move(canonPathCache)) {
 
-    DoneInitializingPtr = std::make_shared<DoneInitState>();
     InitSemaphore = dispatch_semaphore_create(0);
   }
   ~StoreUnitRepo() {
@@ -121,7 +120,11 @@ public:
                      function_ref<void(unsigned)> ReportCompleted,
                      function_ref<void()> DirectoryDeleted);
 
+  void setInitialUnitCount(unsigned count);
+  void processedInitialUnitCount(unsigned count);
+  void finishedUnitInitialization();
   void waitUntilDoneInitializing();
+
   void purgeStaleData();
 
   std::shared_ptr<UnitMonitor> getUnitMonitor(IDCode unitCode) const;
@@ -265,9 +268,8 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
     PathWatcher = std::make_shared<FilePathWatcher>(std::move(pathEventsReceiver));
   }
 
-  if (!DoneInitializingPtr->DoneInit) {
-    dispatch_semaphore_signal(InitSemaphore);
-    DoneInitializingPtr->DoneInit = true;
+  if (!InitializingState.DoneInit) {
+    processedInitialUnitCount(evts.size());
   }
 }
 
@@ -451,8 +453,26 @@ void StoreUnitRepo::purgeStaleData() {
   // IdxStore->purgeStaleRecords(ActiveRecNames);
 }
 
+void StoreUnitRepo::setInitialUnitCount(unsigned count) {
+  InitializingState.RemainingInitUnits = count;
+}
+
+void StoreUnitRepo::processedInitialUnitCount(unsigned count) {
+  assert(!InitializingState.DoneInit);
+  InitializingState.RemainingInitUnits -= std::min(count, InitializingState.RemainingInitUnits);
+  if (InitializingState.RemainingInitUnits == 0) {
+    finishedUnitInitialization();
+  }
+}
+
+void StoreUnitRepo::finishedUnitInitialization() {
+  assert(!InitializingState.DoneInit);
+  dispatch_semaphore_signal(InitSemaphore);
+  InitializingState.DoneInit = true;
+}
+
 void StoreUnitRepo::waitUntilDoneInitializing() {
-  if (DoneInitializingPtr->DoneInit)
+  if (InitializingState.DoneInit)
     return;
   dispatch_semaphore_wait(InitSemaphore, DISPATCH_TIME_FOREVER);
 }
@@ -765,6 +785,18 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
   std::weak_ptr<StoreUnitRepo> WeakUnitRepo = UnitRepo;
   auto eventsDeque = std::make_shared<UnitEventInfoDeque>();
   auto OnUnitsChange = [WeakUnitRepo, Delegate, eventsDeque](IndexStore::UnitEventNotification EventNote) {
+    if (EventNote.isInitial()) {
+      auto UnitRepo = WeakUnitRepo.lock();
+      if (!UnitRepo)
+        return;
+      size_t evtCount = EventNote.getEventsCount();
+      if (evtCount == 0) {
+        UnitRepo->finishedUnitInitialization();
+      } else {
+        UnitRepo->setInitialUnitCount(evtCount);
+      }
+    }
+
     std::vector<UnitEventInfo> evts;
     for (size_t i = 0, e = EventNote.getEventsCount(); i != e; ++i) {
       auto evt = EventNote.getEvent(i);
