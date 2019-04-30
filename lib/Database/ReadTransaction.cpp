@@ -248,6 +248,14 @@ bool ReadTransaction::Implementation::foreachUSROfGlobalSymbolKind(SymbolKind sy
   return foreachUSROfGlobalSymbolKind(globalKindOpt.getValue(), receiver);
 }
 
+bool ReadTransaction::Implementation::foreachUSROfGlobalUnitTestSymbol(function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver) {
+  bool cont = foreachUSROfGlobalSymbolKind(GlobalSymbolKind::TestClassOrExtension, receiver);
+  if (cont) {
+    cont = foreachUSROfGlobalSymbolKind(GlobalSymbolKind::TestMethod, receiver);
+  }
+  return cont;
+}
+
 bool ReadTransaction::Implementation::foreachUSROfGlobalSymbolKind(GlobalSymbolKind globalKind,
                                                                    function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver) {
   auto &db = DBase->impl();
@@ -637,6 +645,10 @@ bool ReadTransaction::foreachProviderAndFileCodeReference(llvm::function_ref<boo
 
 bool ReadTransaction::foreachUSROfGlobalSymbolKind(SymbolKind symKind, llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver) {
   return Impl->foreachUSROfGlobalSymbolKind(symKind, std::move(receiver));
+}
+
+bool ReadTransaction::foreachUSROfGlobalUnitTestSymbol(llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver) {
+  return Impl->foreachUSROfGlobalUnitTestSymbol(std::move(receiver));
 }
 
 bool ReadTransaction::findUSRsWithNameContaining(StringRef pattern,

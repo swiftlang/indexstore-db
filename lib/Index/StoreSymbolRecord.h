@@ -82,6 +82,10 @@ public:
   virtual bool foreachRelatedSymbolOccurrenceByUSR(ArrayRef<db::IDCode> USRs,
                                             SymbolRoleSet RoleSet,
                function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) override;
+
+  virtual bool foreachUnitTestSymbolOccurrence(
+               function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) override;
+
 };
 
 } // namespace index
