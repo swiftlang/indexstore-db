@@ -179,6 +179,9 @@ public:
 
   bool foreachFileIncludedByFile(StringRef SourcePath,
                                  function_ref<bool(CanonicalFilePathRef TargetPath, unsigned Line)> Receiver);
+
+  bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<StringRef> FilePaths,
+      function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 };
 
 } // anonymous namespace
@@ -519,6 +522,15 @@ bool IndexSystemImpl::foreachFileIncludedByFile(StringRef SourcePath,
   return PathIndex->foreachFileIncludedByFile(canonSourcePath, Receiver);
 }
 
+bool IndexSystemImpl::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<StringRef> FilePaths, function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
+  SmallVector<CanonicalFilePath, 8> canonPaths;
+  canonPaths.reserve(FilePaths.size());
+  for (StringRef path : FilePaths) {
+    canonPaths.push_back(PathIndex->getCanonicalPath(path));
+  }
+  return SymIndex->foreachUnitTestSymbolReferencedByOutputPaths(canonPaths, std::move(Receiver));
+}
+
 //===----------------------------------------------------------------------===//
 // IndexSystem
 //===----------------------------------------------------------------------===//
@@ -695,4 +707,9 @@ bool IndexSystem::foreachFileIncludingFile(StringRef TargetPath,
 bool IndexSystem::foreachFileIncludedByFile(StringRef SourcePath,
                                                 function_ref<bool(CanonicalFilePathRef TargetPath, unsigned Line)> Receiver) {
   return IMPL->foreachFileIncludedByFile(SourcePath, Receiver);
+}
+
+bool IndexSystem::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<StringRef> FilePaths,
+    function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
+  return IMPL->foreachUnitTestSymbolReferencedByOutputPaths(FilePaths, std::move(Receiver));
 }

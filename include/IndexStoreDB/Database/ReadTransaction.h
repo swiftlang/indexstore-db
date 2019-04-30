@@ -53,6 +53,9 @@ public:
   bool foreachUSROfGlobalSymbolKind(SymbolKind symKind, llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver);
 
   /// Returns USR codes in batches.
+  bool foreachUSROfGlobalUnitTestSymbol(llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver);
+
+  /// Returns USR codes in batches.
   bool findUSRsWithNameContaining(StringRef pattern,
                                   bool anchorStart, bool anchorEnd,
                                   bool subsequence, bool ignoreCase,
