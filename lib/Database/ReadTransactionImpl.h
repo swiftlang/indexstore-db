@@ -49,9 +49,13 @@ public:
   StringRef getModuleName(IDCode moduleName);
   bool getProviderFileReferences(IDCode provider,
                                  llvm::function_ref<bool(TimestampedPath path)> receiver);
+  /// `unitFilter` returns `true` if the unit should be included, `false` if it should be ignored.
   bool getProviderFileCodeReferences(IDCode provider,
-                                     llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver);
-  bool foreachProviderAndFileCodeReference(llvm::function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver);
+    function_ref<bool(IDCode unitCode)> unitFilter,
+    function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver);
+  /// `unitFilter` returns `true` if the unit should be included, `false` if it should be ignored.
+  bool foreachProviderAndFileCodeReference(function_ref<bool(IDCode unitCode)> unitFilter,
+    function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver);
 
   bool foreachUSROfGlobalSymbolKind(SymbolKind symKind, llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver);
   bool foreachUSROfGlobalUnitTestSymbol(llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver);
