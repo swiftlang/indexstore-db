@@ -1,9 +1,8 @@
 //===- llvm/Support/CommandLine.h - Command line handler --------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -56,9 +55,18 @@ namespace cl {
 // Returns true on success. Otherwise, this will print the error message to
 // stderr and exit if \p Errs is not set (nullptr by default), or print the
 // error message to \p Errs and return false if \p Errs is provided.
+//
+// If EnvVar is not nullptr, command-line options are also parsed from the
+// environment variable named by EnvVar.  Precedence is given to occurrences
+// from argv.  This precedence is currently implemented by parsing argv after
+// the environment variable, so it is only implemented correctly for options
+// that give precedence to later occurrences.  If your program supports options
+// that give precedence to earlier occurrences, you will need to extend this
+// function to support it correctly.
 bool ParseCommandLineOptions(int argc, const char *const *argv,
                              StringRef Overview = "",
-                             raw_ostream *Errs = nullptr);
+                             raw_ostream *Errs = nullptr,
+                             const char *EnvVar = nullptr);
 
 //===----------------------------------------------------------------------===//
 // ParseEnvironmentOptions - Environment variable option processing alternate
@@ -147,22 +155,30 @@ enum OptionHidden {   // Control whether -help shows this option
 // enabled, and used, the value for the flag comes from the suffix of the
 // argument.
 //
-// Grouping - With this option enabled, multiple letter options are allowed to
-// bunch together with only a single hyphen for the whole group.  This allows
-// emulation of the behavior that ls uses for example: ls -la === ls -l -a
+// AlwaysPrefix - Only allow the behavior enabled by the Prefix flag and reject
+// the Option=Value form.
 //
 
 enum FormattingFlags {
   NormalFormatting = 0x00, // Nothing special
   Positional = 0x01,       // Is a positional argument, no '-' required
   Prefix = 0x02,           // Can this option directly prefix its value?
-  Grouping = 0x03          // Can this option group with other options?
+  AlwaysPrefix = 0x03      // Can this option only directly prefix its value?
 };
 
 enum MiscFlags {             // Miscellaneous flags to adjust argument
   CommaSeparated = 0x01,     // Should this cl::list split between commas?
   PositionalEatsArgs = 0x02, // Should this positional cl::list eat -args?
-  Sink = 0x04                // Should this cl::list eat all unknown options?
+  Sink = 0x04,               // Should this cl::list eat all unknown options?
+
+  // Grouping - Can this option group with other options?
+  // If this is enabled, multiple letter options are allowed to bunch together
+  // with only a single hyphen for the whole group.  This allows emulation
+  // of the behavior that ls uses for example: ls -la === ls -l -a
+  Grouping = 0x08,
+
+  // Default option
+  DefaultOption = 0x10
 };
 
 //===----------------------------------------------------------------------===//
@@ -257,7 +273,7 @@ class Option {
   unsigned Value : 2;
   unsigned HiddenFlag : 2; // enum OptionHidden
   unsigned Formatting : 2; // enum FormattingFlags
-  unsigned Misc : 3;
+  unsigned Misc : 5;
   unsigned Position = 0;       // Position of last occurrence of the option
   unsigned AdditionalVals = 0; // Greater than 0 for multi-valued option.
 
@@ -293,6 +309,7 @@ public:
   bool hasArgStr() const { return !ArgStr.empty(); }
   bool isPositional() const { return getFormattingFlag() == cl::Positional; }
   bool isSink() const { return getMiscFlags() & cl::Sink; }
+  bool isDefaultOption() const { return getMiscFlags() & cl::DefaultOption; }
 
   bool isConsumeAfter() const {
     return getNumOccurrencesFlag() == cl::ConsumeAfter;
@@ -369,7 +386,7 @@ public:
   }
 
   inline int getNumOccurrences() const { return NumOccurrences; }
-  inline void reset() { NumOccurrences = 0; }
+  void reset();
 };
 
 //===----------------------------------------------------------------------===//
@@ -1719,7 +1736,10 @@ class alias : public Option {
       error("cl::alias must have argument name specified!");
     if (!AliasFor)
       error("cl::alias must have an cl::aliasopt(option) specified!");
+    if (!Subs.empty())
+      error("cl::alias must not have cl::sub(), aliased option's cl::sub() will be used!");
     Subs = AliasFor->Subs;
+    Category = AliasFor->Category;
     addArgument();
   }
 

@@ -51,15 +51,27 @@ using namespace IndexStoreDB::db;
 using namespace IndexStoreDB::index;
 using namespace indexstore;
 using namespace llvm;
+using namespace std::chrono;
 
-static sys::TimeValue toTimeValue(timespec ts) {
-  sys::TimeValue tv;
-  tv.fromEpochTime(ts.tv_sec);
-  tv.nanoseconds(ts.tv_nsec);
-  return tv;
+static sys::TimePoint<> toTimePoint(timespec ts) {
+  auto time = time_point_cast<nanoseconds>(sys::toTimePoint(ts.tv_sec));
+  time += nanoseconds(ts.tv_nsec);
+  return time;
 }
 
 const static dispatch_qos_class_t unitChangesQOS = QOS_CLASS_UTILITY;
+
+/// Returns a global serial queue for unit processing.
+/// This is useful to avoid doing a lot of parallel CPU and I/O work when opening multiple workspaces.
+static dispatch_queue_t getGlobalQueueForUnitChanges() {
+  static dispatch_queue_t queueForUnitChanges;
+  static dispatch_once_t onceToken = 0;
+  dispatch_once(&onceToken, ^{
+    dispatch_queue_attr_t qosAttribute = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, unitChangesQOS, 0);
+    queueForUnitChanges = dispatch_queue_create("IndexStoreDB.store.unit.processing", qosAttribute);
+  });
+  return queueForUnitChanges;
+}
 
 namespace {
 
@@ -72,6 +84,7 @@ struct UnitEventInfo {
 
 struct DoneInitState {
   std::atomic<bool> DoneInit{false};
+  unsigned RemainingInitUnits = 0; // this is not accessed concurrently.
 };
 
 class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
@@ -82,11 +95,8 @@ class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
 
   std::shared_ptr<FilePathWatcher> PathWatcher;
 
-  // This is shared so that it can be safely passed to an asynchronous block.
-  std::shared_ptr<DoneInitState> DoneInitializingPtr;
+  DoneInitState InitializingState;
   dispatch_semaphore_t InitSemaphore;
-
-  dispatch_queue_t queueForUnitChanges;
 
   mutable llvm::sys::Mutex StateMtx;
   std::unordered_map<IDCode, std::shared_ptr<UnitMonitor>> UnitMonitorsByCode;
@@ -100,23 +110,21 @@ public:
     Delegate(std::move(Delegate)),
     CanonPathCache(std::move(canonPathCache)) {
 
-    DoneInitializingPtr = std::make_shared<DoneInitState>();
     InitSemaphore = dispatch_semaphore_create(0);
-    dispatch_queue_attr_t qosAttribute = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, unitChangesQOS, 0);
-    queueForUnitChanges = dispatch_queue_create("IndexStoreDB.store.unit.processing", qosAttribute);
   }
   ~StoreUnitRepo() {
     dispatch_release(InitSemaphore);
-    dispatch_release(queueForUnitChanges);
   }
-
-  dispatch_queue_t getQueueForUnitChanges() const { return queueForUnitChanges; }
 
   void onFilesChange(std::vector<UnitEventInfo> evts,
                      function_ref<void(unsigned)> ReportCompleted,
                      function_ref<void()> DirectoryDeleted);
 
+  void setInitialUnitCount(unsigned count);
+  void processedInitialUnitCount(unsigned count);
+  void finishedUnitInitialization();
   void waitUntilDoneInitializing();
+
   void purgeStaleData();
 
   std::shared_ptr<UnitMonitor> getUnitMonitor(IDCode unitCode) const;
@@ -124,7 +132,7 @@ public:
   void removeUnitMonitor(IDCode unitCode);
 
   void onUnitOutOfDate(IDCode unitCode, StringRef unitName,
-                       sys::TimeValue outOfDateModTime,
+                       sys::TimePoint<> outOfDateModTime,
                        OutOfDateTriggerHintRef hint,
                        bool synchronous = false);
   void onFSEvent(std::vector<std::string> parentPaths);
@@ -149,7 +157,7 @@ public:
 
   void waitUntilDoneInitializing();
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
-  bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimeValue outOfDateModTime);
+  bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);
   void checkUnitContainingFileIsOutOfDate(StringRef file);
   void purgeStaleData();
 };
@@ -157,7 +165,7 @@ public:
 class UnitMonitor {
   struct OutOfDateTrigger {
     OutOfDateTriggerHintRef hint;
-    sys::TimeValue outOfDateModTime;
+    sys::TimePoint<> outOfDateModTime;
 
     std::string getTriggerFilePath() const {
       return hint->originalFileTrigger();
@@ -167,7 +175,7 @@ class UnitMonitor {
   std::weak_ptr<StoreUnitRepo> UnitRepo;
   IDCode UnitCode;
   std::string UnitName;
-  sys::TimeValue ModTime;
+  sys::TimePoint<> ModTime;
 
   mutable llvm::sys::Mutex StateMtx;
   /// Map of out-of-date file path to its associated info.
@@ -178,22 +186,22 @@ public:
 
   void initialize(IDCode unitCode,
                   StringRef UnitName,
-                  sys::TimeValue modTime,
+                  sys::TimePoint<> modTime,
                   ArrayRef<CanonicalFilePath> userFileDepends,
                   ArrayRef<IDCode> userUnitDepends);
 
   ~UnitMonitor();
 
   StringRef getUnitName() const { return UnitName; }
-  sys::TimeValue getModTime() const { return ModTime; }
+  sys::TimePoint<> getModTime() const { return ModTime; }
 
   std::vector<OutOfDateTrigger> getOutOfDateTriggers() const;
 
-  void checkForOutOfDate(sys::TimeValue outOfDateModTime, StringRef filePath, bool synchronous=false);
-  void markOutOfDate(sys::TimeValue outOfDateModTime, OutOfDateTriggerHintRef hint, bool synchronous=false);
+  void checkForOutOfDate(sys::TimePoint<> outOfDateModTime, StringRef filePath, bool synchronous=false);
+  void markOutOfDate(sys::TimePoint<> outOfDateModTime, OutOfDateTriggerHintRef hint, bool synchronous=false);
 
-  static std::pair<StringRef, sys::TimeValue> getMostRecentModTime(ArrayRef<StringRef> filePaths);
-  static sys::TimeValue getModTimeForOutOfDateCheck(StringRef filePath);
+  static std::pair<StringRef, sys::TimePoint<>> getMostRecentModTime(ArrayRef<StringRef> filePaths);
+  static sys::TimePoint<> getModTimeForOutOfDateCheck(StringRef filePath);
 };
 
 } // anonymous namespace
@@ -260,9 +268,8 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
     PathWatcher = std::make_shared<FilePathWatcher>(std::move(pathEventsReceiver));
   }
 
-  if (!DoneInitializingPtr->DoneInit) {
-    dispatch_semaphore_signal(InitSemaphore);
-    DoneInitializingPtr->DoneInit = true;
+  if (!InitializingState.DoneInit) {
+    processedInitialUnitCount(evts.size());
   }
 }
 
@@ -273,7 +280,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
     LOG_WARN_FUNC("error getting mod time for unit '" << unitName << "':" << Error);
     return;
   }
-  auto unitModTime = toTimeValue(optModTime.getValue());
+  auto unitModTime = toTimePoint(optModTime.getValue());
 
   std::unique_ptr<IndexUnitReader> readerPtr;
   auto getUnitReader = [&]() -> IndexUnitReader& {
@@ -446,8 +453,26 @@ void StoreUnitRepo::purgeStaleData() {
   // IdxStore->purgeStaleRecords(ActiveRecNames);
 }
 
+void StoreUnitRepo::setInitialUnitCount(unsigned count) {
+  InitializingState.RemainingInitUnits = count;
+}
+
+void StoreUnitRepo::processedInitialUnitCount(unsigned count) {
+  assert(!InitializingState.DoneInit);
+  InitializingState.RemainingInitUnits -= std::min(count, InitializingState.RemainingInitUnits);
+  if (InitializingState.RemainingInitUnits == 0) {
+    finishedUnitInitialization();
+  }
+}
+
+void StoreUnitRepo::finishedUnitInitialization() {
+  assert(!InitializingState.DoneInit);
+  dispatch_semaphore_signal(InitSemaphore);
+  InitializingState.DoneInit = true;
+}
+
 void StoreUnitRepo::waitUntilDoneInitializing() {
-  if (DoneInitializingPtr->DoneInit)
+  if (InitializingState.DoneInit)
     return;
   dispatch_semaphore_wait(InitSemaphore, DISPATCH_TIME_FOREVER);
 }
@@ -471,12 +496,12 @@ void StoreUnitRepo::removeUnitMonitor(IDCode unitCode) {
 }
 
 void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
-                                    sys::TimeValue outOfDateModTime,
+                                    sys::TimePoint<> outOfDateModTime,
                                     OutOfDateTriggerHintRef hint,
                                     bool synchronous) {
   CanonicalFilePath MainFilePath;
   CanonicalFilePath OutFilePath;
-  llvm::sys::TimeValue CurrModTime;
+  llvm::sys::TimePoint<> CurrModTime;
   SmallVector<IDCode, 8> dependentUnits;
   {
     ReadTransaction reader(SymIndex->getDBase());
@@ -514,7 +539,7 @@ void StoreUnitRepo::onFSEvent(std::vector<std::string> changedParentPaths) {
 
   struct OutOfDateCheck {
     std::shared_ptr<UnitMonitor> Monitor;
-    sys::TimeValue ModTime;
+    sys::TimePoint<> ModTime;
     CanonicalFilePath FilePath;
   };
 
@@ -522,9 +547,6 @@ void StoreUnitRepo::onFSEvent(std::vector<std::string> changedParentPaths) {
   {
     ReadTransaction reader(SymIndex->getDBase());
     reader.findFilePathsWithParentPaths(parentPathStrRefs, [&](IDCode pathCode, CanonicalFilePathRef filePath) -> bool {
-      // The timestamp that the file system returns has second precision, so if the file
-      // was touched in less than a second after it got indexed, it will look like it is not actually dirty.
-      // FIXME: Use modification-time + file-size to check for updated files.
       auto modTime = UnitMonitor::getModTimeForOutOfDateCheck(filePath.getPath());
       reader.foreachUnitContainingFile(pathCode, [&](ArrayRef<IDCode> unitCodes) -> bool {
         for (IDCode unitCode : unitCodes) {
@@ -581,7 +603,7 @@ UnitMonitor::UnitMonitor(std::shared_ptr<StoreUnitRepo> unitRepo) {
 
 void UnitMonitor::initialize(IDCode unitCode,
                              StringRef unitName,
-                             sys::TimeValue modTime,
+                             sys::TimePoint<> modTime,
                              ArrayRef<CanonicalFilePath> userFileDepends,
                              ArrayRef<IDCode> userUnitDepends) {
   auto unitRepo = this->UnitRepo.lock();
@@ -625,7 +647,7 @@ std::vector<UnitMonitor::OutOfDateTrigger> UnitMonitor::getOutOfDateTriggers() c
   return triggers;
 }
 
-void UnitMonitor::checkForOutOfDate(sys::TimeValue outOfDateModTime, StringRef filePath, bool synchronous) {
+void UnitMonitor::checkForOutOfDate(sys::TimePoint<> outOfDateModTime, StringRef filePath, bool synchronous) {
   sys::ScopedLock L(StateMtx);
   auto findIt = OutOfDateTriggers.find(filePath);
   if (findIt != OutOfDateTriggers.end() && findIt->getValue().outOfDateModTime >= outOfDateModTime) {
@@ -635,7 +657,7 @@ void UnitMonitor::checkForOutOfDate(sys::TimeValue outOfDateModTime, StringRef f
     markOutOfDate(outOfDateModTime, DependentFileOutOfDateTriggerHint::create(filePath), synchronous);
 }
 
-void UnitMonitor::markOutOfDate(sys::TimeValue outOfDateModTime, OutOfDateTriggerHintRef hint, bool synchronous) {
+void UnitMonitor::markOutOfDate(sys::TimePoint<> outOfDateModTime, OutOfDateTriggerHintRef hint, bool synchronous) {
   {
     sys::ScopedLock L(StateMtx);
     OutOfDateTrigger trigger{ hint, outOfDateModTime};
@@ -648,10 +670,10 @@ void UnitMonitor::markOutOfDate(sys::TimeValue outOfDateModTime, OutOfDateTrigge
     localUnitRepo->onUnitOutOfDate(UnitCode, UnitName, outOfDateModTime, hint, synchronous);
 }
 
-std::pair<StringRef, sys::TimeValue> UnitMonitor::getMostRecentModTime(ArrayRef<StringRef> filePaths) {
-  sys::TimeValue mostRecentTime = sys::TimeValue::MinTime();
+std::pair<StringRef, sys::TimePoint<>> UnitMonitor::getMostRecentModTime(ArrayRef<StringRef> filePaths) {
+  sys::TimePoint<> mostRecentTime = sys::TimePoint<>::min();
   StringRef mostRecentFile;
-  auto checkModTime = [&](sys::TimeValue mod, StringRef filePath) {
+  auto checkModTime = [&](sys::TimePoint<> mod, StringRef filePath) {
     if (mod > mostRecentTime) {
       mostRecentTime = mod;
       mostRecentFile = filePath;
@@ -661,12 +683,12 @@ std::pair<StringRef, sys::TimeValue> UnitMonitor::getMostRecentModTime(ArrayRef<
   for (StringRef filePath : filePaths) {
     sys::fs::file_status fileStat;
     std::error_code EC = sys::fs::status(filePath, fileStat);
-    sys::TimeValue currModTime = sys::TimeValue::MinTime();
+    sys::TimePoint<> currModTime = sys::TimePoint<>::min();
     if (sys::fs::status_known(fileStat) && fileStat.type() == sys::fs::file_type::file_not_found) {
       // Make a recent time value so that we consider this out-of-date.
-      currModTime = sys::TimeValue::now();
+      currModTime = std::chrono::system_clock::now();
     } else if (!EC) {
-      currModTime = sys::TimeValue::fromTimePoint(fileStat.getLastModificationTime());
+      currModTime = fileStat.getLastModificationTime();
     }
     checkModTime(currModTime, filePath);
   }
@@ -674,15 +696,15 @@ std::pair<StringRef, sys::TimeValue> UnitMonitor::getMostRecentModTime(ArrayRef<
   return std::make_pair(mostRecentFile, mostRecentTime);
 }
 
-sys::TimeValue UnitMonitor::getModTimeForOutOfDateCheck(StringRef filePath) {
+sys::TimePoint<> UnitMonitor::getModTimeForOutOfDateCheck(StringRef filePath) {
   sys::fs::file_status fileStat;
   std::error_code EC = sys::fs::status(filePath, fileStat);
-  sys::TimeValue modTime = sys::TimeValue::MinTime();
+  sys::TimePoint<> modTime = sys::TimePoint<>::min();
   if (sys::fs::status_known(fileStat) && fileStat.type() == sys::fs::file_type::file_not_found) {
     // Make a recent time value so that we consider this out-of-date.
-    modTime = sys::TimeValue::now();
+    modTime = std::chrono::system_clock::now();
   } else if (!EC) {
-    modTime = sys::TimeValue::fromTimePoint(fileStat.getLastModificationTime());
+    modTime = fileStat.getLastModificationTime();
   }
   return modTime;
 }
@@ -690,6 +712,61 @@ sys::TimeValue UnitMonitor::getModTimeForOutOfDateCheck(StringRef filePath) {
 //===----------------------------------------------------------------------===//
 // IndexDatastoreImpl
 //===----------------------------------------------------------------------===//
+
+static const unsigned MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT = 10;
+
+namespace {
+/// A thread-safe deque object for UnitEventInfo objects.
+class UnitEventInfoDeque {
+  std::deque<UnitEventInfo> EventsDequeue;
+  mutable llvm::sys::Mutex StateMtx;
+
+public:
+  void addEvents(ArrayRef<UnitEventInfo> evts) {
+    sys::ScopedLock L(StateMtx);
+    EventsDequeue.insert(EventsDequeue.end(), evts.begin(), evts.end());
+  }
+
+  std::vector<UnitEventInfo> popFront(unsigned N) {
+    sys::ScopedLock L(StateMtx);
+    std::vector<UnitEventInfo> evts;
+    for (unsigned i = 0; i < N; ++i) {
+      if (EventsDequeue.empty())
+        break;
+      UnitEventInfo evt = EventsDequeue.front();
+      EventsDequeue.pop_front();
+      evts.push_back(std::move(evt));
+    }
+    return evts;
+  }
+};
+}
+
+/// Enqueues asynchronous processing of the unit events in an incremental fashion.
+/// Events are queued-up individually and the next event is enqueued only after
+/// the current one has been processed.
+static void processUnitEventsIncrementally(std::shared_ptr<UnitEventInfoDeque> evts,
+                                           std::weak_ptr<StoreUnitRepo> weakUnitRepo,
+                                           std::shared_ptr<IndexSystemDelegate> delegate,
+                                           dispatch_queue_t queue) {
+  std::vector<UnitEventInfo> poppedEvts = evts->popFront(MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT);
+  if (poppedEvts.empty())
+    return;
+  auto UnitRepo = weakUnitRepo.lock();
+  if (!UnitRepo)
+    return;
+
+  UnitRepo->onFilesChange(poppedEvts, [&](unsigned NumCompleted){
+    delegate->processingCompleted(NumCompleted);
+  }, [&](){
+    // FIXME: the database should recover.
+  });
+
+  // Enqueue processing the rest of the events.
+  dispatch_async(queue, ^{
+    processUnitEventsIncrementally(evts, weakUnitRepo, delegate, queue);
+  });
+}
 
 bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
                               SymbolIndexRef SymIndex,
@@ -706,10 +783,19 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
 
   auto UnitRepo = std::make_shared<StoreUnitRepo>(this->IdxStore, SymIndex, Delegate, CanonPathCache);
   std::weak_ptr<StoreUnitRepo> WeakUnitRepo = UnitRepo;
-  auto OnUnitsChange = [WeakUnitRepo, Delegate](IndexStore::UnitEventNotification EventNote) {
-    auto UnitRepo = WeakUnitRepo.lock();
-    if (!UnitRepo)
-      return;
+  auto eventsDeque = std::make_shared<UnitEventInfoDeque>();
+  auto OnUnitsChange = [WeakUnitRepo, Delegate, eventsDeque](IndexStore::UnitEventNotification EventNote) {
+    if (EventNote.isInitial()) {
+      auto UnitRepo = WeakUnitRepo.lock();
+      if (!UnitRepo)
+        return;
+      size_t evtCount = EventNote.getEventsCount();
+      if (evtCount == 0) {
+        UnitRepo->finishedUnitInitialization();
+      } else {
+        UnitRepo->setInitialUnitCount(evtCount);
+      }
+    }
 
     std::vector<UnitEventInfo> evts;
     for (size_t i = 0, e = EventNote.getEventsCount(); i != e; ++i) {
@@ -717,17 +803,16 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
       evts.push_back(UnitEventInfo{evt.getKind(), evt.getUnitName()});
     }
 
+    Delegate->processingAddedPending(evts.size());
+    eventsDeque->addEvents(evts);
+
     // Create the block with QoS explicitly to ensure that the QoS from the indexstore callback can't affect the onFilesChange priority. This call may do a lot of I/O and we don't want to wedge the system by running at elevated priority.
     dispatch_block_t onUnitChangeBlock = dispatch_block_create_with_qos_class(DISPATCH_BLOCK_INHERIT_QOS_CLASS, unitChangesQOS, 0, ^{
-      Delegate->processingAddedPending(evts.size());
-      UnitRepo->onFilesChange(std::move(evts), [&](unsigned NumCompleted){
-        Delegate->processingCompleted(NumCompleted);
-      }, [&](){
-        // FIXME: the database should recover.
-      });
+      // Pass registration events to be processed incrementally by the global serial queue.
+      // This allows intermixing processing of registration events from multiple workspaces.
+      processUnitEventsIncrementally(eventsDeque, WeakUnitRepo, Delegate, getGlobalQueueForUnitChanges());
     });
-
-    dispatch_async(UnitRepo->getQueueForUnitChanges(), onUnitChangeBlock);
+    dispatch_async(getGlobalQueueForUnitChanges(), onUnitChangeBlock);
     Block_release(onUnitChangeBlock);
   };
 
@@ -750,7 +835,7 @@ bool IndexDatastoreImpl::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<Stri
   return isUnitOutOfDate(unitOutputPath, mostRecentFileAndTime.second);
 }
 
-bool IndexDatastoreImpl::isUnitOutOfDate(StringRef unitOutputPath, sys::TimeValue outOfDateModTime) {
+bool IndexDatastoreImpl::isUnitOutOfDate(StringRef unitOutputPath, sys::TimePoint<> outOfDateModTime) {
   SmallString<128> nameBuf;
   IdxStore->getUnitNameFromOutputPath(unitOutputPath, nameBuf);
   StringRef unitName = nameBuf.str();
@@ -759,7 +844,7 @@ bool IndexDatastoreImpl::isUnitOutOfDate(StringRef unitOutputPath, sys::TimeValu
   if (!optUnitModTime)
     return true;
 
-  auto unitModTime = toTimeValue(optUnitModTime.getValue());
+  auto unitModTime = toTimePoint(optUnitModTime.getValue());
   return outOfDateModTime > unitModTime;
 }
 
@@ -807,7 +892,7 @@ bool IndexDatastore::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRe
   return IMPL->isUnitOutOfDate(unitOutputPath, dirtyFiles);
 }
 
-bool IndexDatastore::isUnitOutOfDate(StringRef unitOutputPath, sys::TimeValue outOfDateModTime) {
+bool IndexDatastore::isUnitOutOfDate(StringRef unitOutputPath, sys::TimePoint<> outOfDateModTime) {
   return IMPL->isUnitOutOfDate(unitOutputPath, outOfDateModTime);
 }
 

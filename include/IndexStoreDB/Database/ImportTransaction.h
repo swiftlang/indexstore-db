@@ -24,7 +24,7 @@ namespace db {
   class Database;
   typedef std::shared_ptr<Database> DatabaseRef;
 
-class LLVM_EXPORT ImportTransaction {
+class INDEXSTOREDB_EXPORT ImportTransaction {
 public:
   explicit ImportTransaction(DatabaseRef dbase);
   ~ImportTransaction();
@@ -48,13 +48,13 @@ private:
   std::unique_ptr<Implementation> Impl;
 };
 
-class LLVM_EXPORT UnitDataImport {
+class INDEXSTOREDB_EXPORT UnitDataImport {
   ImportTransaction &Import;
   std::string UnitName;
   CanonicalFilePath MainFile;
   CanonicalFilePath OutFile;
   CanonicalFilePath Sysroot;
-  llvm::sys::TimeValue ModTime;
+  llvm::sys::TimePoint<> ModTime;
   Optional<bool> IsSystem;
   Optional<SymbolProviderKind> SymProviderKind;
   std::string Target;
@@ -75,7 +75,7 @@ class LLVM_EXPORT UnitDataImport {
   std::vector<UnitInfo::Provider> ProviderDepends;
 
 public:
-  UnitDataImport(ImportTransaction &import, StringRef unitName, llvm::sys::TimeValue modTime);
+  UnitDataImport(ImportTransaction &import, StringRef unitName, llvm::sys::TimePoint<> modTime);
   ~UnitDataImport();
 
   IDCode getUnitCode() const { return UnitCode; }

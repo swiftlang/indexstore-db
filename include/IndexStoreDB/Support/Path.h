@@ -14,6 +14,7 @@
 #define INDEXSTOREDB_SUPPORT_PATH_H
 
 #include "IndexStoreDB/Support/LLVM.h"
+#include "IndexStoreDB/Support/Visibility.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
 
@@ -77,7 +78,7 @@ public:
 inline CanonicalFilePath::CanonicalFilePath(CanonicalFilePathRef CanonPath)
   : Path(CanonPath.getPath()) {}
 
-class LLVM_EXPORT CanonicalPathCache {
+class INDEXSTOREDB_EXPORT CanonicalPathCache {
   void *Impl;
 
 public:

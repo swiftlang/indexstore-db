@@ -14,10 +14,10 @@
 #define LLVM_INDEXSTOREDB_SUPPORT_LOGGING_H
 
 #include "IndexStoreDB/Support/LLVM.h"
+#include "IndexStoreDB/Support/Visibility.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/Compiler.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Timer.h"
 #include <string>
@@ -29,7 +29,7 @@ class format_object_base;
 namespace IndexStoreDB {
   class Logger;
 
-LLVM_EXPORT void writeEscaped(StringRef Str, raw_ostream &OS);
+INDEXSTOREDB_EXPORT void writeEscaped(StringRef Str, raw_ostream &OS);
 
 typedef IntrusiveRefCntPtr<Logger> LogRef;
 
@@ -40,7 +40,7 @@ typedef IntrusiveRefCntPtr<Logger> LogRef;
 ///     *Log << "stuff";
 ///   }
 /// \endcode
-class LLVM_EXPORT Logger : public llvm::ThreadSafeRefCountedBase<Logger> {
+class INDEXSTOREDB_EXPORT Logger : public llvm::ThreadSafeRefCountedBase<Logger> {
 public:
   enum class Level : unsigned char {
     /// \brief No logging.

@@ -14,9 +14,10 @@
 #define INDEXSTOREDB_INDEX_INDEXSYSTEM_H
 
 #include "IndexStoreDB/Support/LLVM.h"
+#include "IndexStoreDB/Support/Visibility.h"
 #include "llvm/ADT/OptionSet.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/TimeValue.h"
+#include "llvm/Support/Chrono.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -37,7 +38,7 @@ namespace index {
   struct StoreUnitInfo;
   class IndexStoreLibraryProvider;
 
-class LLVM_EXPORT IndexSystem {
+class INDEXSTOREDB_EXPORT IndexSystem {
 public:
   ~IndexSystem();
 
@@ -51,7 +52,7 @@ public:
   void waitUntilDoneInitializing();
 
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
-  bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimeValue outOfDateModTime);
+  bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);
 
   /// Check whether any unit(s) containing \p file are out of date and if so,
   /// *synchronously* notify the delegate.
@@ -122,6 +123,11 @@ public:
 
   bool foreachFileIncludedByFile(StringRef SourcePath,
                                               function_ref<bool(CanonicalFilePathRef TargetPath, unsigned Line)> Receiver);
+
+  /// Returns unit test class/method occurrences that are referenced from units associated with the provided output file paths.
+  /// \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
+  bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<StringRef> FilePaths,
+      function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 
 private:
   IndexSystem(void *Impl) : Impl(Impl) {}

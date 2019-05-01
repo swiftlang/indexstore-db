@@ -19,5 +19,8 @@
 
 #define llvm indexstoredb_llvm
 #define LLVMEnablePrettyStackTrace indexstoredb_LLVMEnablePrettyStackTrace
+#define LLVMParseCommandLineOptions indexstoredb_LLVMParseCommandLineOptions
+#define LLVMResetFatalErrorHandler indexstoredb_LLVMResetFatalErrorHandler
+#define LLVMInstallFatalErrorHandler indexstoredb_LLVMInstallFatalErrorHandler
 
 #endif // INDEXSTOREDB_PREFIX_H

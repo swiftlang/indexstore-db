@@ -376,3 +376,29 @@ bool StoreSymbolRecord::foreachRelatedSymbolOccurrenceByUSR(ArrayRef<db::IDCode>
 
   return !Err && Finished;
 }
+
+bool StoreSymbolRecord::foreachUnitTestSymbolOccurrence(function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
+  bool Finished = true;
+  bool Err = doForData([&](IndexRecordReader &Reader) {
+    SmallVector<IndexRecordSymbol, 8> FoundDecls;
+    auto filter = [&](IndexRecordSymbol recSym, bool &stop) -> bool {
+      auto symInfo = getSymbolInfo(recSym);
+      return symInfo.Properties.contains(SymbolProperty::UnitTest);
+    };
+    auto receiver = [&](IndexRecordSymbol sym) {
+      FoundDecls.push_back(sym);
+    };
+    Reader.searchSymbols(filter, receiver);
+    if (FoundDecls.empty())
+      return;
+
+    // Return all occurrences.
+    auto Pred = [](IndexRecordOccurrence) -> bool { return true; };
+    PredOccurrenceConverter Converter(*this, Pred, Receiver);
+    Finished = Reader.foreachOccurrence(/*symbolsFilter=*/FoundDecls,
+                                        /*relatedSymbolsFilter=*/None,
+                                        Converter);
+  });
+
+  return !Err && Finished;
+}

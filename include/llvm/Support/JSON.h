@@ -1,9 +1,8 @@
 //===--- JSON.h - JSON values, parsing and serialization -------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===---------------------------------------------------------------------===//
 ///
@@ -180,6 +179,7 @@ public:
 
   bool empty() const { return V.empty(); }
   size_t size() const { return V.size(); }
+  void reserve(size_t S) { V.reserve(S); }
 
   void clear() { V.clear(); }
   void push_back(const Value &E) { V.push_back(E); }
@@ -294,9 +294,13 @@ public:
   Value(json::Array &&Elements) : Type(T_Array) {
     create<json::Array>(std::move(Elements));
   }
+  template <typename Elt>
+  Value(const std::vector<Elt> &C) : Value(json::Array(C)) {}
   Value(json::Object &&Properties) : Type(T_Object) {
     create<json::Object>(std::move(Properties));
   }
+  template <typename Elt>
+  Value(const std::map<std::string, Elt> &C) : Value(json::Object(C)) {}
   // Strings: types with value semantics. Must be valid UTF-8.
   Value(std::string V) : Type(T_String) {
     if (LLVM_UNLIKELY(!isUTF8(V))) {
@@ -452,7 +456,10 @@ private:
     new (reinterpret_cast<T *>(Union.buffer)) T(std::forward<U>(V)...);
   }
   template <typename T> T &as() const {
-    return *reinterpret_cast<T *>(Union.buffer);
+    // Using this two-step static_cast via void * instead of reinterpret_cast
+    // silences a -Wstrict-aliasing false positive from GCC6 and earlier.
+    void *Storage = static_cast<void *>(Union.buffer);
+    return *static_cast<T *>(Storage);
   }
 
   template <typename Indenter>
@@ -474,6 +481,7 @@ private:
   mutable llvm::AlignedCharArrayUnion<bool, double, int64_t, llvm::StringRef,
                                       std::string, json::Array, json::Object>
       Union;
+  friend bool operator==(const Value &, const Value &);
 };
 
 bool operator==(const Value &, const Value &);

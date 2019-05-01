@@ -26,7 +26,7 @@ namespace db {
   class Database;
   typedef std::shared_ptr<Database> DatabaseRef;
 
-class LLVM_EXPORT ReadTransaction {
+class INDEXSTOREDB_EXPORT ReadTransaction {
 public:
   explicit ReadTransaction(DatabaseRef dbase);
   ~ReadTransaction();
@@ -45,12 +45,15 @@ public:
   bool getProviderFileReferences(IDCode provider,
                                  llvm::function_ref<bool(TimestampedPath path)> receiver);
   bool getProviderFileCodeReferences(IDCode provider,
-                                     llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem)> receiver);
+                                     llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver);
   /// Returns all provider-file associations. Intended for debugging purposes.
-  bool foreachProviderAndFileCodeReference(llvm::function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimeValue modTime, IDCode moduleNameCode, bool isSystem)> receiver);
+  bool foreachProviderAndFileCodeReference(llvm::function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver);
 
   /// Returns USR codes in batches.
   bool foreachUSROfGlobalSymbolKind(SymbolKind symKind, llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver);
+
+  /// Returns USR codes in batches.
+  bool foreachUSROfGlobalUnitTestSymbol(llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver);
 
   /// Returns USR codes in batches.
   bool findUSRsWithNameContaining(StringRef pattern,

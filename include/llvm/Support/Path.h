@@ -1,9 +1,8 @@
 //===- llvm/Support/Path.h - Path Operating System Concept ------*- C++ -*-===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
@@ -360,22 +359,6 @@ void system_temp_directory(bool erasedOnReboot, SmallVectorImpl<char> &result);
 /// @param result Holds the resulting path name.
 /// @result True if a home directory is set, false otherwise.
 bool home_directory(SmallVectorImpl<char> &result);
-
-/// Get the user's cache directory.
-///
-/// Expect the resulting path to be a directory shared with other
-/// applications/services used by the user. Params \p Path1 to \p Path3 can be
-/// used to append additional directory names to the resulting path. Recommended
-/// pattern is <user_cache_directory>/<vendor>/<application>.
-///
-/// @param Result Holds the resulting path.
-/// @param Path1 Additional path to be appended to the user's cache directory
-/// path. "" can be used to append nothing.
-/// @param Path2 Second additional path to be appended.
-/// @param Path3 Third additional path to be appended.
-/// @result True if a cache directory path is set, false otherwise.
-bool user_cache_directory(SmallVectorImpl<char> &Result, const Twine &Path1,
-                          const Twine &Path2 = "", const Twine &Path3 = "");
 
 /// Has root name?
 ///

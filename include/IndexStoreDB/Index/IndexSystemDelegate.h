@@ -14,7 +14,7 @@
 #define INDEXSTOREDB_INDEX_INDEXSYSTEMDELEGATE_H
 
 #include "IndexStoreDB/Index/StoreUnitInfo.h"
-#include "llvm/Support/TimeValue.h"
+#include "llvm/Support/Chrono.h"
 #include <memory>
 #include <string>
 
@@ -65,7 +65,7 @@ public:
   virtual std::string description() override;
 };
 
-class LLVM_EXPORT IndexSystemDelegate {
+class INDEXSTOREDB_EXPORT IndexSystemDelegate {
 public:
   virtual ~IndexSystemDelegate() {}
 
@@ -75,7 +75,7 @@ public:
   virtual void processedStoreUnit(StoreUnitInfo unitInfo) {}
 
   virtual void unitIsOutOfDate(StoreUnitInfo unitInfo,
-                               llvm::sys::TimeValue outOfDateModTime,
+                               llvm::sys::TimePoint<> outOfDateModTime,
                                OutOfDateTriggerHintRef hint,
                                bool synchronous = false) {}
 

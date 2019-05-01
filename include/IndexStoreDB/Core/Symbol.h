@@ -23,7 +23,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/DataTypes.h"
-#include "llvm/Support/TimeValue.h"
+#include "llvm/Support/Chrono.h"
 #include <memory>
 #include <string>
 
@@ -224,12 +224,12 @@ public:
 class TimestampedPath {
   std::string Path;
   std::string ModuleName;
-  llvm::sys::TimeValue ModificationTime;
+  llvm::sys::TimePoint<> ModificationTime;
   unsigned sysrootPrefixLength = 0;
   bool IsSystem;
 
 public:
-  TimestampedPath(StringRef Path, llvm::sys::TimeValue ModificationTime, StringRef moduleName, bool isSystem, CanonicalFilePathRef sysroot = {})
+  TimestampedPath(StringRef Path, llvm::sys::TimePoint<> ModificationTime, StringRef moduleName, bool isSystem, CanonicalFilePathRef sysroot = {})
     : Path(Path), ModuleName(moduleName), ModificationTime(ModificationTime), IsSystem(isSystem) {
     if (sysroot.contains(CanonicalFilePathRef::getAsCanonicalPath(Path))) {
       sysrootPrefixLength = sysroot.getPath().size();
@@ -237,7 +237,7 @@ public:
   }
 
   const std::string &getPathString() const { return Path; }
-  llvm::sys::TimeValue getModificationTime() const { return ModificationTime; }
+  llvm::sys::TimePoint<> getModificationTime() const { return ModificationTime; }
   const std::string &getModuleName() const { return ModuleName; }
   unsigned isSystem() const { return IsSystem; }
   StringRef getPathWithoutSysroot() const {
