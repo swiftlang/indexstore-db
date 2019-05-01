@@ -91,7 +91,7 @@ private:
   std::vector<SymbolDataProviderRef> lookupProvidersForUSR(StringRef USR, SymbolRoleSet roles, SymbolRoleSet relatedRoles);
   std::vector<std::pair<SymbolDataProviderRef, bool>> findCanonicalProvidersForUSR(IDCode usrCode);
   SymbolDataProviderRef createVisibleProviderForCode(IDCode providerCode, ReadTransaction &reader);
-  SymbolDataProviderRef createProviderForCode(IDCode providerCode, ReadTransaction &reader, function_ref<bool(ReadTransaction &, const UnitInfo &)> unitFilter);
+  SymbolDataProviderRef createProviderForCode(IDCode providerCode, ReadTransaction &reader, function_ref<bool(const UnitInfo &)> unitFilter);
 };
 
 } // anonymous namespace
@@ -151,7 +151,8 @@ void SymbolIndexImpl::printStats(raw_ostream &OS) {
 void SymbolIndexImpl::dumpProviderFileAssociations(raw_ostream &OS) {
   ReadTransaction reader(DBase);
   Optional<IDCode> prevProvCode;
-  reader.foreachProviderAndFileCodeReference([&](IDCode providerCode, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
+  auto unitFilter = [](IDCode unitCode)->bool { return true; };
+  reader.foreachProviderAndFileCodeReference(unitFilter, [&](IDCode providerCode, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
     if (!prevProvCode.hasValue() || prevProvCode.getValue() != providerCode) {
       OS << reader.getProviderName(providerCode) << '\n';
       prevProvCode = providerCode;
@@ -166,12 +167,12 @@ void SymbolIndexImpl::dumpProviderFileAssociations(raw_ostream &OS) {
 }
 
 SymbolDataProviderRef SymbolIndexImpl::createVisibleProviderForCode(IDCode providerCode, ReadTransaction &reader) {
-  return createProviderForCode(providerCode, reader, [&](ReadTransaction &reader, const UnitInfo &unitInfo) -> bool {
+  return createProviderForCode(providerCode, reader, [&](const UnitInfo &unitInfo) -> bool {
     return VisibilityChecker->isUnitVisible(unitInfo, reader);
   });
 }
 
-SymbolDataProviderRef SymbolIndexImpl::createProviderForCode(IDCode providerCode, ReadTransaction &reader, function_ref<bool(ReadTransaction &, const UnitInfo &)> unitFilter) {
+SymbolDataProviderRef SymbolIndexImpl::createProviderForCode(IDCode providerCode, ReadTransaction &reader, function_ref<bool(const UnitInfo &)> unitFilter) {
   StringRef recordName = reader.getProviderName(providerCode);
   if (recordName.empty()) {
     ++NumMissingProvidersLookedUp;
@@ -180,12 +181,15 @@ SymbolDataProviderRef SymbolIndexImpl::createProviderForCode(IDCode providerCode
 
   Optional<SymbolProviderKind> providerKind;
   SmallVector<FileAndTarget, 8> fileRefs;
-  reader.getProviderFileCodeReferences(providerCode, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
+  auto unitCodeFilter = [&reader, unitFilter](IDCode unitCode) -> bool {
     auto unitInfo = reader.getUnitInfo(unitCode);
     if (unitInfo.isInvalid())
-      return true;
-    if (!unitFilter(reader, unitInfo))
-      return true;
+      return false;
+    return unitFilter(reader.getUnitInfo(unitCode));
+  };
+  reader.getProviderFileCodeReferences(providerCode, unitCodeFilter, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
+    auto unitInfo = reader.getUnitInfo(unitCode);
+    assert(!unitInfo.isInvalid());
 
     if (!providerKind.hasValue()) {
       providerKind = unitInfo.SymProviderKind;
@@ -483,7 +487,7 @@ bool SymbolIndexImpl::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<Cano
       outFileCodes.insert(reader.getFilePathCode(path));
     }
     for (IDCode providerCode : providerCodes) {
-      auto provider = createProviderForCode(providerCode, reader, [&](ReadTransaction &reader, const UnitInfo &unitInfo) -> bool {
+      auto provider = createProviderForCode(providerCode, reader, [&](const UnitInfo &unitInfo) -> bool {
         return outFileCodes.count(unitInfo.OutFileCode);
       });
       if (provider) {
