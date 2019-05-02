@@ -39,7 +39,7 @@ Support_imports = [
     'ManagedStatic', 'MathExtras', 'Mutex', 'MutexGuard', 'Memory',
     'MemoryBuffer', 'PointerLikeTypeTraits', 'Recycler', 'SwapByteOrder',
     'Timer', 'TimeValue', 'Threading', 'Unicode', 'UniqueLock', 'Unix', 'WindowsError',
-    'Valgrind', 'circular_raw_ostream', 'raw_ostream', 'Signposts', 'type_traits', 'JSON']
+    'Valgrind', 'circular_raw_ostream', 'raw_ostream', 'Signposts', 'type_traits', 'JSON', 'WindowsSupport']
 
 # Stuff we don't want, but have to pull in.
 Support_imports += [
@@ -50,7 +50,7 @@ Support_imports += [
     'FormatVariadicDetails', 'NativeFormatting', 'DJB', 'ReverseIteration', 'MD5',
     'SmallVectorMemoryBuffer', 'WithColor', 'Options', 'PrettyStackTrace', 'Watchdog',
     'TargetParser', 'ARMBuildAttributes', 'ARMTargetParser', 'AArch64TargetParser',
-    'ARMTargetParser.def', 'AArch64TargetParser.def', 'X86TargetParser.def', 'LineIterator']
+    'ARMTargetParser.def', 'AArch64TargetParser.def', 'X86TargetParser.def', 'LineIterator', 'VersionTuple']
 
 # Dependencies from llvm-c needed by Support.
 C_imports = ['Types', 'DataTypes', 'Support', 'Error', 'ErrorHandling']
@@ -197,6 +197,17 @@ def main():
         for root, dirs, files in os.walk(base):
             for file in files:
                 maybe_add_prefix(os.path.join(root, file), include_dir)
+
+    print("")
+    print("Copying llvm config files")
+    # NOTE: If you're updating to a newer llvm, you may have to manually merge
+    # these with the newer version produced by the llvm build
+    indexstore_llvm_config_source = os.path.join(indexstoredb_srcroot, 'Utilities', 'import-llvm.d', 'include', 'llvm', 'Config')
+    indexstore_llvm_config_target = os.path.join(include_dir, 'llvm', 'Config')
+    shutil.copyfile(os.path.join(indexstore_llvm_config_source, 'config.h'),
+                    os.path.join(indexstore_llvm_config_target, 'config.h'))
+    shutil.copyfile(os.path.join(indexstore_llvm_config_source, 'llvm-config.h'),
+                    os.path.join(indexstore_llvm_config_target, 'llvm-config.h'))
 
     print ""
     print "Applying patch"
