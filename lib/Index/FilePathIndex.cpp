@@ -136,8 +136,14 @@ bool FileIndexImpl::isKnownFile(CanonicalFilePathRef filePath) {
     ReadTransaction reader(DBase);
     IDCode pathCode = reader.getFilePathCode(filePath);
     reader.foreachUnitContainingFile(pathCode, [&](ArrayRef<IDCode> unitCodes) -> bool {
-      foundUnit = true;
-      return false;
+      for (IDCode unitCode: unitCodes) {
+        auto unitInfo = reader.getUnitInfo(unitCode);
+        if (unitInfo.isValid() && VisibilityChecker->isUnitVisible(unitInfo, reader)) {
+          foundUnit = true;
+          return false;
+        }
+      }
+      return true;
     });
   }
 
