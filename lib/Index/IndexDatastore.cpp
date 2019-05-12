@@ -296,6 +296,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
   IDCode unitCode;
   bool needDatabaseUpdate;
   Optional<bool> optIsSystem;
+  Optional<bool> PrevHasTestSymbols;
   IDCode PrevMainFileCode;
   IDCode PrevOutFileCode;
   Optional<StoreUnitInfo> StoreUnitInfoOpt;
@@ -312,6 +313,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
     if (!needDatabaseUpdate) {
       PrevMainFileCode = unitImport.getPrevMainFileCode();
       PrevOutFileCode = unitImport.getPrevOutFileCode();
+      PrevHasTestSymbols = unitImport.getHasTestSymbols();
       return false;
     }
 
@@ -333,7 +335,6 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
     }
     CanonicalFilePath CanonOutFile = CanonPathCache->getCanonicalPath(Reader.getOutputFile(), WorkDir);
     unitImport.setOutFile(CanonOutFile);
-    StoreUnitInfoOpt = StoreUnitInfo{unitName, CanonMainFile, CanonOutFile, unitModTime};
 
     CanonicalFilePath CanonSysroot = CanonPathCache->getCanonicalPath(Reader.getSysrootPath(), WorkDir);
     unitImport.setSysroot(CanonSysroot);
@@ -385,6 +386,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
     });
 
     unitImport.commit();
+    StoreUnitInfoOpt = StoreUnitInfo{unitName, CanonMainFile, CanonOutFile, unitImport.getHasTestSymbols().getValue(), unitModTime};
     import.commit();
     return false;
   };
@@ -397,7 +399,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
       ReadTransaction reader(SymIndex->getDBase());
       CanonicalFilePath mainFile = reader.getFullFilePathFromCode(PrevMainFileCode);
       CanonicalFilePath outFile = reader.getFullFilePathFromCode(PrevOutFileCode);
-      StoreUnitInfoOpt = StoreUnitInfo{unitName, mainFile, outFile, unitModTime};
+      StoreUnitInfoOpt = StoreUnitInfo{unitName, mainFile, outFile, PrevHasTestSymbols.getValue(), unitModTime};
     }
     Delegate->processedStoreUnit(StoreUnitInfoOpt.getValue());
   }
@@ -501,6 +503,7 @@ void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
                                     bool synchronous) {
   CanonicalFilePath MainFilePath;
   CanonicalFilePath OutFilePath;
+  bool hasTestSymbols = false;
   llvm::sys::TimePoint<> CurrModTime;
   SmallVector<IDCode, 8> dependentUnits;
   {
@@ -511,13 +514,14 @@ void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
         MainFilePath = reader.getFullFilePathFromCode(unitInfo.MainFileCode);
       }
       OutFilePath = reader.getFullFilePathFromCode(unitInfo.OutFileCode);
+      hasTestSymbols = unitInfo.HasTestSymbols;
       CurrModTime = unitInfo.ModTime;
     }
     reader.getDirectDependentUnits(unitCode, dependentUnits);
   }
 
   if (!MainFilePath.empty() && Delegate) {
-    StoreUnitInfo unitInfo{unitName, MainFilePath, OutFilePath, CurrModTime};
+    StoreUnitInfo unitInfo{unitName, MainFilePath, OutFilePath, hasTestSymbols, CurrModTime};
     Delegate->unitIsOutOfDate(unitInfo, outOfDateModTime, hint, synchronous);
   }
 

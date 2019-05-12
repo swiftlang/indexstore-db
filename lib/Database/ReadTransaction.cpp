@@ -259,6 +259,20 @@ static bool passMultipleIDCodes(lmdb::cursor &cursor, lmdb::val &key, lmdb::val 
   return true;
 }
 
+bool ReadTransaction::Implementation::foreachProviderContainingTestSymbols(function_ref<bool(IDCode provider)> receiver) {
+  auto &db = DBase->impl();
+  auto cursor = lmdb::cursor::open(Txn, db.getDBISymbolProvidersWithTestSymbols());
+
+  lmdb::val key{};
+  lmdb::val value{};
+  while (cursor.get(key, value, MDB_NEXT)) {
+    IDCode providerCode = *(IDCode*)key.data();
+    if (!receiver(providerCode))
+      return false;
+  }
+  return true;
+}
+
 bool ReadTransaction::Implementation::foreachUSROfGlobalSymbolKind(SymbolKind symKind,
                                                              llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver) {
   auto globalKindOpt = getGlobalSymbolKind(symKind);
@@ -663,6 +677,10 @@ bool ReadTransaction::foreachProviderAndFileCodeReference(
     function_ref<bool(IDCode unitCode)> unitFilter,
     function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
   return Impl->foreachProviderAndFileCodeReference(std::move(unitFilter), std::move(receiver));
+}
+
+bool ReadTransaction::foreachProviderContainingTestSymbols(function_ref<bool(IDCode provider)> receiver) {
+  return Impl->foreachProviderContainingTestSymbols(std::move(receiver));
 }
 
 bool ReadTransaction::foreachUSROfGlobalSymbolKind(SymbolKind symKind, llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver) {
