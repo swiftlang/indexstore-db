@@ -31,6 +31,9 @@ public:
 
   IDCode getUnitCode(StringRef unitName);
   IDCode addProviderName(StringRef name, bool *wasInserted = nullptr);
+  // Marks a provider as containing test symbols.
+  void setProviderContainsTestSymbols(IDCode provider);
+  bool providerContainsTestSymbols(IDCode provider);
   /// \returns a IDCode of the USR.
   IDCode addSymbolInfo(IDCode provider,
                        StringRef USR, StringRef symbolName, SymbolInfo symInfo,
@@ -56,6 +59,7 @@ class INDEXSTOREDB_EXPORT UnitDataImport {
   CanonicalFilePath Sysroot;
   llvm::sys::TimePoint<> ModTime;
   Optional<bool> IsSystem;
+  Optional<bool> HasTestSymbols;
   Optional<SymbolProviderKind> SymProviderKind;
   std::string Target;
 
@@ -83,6 +87,7 @@ public:
   bool isMissing() const { return IsMissing; }
   bool isUpToDate() const { return IsUpToDate; }
   Optional<bool> getIsSystem() const { return IsSystem; }
+  Optional<bool> getHasTestSymbols() const { return HasTestSymbols; }
   Optional<SymbolProviderKind> getSymbolProviderKind() const { return SymProviderKind; }
 
   IDCode getPrevMainFileCode() const {

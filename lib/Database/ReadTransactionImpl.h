@@ -57,6 +57,8 @@ public:
   bool foreachProviderAndFileCodeReference(function_ref<bool(IDCode unitCode)> unitFilter,
     function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver);
 
+  bool foreachProviderContainingTestSymbols(function_ref<bool(IDCode provider)> receiver);
+
   bool foreachUSROfGlobalSymbolKind(SymbolKind symKind, llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver);
   bool foreachUSROfGlobalUnitTestSymbol(llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver);
   bool foreachUSROfGlobalSymbolKind(GlobalSymbolKind globalSymKind, function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver);

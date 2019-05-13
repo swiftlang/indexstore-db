@@ -78,7 +78,7 @@ public:
   size_t countOfCanonicalSymbolsWithKind(SymbolKind symKind, bool workspaceOnly);
   bool foreachCanonicalSymbolOccurrenceByKind(SymbolKind symKind, bool workspaceOnly,
                                               function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
-  bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePath> FilePaths,
+  bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,
       function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 
 private:
@@ -131,9 +131,17 @@ void SymbolIndexImpl::importSymbols(ImportTransaction &import, SymbolDataProvide
   });
 
   IDCode providerCode = import.addProviderName(Provider->getIdentifier());
+  bool hasTestSymbols = false;
   for (auto &coreSym : CoreSymbols) {
     import.addSymbolInfo(providerCode, coreSym.first(), coreSym.second.Name,
                          coreSym.second.SymInfo, coreSym.second.Roles, coreSym.second.RelatedRoles);
+    if (coreSym.second.SymInfo.Properties.contains(SymbolProperty::UnitTest) &&
+        coreSym.second.Roles.contains(SymbolRole::Definition)) {
+      hasTestSymbols = true;
+    }
+  }
+  if (hasTestSymbols) {
+    import.setProviderContainsTestSymbols(providerCode);
   }
 }
 
@@ -462,19 +470,14 @@ SymbolIndexImpl::findCanonicalProvidersForUSR(IDCode usrCode) {
   return foundProvs;
 }
 
-bool SymbolIndexImpl::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePath> outFilePaths, function_ref<bool(SymbolOccurrenceRef Occur)> receiver) {
+bool SymbolIndexImpl::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> outFilePaths, function_ref<bool(SymbolOccurrenceRef Occur)> receiver) {
   std::vector<SymbolDataProviderRef> providers;
   {
     ReadTransaction reader(DBase);
 
-    std::unordered_set<IDCode> providerCodes;
-    reader.foreachUSROfGlobalUnitTestSymbol([&](ArrayRef<IDCode> usrCodes) -> bool {
-      for (IDCode usrCode : usrCodes) {
-        reader.lookupProvidersForUSR(usrCode, None, None, [&](IDCode providerCode, SymbolRoleSet roles, SymbolRoleSet relatedRoles) -> bool {
-          providerCodes.insert(providerCode);
-          return true;
-        });
-      }
+    SmallVector<IDCode, 16> providerCodes;
+    reader.foreachProviderContainingTestSymbols([&](IDCode providerCode) -> bool {
+      providerCodes.push_back(providerCode);
       return true;
     });
 
@@ -483,7 +486,7 @@ bool SymbolIndexImpl::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<Cano
     }
 
     std::unordered_set<IDCode> outFileCodes;
-    for (const CanonicalFilePath &path : outFilePaths) {
+    for (const CanonicalFilePathRef &path : outFilePaths) {
       outFileCodes.insert(reader.getFilePathCode(path));
     }
     for (IDCode providerCode : providerCodes) {
@@ -582,7 +585,7 @@ bool SymbolIndex::foreachCanonicalSymbolOccurrenceByKind(SymbolKind symKind, boo
   return IMPL->foreachCanonicalSymbolOccurrenceByKind(symKind, workspaceOnly, std::move(Receiver));
 }
 
-bool SymbolIndex::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePath> FilePaths,
+bool SymbolIndex::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,
     function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
   return IMPL->foreachUnitTestSymbolReferencedByOutputPaths(FilePaths, std::move(Receiver));
 }

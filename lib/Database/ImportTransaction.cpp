@@ -38,6 +38,16 @@ IDCode ImportTransaction::Implementation::addProviderName(StringRef name, bool *
   return code;
 }
 
+void ImportTransaction::Implementation::setProviderContainsTestSymbols(IDCode provider) {
+  lmdb::val key{&provider, sizeof(provider)};
+  lmdb::val val{nullptr, 0};
+  DBase->impl().getDBISymbolProvidersWithTestSymbols().put(Txn, key, val, MDB_NOOVERWRITE);
+}
+
+bool ImportTransaction::Implementation::providerContainsTestSymbols(IDCode provider) {
+  return DBase->impl().getDBISymbolProvidersWithTestSymbols().get(Txn, provider);
+}
+
 IDCode ImportTransaction::Implementation::addSymbolInfo(IDCode provider, StringRef USR, StringRef symbolName,
                                                         SymbolInfo symInfo,
                                                         SymbolRoleSet roles, SymbolRoleSet relatedRoles) {
@@ -225,7 +235,7 @@ void ImportTransaction::Implementation::addUnitInfo(const UnitInfo &info) {
     nanoTime,
     static_cast<uint16_t>(info.UnitName.size()),
     uint8_t(info.SymProviderKind),
-    info.HasMainFile, info.HasSysroot, info.IsSystem,
+    info.HasMainFile, info.HasSysroot, info.IsSystem, info.HasTestSymbols,
     static_cast<uint32_t>(info.FileDepends.size()),
     static_cast<uint32_t>(info.UnitDepends.size()),
     static_cast<uint32_t>(info.ProviderDepends.size()),
@@ -350,6 +360,14 @@ IDCode ImportTransaction::addProviderName(StringRef name, bool *wasInserted) {
   return Impl->addProviderName(name, wasInserted);
 }
 
+void ImportTransaction::setProviderContainsTestSymbols(IDCode provider) {
+  return Impl->setProviderContainsTestSymbols(provider);
+}
+
+bool ImportTransaction::providerContainsTestSymbols(IDCode provider) {
+  return Impl->providerContainsTestSymbols(provider);
+}
+
 IDCode ImportTransaction::addSymbolInfo(IDCode provider, StringRef USR, StringRef symbolName,
                                         SymbolInfo symInfo,
                                         SymbolRoleSet roles, SymbolRoleSet relatedRoles) {
@@ -383,6 +401,7 @@ UnitDataImport::UnitDataImport(ImportTransaction &import, StringRef unitName, ll
     return; // Does not already exist.
 
   IsSystem = dbUnit.IsSystem;
+  HasTestSymbols = dbUnit.HasTestSymbols;
   SymProviderKind = dbUnit.SymProviderKind;
   PrevMainFileCode = dbUnit.MainFileCode;
   PrevOutFileCode = dbUnit.OutFileCode;
@@ -532,6 +551,15 @@ void UnitDataImport::commit() {
       import.addTargetName(Target);
   }
 
+  // Update the `HasTestSymbols` value.
+  HasTestSymbols = false;
+  for (const UnitInfo::Provider &prov : ProviderDepends) {
+    if (import.providerContainsTestSymbols(prov.ProviderCode)) {
+      HasTestSymbols = true;
+      break;
+    }
+  }
+
   UnitInfo info{
     UnitName,
     UnitCode,
@@ -543,6 +571,7 @@ void UnitDataImport::commit() {
     hasMainFile,
     hasSysroot,
     IsSystem.getValue(),
+    HasTestSymbols.getValue(),
     SymProviderKind.getValue(),
     FileDepends,
     UnitDepends,

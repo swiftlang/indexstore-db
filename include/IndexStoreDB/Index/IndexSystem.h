@@ -126,7 +126,7 @@ public:
 
   /// Returns unit test class/method occurrences that are referenced from units associated with the provided output file paths.
   /// \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
-  bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<StringRef> FilePaths,
+  bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,
       function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 
 private:

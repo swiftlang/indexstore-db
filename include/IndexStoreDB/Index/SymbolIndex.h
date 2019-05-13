@@ -83,7 +83,7 @@ public:
   bool foreachCanonicalSymbolOccurrenceByKind(SymbolKind symKind, bool workspaceOnly,
                                               function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 
-  bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePath> FilePaths,
+  bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,
       function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 
 private:

@@ -32,7 +32,7 @@
 using namespace IndexStoreDB;
 using namespace IndexStoreDB::db;
 
-const unsigned Database::DATABASE_FORMAT_VERSION = 12;
+const unsigned Database::DATABASE_FORMAT_VERSION = 13;
 
 static const char *DeadProcessDBSuffix = "-dead";
 
@@ -144,7 +144,7 @@ retry:
     db->SavedPath = savedPathBuf.str();
     db->ProcessPath = processPathBuf.str();
     db->DBEnv = lmdb::env::create();
-    db->DBEnv.set_max_dbs(13);
+    db->DBEnv.set_max_dbs(14);
 
     // Start with 64MB. We'll update with the actual size after we open the database.
     db->MapSize = initialDBSize.getValueOr(64ULL*1024ULL*1024ULL);
@@ -168,6 +168,7 @@ retry:
     db->DBISymbolProvidersByUSR = lmdb::dbi::open(txn, "usrs", MDB_INTEGERKEY|MDB_DUPSORT|MDB_DUPFIXED|MDB_CREATE);
     db->DBISymbolProvidersByUSR.set_dupsort(txn, providersForUSR_compare);
     db->DBISymbolProviderNameByCode = lmdb::dbi::open(txn, "providers", MDB_INTEGERKEY|MDB_CREATE);
+    db->DBISymbolProvidersWithTestSymbols = lmdb::dbi::open(txn, "providers-with-test-symbols", MDB_INTEGERKEY|MDB_CREATE);
     db->DBIUSRsBySymbolName = lmdb::dbi::open(txn, "symbol-names", MDB_DUPSORT|MDB_DUPFIXED|MDB_INTEGERDUP|MDB_CREATE);
     db->DBIUSRsByGlobalSymbolKind = lmdb::dbi::open(txn, "symbol-kinds", MDB_INTEGERKEY|MDB_DUPSORT|MDB_DUPFIXED|MDB_INTEGERDUP|MDB_CREATE);
     db->DBIDirNameByCode = lmdb::dbi::open(txn, "directories", MDB_INTEGERKEY|MDB_CREATE);
@@ -240,7 +241,7 @@ UnitInfo Database::Implementation::getUnitInfo(IDCode unitCode, lmdb::txn &Txn) 
   llvm::sys::TimePoint<> modTime = llvm::sys::TimePoint<>(std::chrono::nanoseconds(infoData.NanoTime));
   return UnitInfo{ unitName, unitCode, modTime,
     infoData.OutFileCode, infoData.MainFileCode, infoData.SysrootCode, infoData.TargetCode,
-    infoData.HasMainFile, infoData.HasSysroot, infoData.IsSystem,
+    infoData.HasMainFile, infoData.HasSysroot, infoData.IsSystem, infoData.HasTestSymbols,
     SymbolProviderKind(infoData.SymProviderKind),
     fileDepends, unitDepends, providerDepends };
 }
