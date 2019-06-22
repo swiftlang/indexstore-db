@@ -810,12 +810,19 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
     Delegate->processingAddedPending(evts.size());
     eventsDeque->addEvents(evts);
 
-    // Create the block with QoS explicitly to ensure that the QoS from the indexstore callback can't affect the onFilesChange priority. This call may do a lot of I/O and we don't want to wedge the system by running at elevated priority.
-    dispatch_block_t onUnitChangeBlock = dispatch_block_create_with_qos_class(DISPATCH_BLOCK_INHERIT_QOS_CLASS, unitChangesQOS, 0, ^{
+    auto onUnitChangeBlockImpl = ^{
       // Pass registration events to be processed incrementally by the global serial queue.
       // This allows intermixing processing of registration events from multiple workspaces.
       processUnitEventsIncrementally(eventsDeque, WeakUnitRepo, Delegate, getGlobalQueueForUnitChanges());
-    });
+    };
+
+#if defined(__APPLE__)
+    // Create the block with QoS explicitly to ensure that the QoS from the indexstore callback can't affect the onFilesChange priority. This call may do a lot of I/O and we don't want to wedge the system by running at elevated priority.
+    dispatch_block_t onUnitChangeBlock = dispatch_block_create_with_qos_class(DISPATCH_BLOCK_INHERIT_QOS_CLASS, unitChangesQOS, 0, onUnitChangeBlockImpl);
+#else
+    // FIXME: https://bugs.swift.org/browse/SR-10319
+    auto onUnitChangeBlock = Block_copy(onUnitChangeBlockImpl);
+#endif
     dispatch_async(getGlobalQueueForUnitChanges(), onUnitChangeBlock);
     Block_release(onUnitChangeBlock);
   };
