@@ -80,6 +80,33 @@ public final class IndexStoreDB {
       return body(SymbolOccurrence(occur))
     }
   }
+
+  public func foreachCanonicalSymbolOccurrenceByName(symbolName: String, body: @escaping (SymbolOccurrence) -> Bool) {
+    indexstoredb_for_each_canonical_symbol_occurence_by_name(impl, symbolName) { (occur) -> Bool in
+      body(SymbolOccurrence(occur))
+    }
+  }
+
+  public func findSymbols(matching query: String) -> [SymbolOccurrence] {
+    var symbolNameResults: [String] = []
+    indexstoredb_for_each_symbol_name(impl) { pointer in
+      let str = String(cString: pointer)
+      if str.range(of: query) != nil {
+        symbolNameResults.append(str)
+      }
+      return true
+    }
+    var symbolOccurenceResults: [SymbolOccurrence] = []
+    symbolNameResults.forEach { (symbolName) in
+      foreachCanonicalSymbolOccurrenceByName(symbolName: symbolName) {occurence in
+        if !occurence.location.isSystem {
+          symbolOccurenceResults.append(occurence)
+        }
+        return true
+      }
+    }
+    return symbolOccurenceResults
+  }
 }
 
 public struct SymbolRole: OptionSet {

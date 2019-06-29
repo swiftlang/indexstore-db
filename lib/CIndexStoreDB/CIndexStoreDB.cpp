@@ -144,6 +144,37 @@ indexstoredb_symbol_name(indexstoredb_symbol_t symbol) {
   return obj->value->getName().c_str();
 }
 
+/// loops through each symbol in the index and calls the receiver function with each symbol
+/// @param index an IndexStoreDB object which contains the symbols
+/// @param receiver a function to be called for each symbol, the CString of the symbol will be passed in to this function.
+/// The function should return a boolean indicating whether the looping should continue.
+bool
+indexstoredb_for_each_symbol_name(indexstoredb_index_t index, indexstoredb_for_each_symbol_receiver receiver) {
+  // indexSystem has foreachsymbolName.
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachSymbolName([&](StringRef ref) -> bool {
+    return receiver(ref.str().c_str());
+  });
+}
+
+/// loops through each canonical symbol that matches the string, perform the passed in function
+/// @param index an IndexStoreDB object which contains the symbols
+/// @param symbolName the name of the symbol whose canonical occurence should be found
+/// @param receiver a function to be called for each canonical occurence, 
+/// the SymbolOccurenceRef of the symbol will be passed in to this function.
+/// The function should return a boolean indicating whether the looping should continue.
+bool
+indexstoredb_for_each_canonical_symbol_occurence_by_name(
+  indexstoredb_index_t index,
+  const char *_Nonnull symbolName,
+  indexstoredb_symbol_occurrence_receiver_t receiver)
+{
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachCanonicalSymbolOccurrenceByName(symbolName, [&](SymbolOccurrenceRef occur) -> bool {
+    return receiver(make_object(occur));
+  });
+}
+
 indexstoredb_symbol_t
 indexstoredb_symbol_occurrence_symbol(indexstoredb_symbol_occurrence_t occur) {
   auto obj = (IndexStoreDBObject<SymbolOccurrenceRef> *)occur;
