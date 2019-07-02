@@ -126,14 +126,18 @@ indexstoredb_index_t
 indexstoredb_index_create(const char * _Nonnull storePath,
                   const char * _Nonnull databasePath,
                   _Nonnull indexstore_library_provider_t libProvider,
-                  // delegate,
                   bool readonly,
+                  bool listenToUnitEvents,
                   indexstoredb_error_t _Nullable * _Nullable);
 
 INDEXSTOREDB_PUBLIC _Nullable
 indexstoredb_indexstore_library_t
 indexstoredb_load_indexstore_library(const char * _Nonnull dylibPath,
                              indexstoredb_error_t _Nullable * _Nullable);
+
+/// *For Testing* Poll for any changes to index units and wait until they have been registered.
+INDEXSTOREDB_PUBLIC void
+indexstoredb_index_poll_for_unit_changes_and_wait(_Nonnull indexstoredb_index_t index);
 
 INDEXSTOREDB_PUBLIC bool
 indexstoredb_index_symbol_occurrences_by_usr(
