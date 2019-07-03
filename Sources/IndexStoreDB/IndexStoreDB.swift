@@ -81,29 +81,45 @@ public final class IndexStoreDB {
     }
   }
 
-  public func foreachCanonicalSymbolOccurrenceByName(symbolName: String, body: @escaping (SymbolOccurrence) -> Bool) {
+  public func forEachCanonicalSymbolOccurrenceByName(symbolName: String, body: @escaping (SymbolOccurrence) -> Bool) {
     indexstoredb_for_each_canonical_symbol_occurence_by_name(impl, symbolName) { (occur) -> Bool in
       body(SymbolOccurrence(occur))
     }
   }
 
+  public func forEachCanonicalSymbolOccurrence(
+    containing pattern: String,
+    anchorStart: Bool,
+    anchorEnd: Bool,
+    subsequence: Bool,
+    ignoreCase: Bool,
+    body: @escaping (SymbolOccurrence) -> Bool
+  ){
+    indexstoredb_for_each_canonical_symbol_occurence_containing_pattern(
+      impl,
+      pattern,
+      anchorStart,
+      anchorEnd,
+      subsequence,
+      ignoreCase
+    ) { occur in
+      body(SymbolOccurrence(occur))
+    }
+  }
+
   public func findSymbols(matching query: String) -> [SymbolOccurrence] {
-    var symbolNameResults: [String] = []
-    indexstoredb_for_each_symbol_name(impl) { pointer in
-      let str = String(cString: pointer)
-      if str.range(of: query) != nil {
-        symbolNameResults.append(str)
+    var symbolOccurenceResults: [SymbolOccurrence] = []
+    forEachCanonicalSymbolOccurrence(
+      containing: query,
+      anchorStart: false,
+      anchorEnd: false,
+      subsequence: true,
+      ignoreCase: true
+    ) { (occurence) -> Bool in
+      if !occurence.location.isSystem {
+        symbolOccurenceResults.append(occurence)
       }
       return true
-    }
-    var symbolOccurenceResults: [SymbolOccurrence] = []
-    symbolNameResults.forEach { (symbolName) in
-      foreachCanonicalSymbolOccurrenceByName(symbolName: symbolName) {occurence in
-        if !occurence.location.isSystem {
-          symbolOccurenceResults.append(occurence)
-        }
-        return true
-      }
     }
     return symbolOccurenceResults
   }

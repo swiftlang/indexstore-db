@@ -86,7 +86,7 @@ typedef _Nullable indexstoredb_indexstore_library_t(^indexstore_library_provider
 typedef bool(^indexstoredb_symbol_occurrence_receiver_t)(_Nonnull indexstoredb_symbol_occurrence_t);
 
 /// Returns true to continue.
-typedef bool(^indexstoredb_for_each_symbol_receiver)(const char *_Nonnull);
+typedef bool(^indexstoredb_symbol_name_receiver)(const char *_Nonnull);
 
 INDEXSTOREDB_PUBLIC _Nullable
 indexstoredb_index_t
@@ -163,7 +163,18 @@ INDEXSTOREDB_PUBLIC void
 indexstoredb_error_dispose(_Nullable indexstoredb_error_t);
 
 INDEXSTOREDB_PUBLIC bool
-indexstoredb_for_each_symbol_name(_Nonnull indexstoredb_index_t index, _Nonnull indexstoredb_for_each_symbol_receiver);
+indexstoredb_for_each_symbol_name(_Nonnull indexstoredb_index_t index, _Nonnull indexstoredb_symbol_name_receiver);
+
+INDEXSTOREDB_PUBLIC bool
+indexstoredb_for_each_canonical_symbol_occurence_containing_pattern(
+    _Nonnull indexstoredb_index_t index,
+    const char *_Nonnull Pattern,
+    bool AnchorStart,
+    bool AnchorEnd,
+    bool Subsequence,
+    bool IgnoreCase,
+    _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver);
+
 
 INDEXSTOREDB_PUBLIC bool
 indexstoredb_for_each_canonical_symbol_occurence_by_name(
