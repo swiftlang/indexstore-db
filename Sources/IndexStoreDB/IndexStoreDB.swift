@@ -80,6 +80,33 @@ public final class IndexStoreDB {
       return body(SymbolOccurrence(occur))
     }
   }
+
+  @discardableResult public func forEachCanonicalSymbolOccurrence(byName: String, body: @escaping (SymbolOccurrence) -> Bool) -> Bool {
+    return indexstoredb_index_canonical_symbol_occurences_by_name(impl, byName) { occur in
+      return body(SymbolOccurrence(occur))
+    }
+  }
+
+  @discardableResult public func forEachCanonicalSymbolOccurrence(
+    containing pattern: String,
+    anchorStart: Bool,
+    anchorEnd: Bool,
+    subsequence: Bool,
+    ignoreCase: Bool,
+    body: @escaping (SymbolOccurrence) -> Bool
+  ) -> Bool {
+    return indexstoredb_index_canonical_symbol_occurences_containing_pattern(
+      impl,
+      pattern,
+      anchorStart,
+      anchorEnd,
+      subsequence,
+      ignoreCase
+    ) { occur in
+      body(SymbolOccurrence(occur))
+    }
+  }
+
 }
 
 public struct SymbolRole: OptionSet {

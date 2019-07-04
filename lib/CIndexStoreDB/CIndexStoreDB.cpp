@@ -144,6 +144,49 @@ indexstoredb_symbol_name(indexstoredb_symbol_t symbol) {
   return obj->value->getName().c_str();
 }
 
+bool
+indexstoredb_index_symbol_names(indexstoredb_index_t index, indexstoredb_symbol_name_receiver receiver) {
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachSymbolName([&](StringRef ref) -> bool {
+    return receiver(ref.str().c_str());
+  });
+}
+
+bool
+indexstoredb_index_canonical_symbol_occurences_by_name(
+  indexstoredb_index_t index,
+  const char *_Nonnull symbolName,
+  indexstoredb_symbol_occurrence_receiver_t receiver)
+{
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachCanonicalSymbolOccurrenceByName(symbolName, [&](SymbolOccurrenceRef occur) -> bool {
+    return receiver(make_object(occur));
+  });
+}
+
+bool
+indexstoredb_index_canonical_symbol_occurences_containing_pattern(
+  indexstoredb_index_t index,
+  const char *_Nonnull pattern,
+  bool anchorStart,
+  bool anchorEnd,
+  bool subsequence,
+  bool ignoreCase,
+  indexstoredb_symbol_occurrence_receiver_t receiver)
+{
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachCanonicalSymbolOccurrenceContainingPattern(
+    pattern,
+    anchorStart,
+    anchorEnd,
+    subsequence,
+    ignoreCase,
+    [&](SymbolOccurrenceRef occur
+  ) -> bool {
+      return receiver(make_object(occur));
+  });
+}
+
 indexstoredb_symbol_t
 indexstoredb_symbol_occurrence_symbol(indexstoredb_symbol_occurrence_t occur) {
   auto obj = (IndexStoreDBObject<SymbolOccurrenceRef> *)occur;
