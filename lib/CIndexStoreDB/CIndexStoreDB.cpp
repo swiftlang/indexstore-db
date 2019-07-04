@@ -144,27 +144,16 @@ indexstoredb_symbol_name(indexstoredb_symbol_t symbol) {
   return obj->value->getName().c_str();
 }
 
-/// loops through each symbol in the index and calls the receiver function with each symbol
-/// @param index an IndexStoreDB object which contains the symbols
-/// @param receiver a function to be called for each symbol, the CString of the symbol will be passed in to this function.
-/// The function should return a boolean indicating whether the looping should continue.
 bool
-indexstoredb_for_each_symbol_name(indexstoredb_index_t index, indexstoredb_symbol_name_receiver receiver) {
-  // indexSystem has foreachsymbolName.
+indexstoredb_index_symbol_names(indexstoredb_index_t index, indexstoredb_symbol_name_receiver receiver) {
   auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachSymbolName([&](StringRef ref) -> bool {
     return receiver(ref.str().c_str());
   });
 }
 
-/// loops through each canonical symbol that matches the string, perform the passed in function
-/// @param index an IndexStoreDB object which contains the symbols
-/// @param symbolName the name of the symbol whose canonical occurence should be found
-/// @param receiver a function to be called for each canonical occurence, 
-/// the SymbolOccurenceRef of the symbol will be passed in to this function.
-/// The function should return a boolean indicating whether the looping should continue.
 bool
-indexstoredb_for_each_canonical_symbol_occurence_by_name(
+indexstoredb_index_canonical_symbol_occurences_by_name(
   indexstoredb_index_t index,
   const char *_Nonnull symbolName,
   indexstoredb_symbol_occurrence_receiver_t receiver)
@@ -175,32 +164,23 @@ indexstoredb_for_each_canonical_symbol_occurence_by_name(
   });
 }
 
-/// loops through each canonical symbol that matches the pattern, perform the passed in function
-/// @param index an IndexStoreDB object which contains the symbols.
-/// @param AnchorStart when true, symbol names should only be considered matching when the first characters of the symbol name match the pattern.
-/// @param AnchorEnd when true, symbol names should only be considered matching when the first characters of the symbol name match the pattern.
-/// @param Subsequence when true, symbols will be matched even if the pattern is not matched contiguously.
-/// @param IgnoreCase when true, symbols may be returned even if the case of letters does not match the pattern.
-/// @param receiver a function to be called for each canonical occurence that matches the pattern.
-/// The SymbolOccurenceRef of the symbol will be passed in to this function.
-/// The function should return a boolean indicating whether the looping should continue.
 bool
-indexstoredb_for_each_canonical_symbol_occurence_containing_pattern(
+indexstoredb_index_canonical_symbol_occurences_containing_pattern(
   indexstoredb_index_t index,
-  const char *_Nonnull Pattern,
-  bool AnchorStart,
-  bool AnchorEnd,
-  bool Subsequence,
-  bool IgnoreCase,
+  const char *_Nonnull pattern,
+  bool anchorStart,
+  bool anchorEnd,
+  bool subsequence,
+  bool ignoreCase,
   indexstoredb_symbol_occurrence_receiver_t receiver)
 {
   auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachCanonicalSymbolOccurrenceContainingPattern(
-    Pattern,
-    AnchorStart,
-    AnchorEnd,
-    Subsequence,
-    IgnoreCase,
+    pattern,
+    anchorStart,
+    anchorEnd,
+    subsequence,
+    ignoreCase,
     [&](SymbolOccurrenceRef occur
   ) -> bool {
       return receiver(make_object(occur));

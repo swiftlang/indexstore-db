@@ -162,26 +162,44 @@ indexstoredb_error_get_description(_Nonnull indexstoredb_error_t);
 INDEXSTOREDB_PUBLIC void
 indexstoredb_error_dispose(_Nullable indexstoredb_error_t);
 
+/// Loops through each symbol in the index and calls the receiver function with each symbol.
+/// @param index An IndexStoreDB object which contains the symbols.
+/// @param receiver A function to be called for each symbol, the CString of the symbol will be passed in to this function.
+/// The function should return a boolean indicating whether the looping should continue.
 INDEXSTOREDB_PUBLIC bool
-indexstoredb_for_each_symbol_name(_Nonnull indexstoredb_index_t index, _Nonnull indexstoredb_symbol_name_receiver);
+indexstoredb_index_symbol_names(_Nonnull indexstoredb_index_t index, _Nonnull indexstoredb_symbol_name_receiver);
 
+/// Loops through each canonical symbol that matches the string and performs the passed in function.
+/// @param index An IndexStoreDB object which contains the symbols.
+/// @param symbolName The name of the symbol whose canonical occurence should be found.
+/// @param receiver A function to be called for each canonical occurence.
+/// The SymbolOccurenceRef of the symbol will be passed in to this function.
+/// The function should return a boolean indicating whether the looping should continue.
 INDEXSTOREDB_PUBLIC bool
-indexstoredb_for_each_canonical_symbol_occurence_containing_pattern(
-    _Nonnull indexstoredb_index_t index,
-    const char *_Nonnull Pattern,
-    bool AnchorStart,
-    bool AnchorEnd,
-    bool Subsequence,
-    bool IgnoreCase,
-    _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver);
-
-
-INDEXSTOREDB_PUBLIC bool
-indexstoredb_for_each_canonical_symbol_occurence_by_name(
+indexstoredb_index_canonical_symbol_occurences_by_name(
     indexstoredb_index_t _Nonnull index,
     const char *_Nonnull symbolName,
     indexstoredb_symbol_occurrence_receiver_t _Nonnull receiver
 );
+
+/// Loops through each canonical symbol that matches the pattern and performs the passed in function.
+/// @param index An IndexStoreDB object which contains the symbols.
+/// @param anchorStart When true, symbol names should only be considered matching when the first characters of the symbol name match the pattern.
+/// @param anchorEnd When true, symbol names should only be considered matching when the first characters of the symbol name match the pattern.
+/// @param subsequence When true, symbols will be matched even if the pattern is not matched contiguously.
+/// @param ignoreCase When true, symbols may be returned even if the case of letters does not match the pattern.
+/// @param receiver A function to be called for each canonical occurence that matches the pattern.
+/// The SymbolOccurenceRef of the symbol will be passed in to this function.
+/// The function should return a boolean indicating whether the looping should continue.
+INDEXSTOREDB_PUBLIC bool
+indexstoredb_index_canonical_symbol_occurences_containing_pattern(
+    _Nonnull indexstoredb_index_t index,
+    const char *_Nonnull pattern,
+    bool anchorStart,
+    bool anchorEnd,
+    bool subsequence,
+    bool ignoreCase,
+    _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver);
 
 INDEXSTOREDB_END_DECLS
 
