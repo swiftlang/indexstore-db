@@ -109,6 +109,17 @@ public final class IndexStoreDB {
 
 }
 
+public final class SymbolRelation {
+  let value: indexstoredb_symbol_relation_t
+
+  public lazy var roles: SymbolRole = SymbolRole(rawValue: indexstoredb_symbol_relation_get_roles(value))
+  public lazy var symbol: Symbol = Symbol(indexstoredb_symbol_relation_get_symbol(value))
+
+  public init(_ value: indexstoredb_symbol_relation_t) {
+    self.value = value
+  }
+}
+
 public struct SymbolRole: OptionSet {
 
   public var rawValue: UInt64
@@ -148,12 +159,45 @@ public struct SymbolRole: OptionSet {
   }
 }
 
+public enum IndexSymbolKind {
+  case unknown
+  case module
+  case namespace
+  case namespaceAlias
+  case macro
+  case `enum`
+  case `struct`
+  case `class`
+  case `protocol`
+  case `extension`
+  case union
+  case `typealias`
+  case function
+  case variable
+  case field
+  case enumConstant
+  case instanceMethod
+  case classMethod
+  case staticMethod
+  case instanceProperty
+  case classProperty
+  case staticProperty
+  case constructor
+  case destructor
+  case conversionFunction
+  case parameter
+  case using
+
+  case commentTag
+}
+
 public final class Symbol {
 
   let value: indexstoredb_symbol_t
 
   public lazy var usr: String = String(cString: indexstoredb_symbol_usr(value))
   public lazy var name: String = String(cString: indexstoredb_symbol_name(value))
+  public lazy var kind: IndexSymbolKind = getSymbolKind(from: indexstoredb_symbol_kind(value))
 
   init(_ value: indexstoredb_symbol_t) {
     self.value = value
@@ -161,6 +205,70 @@ public final class Symbol {
 
   deinit {
     indexstoredb_release(value)
+  }
+
+  func getSymbolKind(from cSymbolKind: indexstoredb_symbol_kind_t) -> IndexSymbolKind {
+    switch cSymbolKind {
+    case INDEXSTOREDB_SYMBOL_KIND_UNKNOWN: 
+      return .unknown 
+    case INDEXSTOREDB_SYMBOL_KIND_MODULE: 
+      return .module 
+    case INDEXSTOREDB_SYMBOL_KIND_NAMESPACE: 
+      return .namespace 
+    case INDEXSTOREDB_SYMBOL_KIND_NAMESPACEALIAS: 
+      return .namespaceAlias 
+    case INDEXSTOREDB_SYMBOL_KIND_MACRO: 
+      return .macro 
+    case INDEXSTOREDB_SYMBOL_KIND_ENUM: 
+      return .enum
+    case INDEXSTOREDB_SYMBOL_KIND_STRUCT: 
+      return .struct
+    case INDEXSTOREDB_SYMBOL_KIND_CLASS: 
+      return .class
+    case INDEXSTOREDB_SYMBOL_KIND_PROTOCOL: 
+      return .protocol 
+    case INDEXSTOREDB_SYMBOL_KIND_EXTENSION: 
+      return .extension 
+    case INDEXSTOREDB_SYMBOL_KIND_UNION: 
+      return .union 
+    case INDEXSTOREDB_SYMBOL_KIND_TYPEALIAS: 
+      return .typealias 
+    case INDEXSTOREDB_SYMBOL_KIND_FUNCTION: 
+      return .function 
+    case INDEXSTOREDB_SYMBOL_KIND_VARIABLE: 
+      return .variable 
+    case INDEXSTOREDB_SYMBOL_KIND_FIELD: 
+      return .field 
+    case INDEXSTOREDB_SYMBOL_KIND_ENUMCONSTANT: 
+      return .enumConstant 
+    case INDEXSTOREDB_SYMBOL_KIND_INSTANCEMETHOD: 
+      return .instanceMethod 
+    case INDEXSTOREDB_SYMBOL_KIND_CLASSMETHOD: 
+      return .classMethod 
+    case INDEXSTOREDB_SYMBOL_KIND_STATICMETHOD: 
+      return .staticMethod 
+    case INDEXSTOREDB_SYMBOL_KIND_INSTANCEPROPERTY: 
+      return .instanceProperty 
+    case INDEXSTOREDB_SYMBOL_KIND_CLASSPROPERTY: 
+      return .classProperty 
+    case INDEXSTOREDB_SYMBOL_KIND_STATICPROPERTY: 
+      return .staticProperty 
+    case INDEXSTOREDB_SYMBOL_KIND_CONSTRUCTOR: 
+      return .constructor 
+    case INDEXSTOREDB_SYMBOL_KIND_DESTRUCTOR: 
+      return .destructor 
+    case INDEXSTOREDB_SYMBOL_KIND_CONVERSIONFUNCTION: 
+      return .conversionFunction 
+    case INDEXSTOREDB_SYMBOL_KIND_PARAMETER: 
+      return .parameter 
+    case INDEXSTOREDB_SYMBOL_KIND_USING: 
+      return .using 
+
+    case INDEXSTOREDB_SYMBOL_KIND_COMMENTTAG: 
+      return .commentTag 
+    default:
+      return .unknown
+    }
   }
 }
 
@@ -192,6 +300,7 @@ public final class SymbolOccurrence {
   public lazy var symbol: Symbol = Symbol(indexstoredb_symbol_occurrence_symbol(value))
   public lazy var roles: SymbolRole = SymbolRole(rawValue: indexstoredb_symbol_occurrence_roles(value))
   public lazy var location: SymbolLocation = SymbolLocation(indexstoredb_symbol_occurrence_location(value))
+  public lazy var relations: [SymbolRelation] = getRelations()
 
   init(_ value: indexstoredb_symbol_occurrence_t) {
     self.value = value
@@ -199,6 +308,23 @@ public final class SymbolOccurrence {
 
   deinit {
     indexstoredb_release(value)
+  }
+
+  private func getRelations() -> [SymbolRelation] {
+    var relations: [SymbolRelation] = []
+    forEachRelation{relation in 
+      relations.append(relation)
+      return true
+    }
+    return relations
+  }
+
+  @discardableResult public func forEachRelation(
+    body: @escaping (SymbolRelation) -> Bool
+  ) -> Bool {
+    return indexstoredb_symbol_occurrence_relations(value){ relation in
+      body(SymbolRelation(relation))
+    }
   }
 }
 
