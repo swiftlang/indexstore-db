@@ -52,6 +52,7 @@ typedef indexstoredb_object_t indexstoredb_symbol_occurrence_t;
 
 typedef void *indexstoredb_error_t;
 typedef void *indexstoredb_symbol_location_t;
+typedef void *indexstoredb_symbol_relation_t;
 
 typedef enum {
   INDEXSTOREDB_SYMBOL_ROLE_DECLARATION = 1 << 0,
@@ -78,6 +79,38 @@ typedef enum {
 
   INDEXSTOREDB_SYMBOL_ROLE_CANONICAL = 1 << 63,
 } indexstoredb_symbol_role_t;
+
+typedef enum {
+  INDEXSTOREDB_SYMBOL_KIND_UNKNOWN = 0,
+  INDEXSTOREDB_SYMBOL_KIND_MODULE = 1,
+  INDEXSTOREDB_SYMBOL_KIND_NAMESPACE = 2,
+  INDEXSTOREDB_SYMBOL_KIND_NAMESPACEALIAS = 3,
+  INDEXSTOREDB_SYMBOL_KIND_MACRO = 4,
+  INDEXSTOREDB_SYMBOL_KIND_ENUM = 5,
+  INDEXSTOREDB_SYMBOL_KIND_STRUCT = 6,
+  INDEXSTOREDB_SYMBOL_KIND_CLASS = 7,
+  INDEXSTOREDB_SYMBOL_KIND_PROTOCOL = 8,
+  INDEXSTOREDB_SYMBOL_KIND_EXTENSION = 9,
+  INDEXSTOREDB_SYMBOL_KIND_UNION = 10,
+  INDEXSTOREDB_SYMBOL_KIND_TYPEALIAS = 11,
+  INDEXSTOREDB_SYMBOL_KIND_FUNCTION = 12,
+  INDEXSTOREDB_SYMBOL_KIND_VARIABLE = 13,
+  INDEXSTOREDB_SYMBOL_KIND_FIELD = 14,
+  INDEXSTOREDB_SYMBOL_KIND_ENUMCONSTANT = 15,
+  INDEXSTOREDB_SYMBOL_KIND_INSTANCEMETHOD = 16,
+  INDEXSTOREDB_SYMBOL_KIND_CLASSMETHOD = 17,
+  INDEXSTOREDB_SYMBOL_KIND_STATICMETHOD = 18,
+  INDEXSTOREDB_SYMBOL_KIND_INSTANCEPROPERTY = 19,
+  INDEXSTOREDB_SYMBOL_KIND_CLASSPROPERTY = 20,
+  INDEXSTOREDB_SYMBOL_KIND_STATICPROPERTY = 21,
+  INDEXSTOREDB_SYMBOL_KIND_CONSTRUCTOR = 22,
+  INDEXSTOREDB_SYMBOL_KIND_DESTRUCTOR = 23,
+  INDEXSTOREDB_SYMBOL_KIND_CONVERSIONFUNCTION = 24,
+  INDEXSTOREDB_SYMBOL_KIND_PARAMETER = 25,
+  INDEXSTOREDB_SYMBOL_KIND_USING = 26,
+
+  INDEXSTOREDB_SYMBOL_KIND_COMMENTTAG = 1000,
+} indexstoredb_symbol_kind_t;
 
 /// Returns true on success.
 typedef _Nullable indexstoredb_indexstore_library_t(^indexstore_library_provider_t)(const char * _Nonnull);
@@ -200,6 +233,30 @@ indexstoredb_index_canonical_symbol_occurences_containing_pattern(
     bool subsequence,
     bool ignoreCase,
     _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver);
+
+/// Gets the set of roles of the passed in symbol relation
+/// @param relation A symbol relation
+INDEXSTOREDB_PUBLIC uint64_t
+indexstoredb_symbol_relation_get_roles(_Nonnull  indexstoredb_symbol_relation_t);
+
+/// Gets the symbol associated with the passed in relation
+/// @param relation A symbol relation
+INDEXSTOREDB_PUBLIC _Nonnull indexstoredb_symbol_t
+indexstoredb_symbol_relation_get_symbol(_Nonnull indexstoredb_symbol_relation_t);
+
+/// Loops through each relation that a passed in symbol has, and performs the passed in function.
+/// The relations are owned by the occurrence and shall not be used after the occurrence is freed.
+/// @param occurrence The symbol occurrence that whose relations should be found.
+/// @param applier The function that should be performed on each symbol relation.
+/// The function should return a boolean indicating whether the looping should continue.
+INDEXSTOREDB_PUBLIC bool
+indexstoredb_symbol_occurrence_relations(_Nonnull indexstoredb_symbol_occurrence_t,
+                                         bool(^ _Nonnull applier)(indexstoredb_symbol_relation_t _Nonnull ));
+
+/// Get the SymbolKind of a Symbol
+/// @param symbol The symbol whose kind should be found.
+INDEXSTOREDB_PUBLIC indexstoredb_symbol_kind_t
+indexstoredb_symbol_kind(_Nonnull indexstoredb_symbol_t);
 
 INDEXSTOREDB_END_DECLS
 

@@ -144,6 +144,12 @@ indexstoredb_symbol_name(indexstoredb_symbol_t symbol) {
   return obj->value->getName().c_str();
 }
 
+indexstoredb_symbol_kind_t
+indexstoredb_symbol_kind(indexstoredb_symbol_t symbol) {
+  auto symbolObj = (IndexStoreDBObject<std::shared_ptr<Symbol>> *)symbol;
+  return (indexstoredb_symbol_kind_t) symbolObj->value->getSymbolKind();
+}
+
 bool
 indexstoredb_index_symbol_names(indexstoredb_index_t index, indexstoredb_symbol_name_receiver receiver) {
   auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
@@ -191,6 +197,31 @@ indexstoredb_symbol_t
 indexstoredb_symbol_occurrence_symbol(indexstoredb_symbol_occurrence_t occur) {
   auto obj = (IndexStoreDBObject<SymbolOccurrenceRef> *)occur;
   return make_object(obj->value->getSymbol());
+}
+
+uint64_t
+indexstoredb_symbol_relation_get_roles(indexstoredb_symbol_relation_t relation) {
+  auto relationObj = (IndexStoreDBObject<SymbolRelation> *)relation;
+  return relationObj->value.getRoles().toRaw();
+}
+
+indexstoredb_symbol_t
+indexstoredb_symbol_relation_get_symbol(indexstoredb_symbol_relation_t relation) {
+  auto relationObj = (IndexStoreDBObject<SymbolRelation> *)relation;
+  return make_object(relationObj->value.getSymbol());
+}
+
+bool
+indexstoredb_symbol_occurrence_relations(indexstoredb_symbol_occurrence_t occurrence,
+                                         bool(^applier)(indexstoredb_symbol_relation_t)) {
+  auto occurrenceObj = (IndexStoreDBObject<SymbolOccurrenceRef> *)occurrence;
+  ArrayRef<SymbolRelation> relations = occurrenceObj->value->getRelations();
+  for (SymbolRelation rel : relations) {
+    if(!applier(make_object(rel))) {
+      return false;
+    }
+  }
+  return true;
 }
 
 uint64_t
