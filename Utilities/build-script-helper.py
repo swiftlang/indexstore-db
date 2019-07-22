@@ -26,7 +26,8 @@ def get_swiftpm_options(args):
   if platform.system() != 'Darwin':
     swiftpm_args += [
       # Dispatch headers
-      '-Xcxx', '-I', '-Xcxx', os.path.join(args.toolchain, 'usr', 'lib', 'swift'),
+      '-Xcxx', '-I', '-Xcxx',
+      os.path.join(args.toolchain, 'usr', 'lib', 'swift'),
     ]
 
   return swiftpm_args
@@ -36,6 +37,7 @@ def main():
   def add_common_args(parser):
     parser.add_argument('--package-path', metavar='PATH', help='directory of the package to build', default='.')
     parser.add_argument('--toolchain', required=True, metavar='PATH', help='build using the toolchain at PATH')
+    parser.add_argument('--ninja-bin', metavar='PATH', help='ninja binary to use for testing')
     parser.add_argument('--build-path', metavar='PATH', default='.build', help='build in the given path')
     parser.add_argument('--configuration', '-c', default='debug', help='build using configuration (release|debug)')
     parser.add_argument('--verbose', '-v', action='store_true', help='enable verbose output')
@@ -61,10 +63,17 @@ def main():
 
   swiftpm_args = get_swiftpm_options(args)
 
+  env = os.environ
+  # Set the toolchain used in tests at runtime
+  env['INDEXSTOREDB_TOOLCHAIN_PATH'] = args.toolchain
+
+  if args.ninja_bin:
+    env['NINJA_BIN'] = args.ninja_bin
+
   if args.action == 'build':
-    swiftpm('build', swift_exec, swiftpm_args)
+    swiftpm('build', swift_exec, swiftpm_args, env)
   elif args.action == 'test':
-    swiftpm('test', swift_exec, swiftpm_args)
+    swiftpm('test', swift_exec, swiftpm_args, env)
   else:
     assert False, 'unknown action \'{}\''.format(args.action)
 
