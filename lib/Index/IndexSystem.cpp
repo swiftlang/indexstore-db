@@ -110,7 +110,8 @@ public:
             StringRef dbasePath,
             std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
             std::shared_ptr<IndexSystemDelegate> Delegate,
-            bool readonly, Optional<size_t> initialDBSize,
+            bool readonly, bool listenToUnitEvents,
+            Optional<size_t> initialDBSize,
             std::string &Error);
 
   void waitUntilDoneInitializing();
@@ -123,6 +124,9 @@ public:
   void unregisterMainFiles(ArrayRef<StringRef> filePaths, StringRef productName);
 
   void purgeStaleData();
+
+  /// *For Testing* Poll for any changes to units and wait until they have been registered.
+  void pollForUnitChangesAndWait();
 
   void printStats(raw_ostream &OS);
 
@@ -190,7 +194,8 @@ bool IndexSystemImpl::init(StringRef StorePath,
                            StringRef dbasePath,
                            std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                            std::shared_ptr<IndexSystemDelegate> Delegate,
-                           bool readonly, Optional<size_t> initialDBSize,
+                           bool readonly, bool listenToUnitEvents,
+                           Optional<size_t> initialDBSize,
                            std::string &Error) {
   this->StorePath = StorePath;
   this->DBasePath = dbasePath;
@@ -221,6 +226,7 @@ bool IndexSystemImpl::init(StringRef StorePath,
                                             this->DelegateWrap,
                                             canonPathCache,
                                             readonly,
+                                            listenToUnitEvents,
                                             Error);
 
   if (!this->IndexStore)
@@ -254,6 +260,10 @@ void IndexSystemImpl::unregisterMainFiles(ArrayRef<StringRef> filePaths, StringR
 
 void IndexSystemImpl::purgeStaleData() {
   IndexStore->purgeStaleData();
+}
+
+void IndexSystemImpl::pollForUnitChangesAndWait() {
+  IndexStore->pollForUnitChangesAndWait();
 }
 
 void IndexSystemImpl::printStats(raw_ostream &OS) {
@@ -558,10 +568,11 @@ IndexSystem::create(StringRef StorePath,
                     StringRef dbasePath,
                     std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                     std::shared_ptr<IndexSystemDelegate> Delegate,
-                    bool readonly, Optional<size_t> initialDBSize,
+                    bool readonly, bool listenToUnitEvents,
+                    Optional<size_t> initialDBSize,
                     std::string &Error) {
   std::unique_ptr<IndexSystemImpl> Impl(new IndexSystemImpl());
-  bool Err = Impl->init(StorePath, dbasePath, std::move(storeLibProvider), std::move(Delegate), readonly, initialDBSize, Error);
+  bool Err = Impl->init(StorePath, dbasePath, std::move(storeLibProvider), std::move(Delegate), readonly, listenToUnitEvents, initialDBSize, Error);
   if (Err)
     return nullptr;
 
@@ -602,6 +613,10 @@ void IndexSystem::unregisterMainFiles(ArrayRef<StringRef> filePaths, StringRef p
 
 void IndexSystem::purgeStaleData() {
   return IMPL->purgeStaleData();
+}
+
+void IndexSystem::pollForUnitChangesAndWait() {
+  IMPL->pollForUnitChangesAndWait();
 }
 
 void IndexSystem::printStats(raw_ostream &OS) {

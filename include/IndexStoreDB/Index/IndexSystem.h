@@ -46,7 +46,9 @@ public:
                                              StringRef dbasePath,
                                              std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                                              std::shared_ptr<IndexSystemDelegate> Delegate,
-                                             bool readonly, Optional<size_t> initialDBSize,
+                                             bool readonly,
+                                             bool listenToUnitEvents,
+                                             Optional<size_t> initialDBSize,
                                              std::string &Error);
 
   void waitUntilDoneInitializing();
@@ -64,6 +66,9 @@ public:
   // FIXME: Accept a list of active main files so that it can remove stale unit
   // files.
   void purgeStaleData();
+
+  /// *For Testing* Poll for any changes to units and wait until they have been registered.
+  void pollForUnitChangesAndWait();
 
   void printStats(raw_ostream &OS);
 
