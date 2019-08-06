@@ -24,7 +24,7 @@ Index test projects should be put in the `Tests/INPUTS` directory, and use the [
 
 ```
 Tests/
-  Inputs/
+  INPUTS/
     MyTestProj/
       a.swift
       b.swift
