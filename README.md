@@ -22,3 +22,7 @@ The C++ code in the index requires `libdispatch`, but unlike Swift code, it cann
 ```sh
 $ swift build -Xcxx -I<path_to_swift_toolchain>/usr/lib/swift -Xcxx -I<path_to_swift_toolchain>/usr/lib/swift/Block
 ```
+
+## Development
+
+For more information about developing IndexStoreDB, see [Development](Documentation/Development.md).
