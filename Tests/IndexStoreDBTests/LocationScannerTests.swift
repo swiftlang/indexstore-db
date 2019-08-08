@@ -22,22 +22,37 @@ final class LocationScannerTests: XCTestCase {
     var url: URL
     var name: String
     var line: Int
-    var column: Int
-    init(url: URL = LocationScannerTests.magicURL, _ name: String, _ line: Int, _ column: Int) {
+    var utf8Column: Int
+    var utf16Column: Int
+
+    init(
+      url: URL = LocationScannerTests.magicURL,
+      _ name: String,
+      _ line: Int,
+      utf8Column: Int,
+      utf16Column: Int)
+    {
       self.url = url
       self.name = name
       self.line = line
-      self.column = column
+      self.utf8Column = utf8Column
+      self.utf16Column = utf16Column
     }
+
+    init(url: URL = LocationScannerTests.magicURL, _ name: String, _ line: Int, _ column: Int) {
+      self.init(url: url, name, line, utf8Column: column, utf16Column: column)
+    }
+
     init(_ name: String, _ loc: TestLocation) {
-      self.url = loc.url
-      self.name = name
-      self.line = loc.line
-      self.column = loc.column
+      self.init(
+        url: loc.url,
+        name, loc.line,
+        utf8Column: loc.utf8Column,
+        utf16Column: loc.utf16Column)
     }
     static func <(a: Loc, b: Loc) -> Bool {
-      return (a.url.absoluteString, a.line, a.column, a.name) <
-             (b.url.absoluteString, b.line, b.column, b.name)
+      return (a.url.absoluteString, a.line, a.utf8Column, a.name) <
+             (b.url.absoluteString, b.line, b.utf8Column, b.name)
     }
   }
 
@@ -152,5 +167,14 @@ final class LocationScannerTests: XCTestCase {
       Loc(url: proj1.appendingPathComponent("b.swift", isDirectory: false), "a:call", 2, 13),
       Loc(url: proj1.appendingPathComponent("rec/c.swift", isDirectory: false), "c", 1, 11),
     ])
+  }
+
+  func testUnicode() throws {
+    XCTAssertEqual(try scanString("😃/*a*/"), [Loc("a", 1, utf8Column: 10, utf16Column: 8)])
+    XCTAssertEqual(try scanString("😃/*<a*/"), [Loc("a", 1, utf8Column: 5, utf16Column: 3)])
+    XCTAssertEqual(try scanString("Ć/*a*/"), [Loc("a", 1, utf8Column: 8, utf16Column: 7)])
+    XCTAssertEqual(try scanString("Ć/*<a*/"), [Loc("a", 1, utf8Column: 3, utf16Column: 2)])
+    XCTAssertEqual(try scanString("👩‍👩‍👧‍👧/*a*/"), [Loc("a", 1, utf8Column: 31, utf16Column: 17)])
+    XCTAssertEqual(try scanString("👩‍👩‍👧‍👧/*<a*/"), [Loc("a", 1, utf8Column: 26, utf16Column: 12)])
   }
 }

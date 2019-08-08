@@ -75,7 +75,7 @@ public struct TestLocationScanner {
     var state = State.normal(prev: "_")
     var i = str.startIndex
     var line = 1
-    var column = 1
+    var lineStart = i
 
     while i != str.endIndex {
       let c = str[i]
@@ -87,39 +87,47 @@ public struct TestLocationScanner {
         state = .normal(prev: c)
 
       case (.comment(let start, "*"), "/"):
-        let name: String
-        let col: Int
+        let nameStart: String.Index
+        let locIndex: String.Index
         if str[start] == "<" {
-          // Location of the leading '/'.
-          name = String(str[str.index(after: start)..<str.index(before: i)])
-          col = column - str.distance(from: start, to: i) - 2
+          nameStart = str.index(after: start)
+          locIndex = str.index(start, offsetBy: -2) // subtract '/' and '*'
         } else {
-          // Location after the trailing '/'.
-          name = String(str[start..<str.index(before: i)])
-          col = column + 1
+          nameStart = start
+          locIndex = str.index(after: i) // after trailing '/'
         }
 
-        let loc =  TestLocation(url: url, line: line, column: col)
+        let name = String(str[nameStart..<str.index(before: i)])
+
+        let loc = TestLocation(
+          url: url,
+          line: line,
+          utf8Column: 1 + str.utf8.distance(from: lineStart, to: locIndex),
+          utf16Column: 1 + str.utf16.distance(from: lineStart, to: locIndex))
+
         if let prevLoc = result.updateValue(loc, forKey: name) {
           throw Error.duplicateKey(name, prevLoc, loc)
         }
+
         state = .normal(prev: "_")
 
       case (.comment(_, "/"), "*"):
-        throw Error.nestedComment(TestLocation(url: url, line: line, column: column))
+        throw Error.nestedComment(TestLocation(
+          url: url,
+          line: line,
+          utf8Column: 1 + str.utf8.distance(from: lineStart, to: i),
+          utf16Column: 1 + str.utf16.distance(from: lineStart, to: i)))
 
       case (.comment(let start, _), _):
         state = .comment(bodyStart: start, prev: c)
       }
 
+      i = str.index(after: i)
+
       if c == "\n" {
         line += 1
-        column = 1
-      } else {
-        column += 1
+        lineStart = i
       }
-
-      i = str.index(after: i)
     }
   }
 
