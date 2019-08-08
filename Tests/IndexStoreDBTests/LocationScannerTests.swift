@@ -127,6 +127,18 @@ final class LocationScannerTests: XCTestCase {
     ])
   }
 
+  func testLeft() throws {
+    XCTAssertEqual(try scanString("/*a*/"), [Loc("a", 1, 6)])
+    XCTAssertEqual(try scanString("/*<a*/"), [Loc("a", 1, 1)])
+
+    XCTAssertEqual(try scanString("/*a*/foo/*<a:end*/"), [
+      Loc("a", 1, 6),
+      Loc("a:end", 1, 9)
+    ])
+
+    XCTAssertThrowsError(try scanString("/*<a*//*a*/"))
+  }
+
   func testDirectory() throws {
     let proj1 = URL(fileURLWithPath: #file)
       .deletingLastPathComponent()
