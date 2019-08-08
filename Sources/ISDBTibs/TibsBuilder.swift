@@ -135,7 +135,8 @@ extension TibsBuilder {
     var result = Set<String>()
     while let range = out.range(of: "] Indexing ", range: rest) {
       let srcEnd = out[range.upperBound...].index(of: "\n") ?? rest.upperBound
-      result.insert(String(out[range.upperBound ..< srcEnd]))
+      let target = String(out[range.upperBound ..< srcEnd])
+      result.insert(target.trimmingCharacters(in: CharacterSet(charactersIn: "'\"")))
       rest = srcEnd..<rest.upperBound
     }
 
