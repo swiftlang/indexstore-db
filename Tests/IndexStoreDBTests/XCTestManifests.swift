@@ -35,6 +35,7 @@ extension LocationScannerTests {
         ("testName", testName),
         ("testNested", testNested),
         ("testSmall", testSmall),
+        ("testUnicode", testUnicode),
     ]
 }
 
