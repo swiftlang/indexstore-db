@@ -29,6 +29,7 @@ extension LocationScannerTests {
     static let __allTests__LocationScannerTests = [
         ("testDirectory", testDirectory),
         ("testDuplicate", testDuplicate),
+        ("testLeft", testLeft),
         ("testLocation", testLocation),
         ("testMultiple", testMultiple),
         ("testName", testName),

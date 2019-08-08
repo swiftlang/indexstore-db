@@ -26,6 +26,16 @@ import Foundation
 ///   """, url: myURL)
 /// scanner.result == ["foo:def": TestLocation(url: myURL, line: 1, column: 17)]
 /// ```
+///
+/// ## Special Syntax
+///
+/// If the location starts with `<', it will be the location of the start of the
+/// comment instead of the end. E.g.
+///
+/// ```
+/// /*a*/   // column 6
+/// /*<b*/  // column 1
+/// ```
 public struct TestLocationScanner {
 
   /// The result of the scan (so far), mapping name to test location.
@@ -77,8 +87,19 @@ public struct TestLocationScanner {
         state = .normal(prev: c)
 
       case (.comment(let start, "*"), "/"):
-        let name = String(str[start..<str.index(before: i)])
-        let loc =  TestLocation(url: url, line: line, column: column + 1)
+        let name: String
+        let col: Int
+        if str[start] == "<" {
+          // Location of the leading '/'.
+          name = String(str[str.index(after: start)..<str.index(before: i)])
+          col = column - str.distance(from: start, to: i) - 2
+        } else {
+          // Location after the trailing '/'.
+          name = String(str[start..<str.index(before: i)])
+          col = column + 1
+        }
+
+        let loc =  TestLocation(url: url, line: line, column: col)
         if let prevLoc = result.updateValue(loc, forKey: name) {
           throw Error.duplicateKey(name, prevLoc, loc)
         }
