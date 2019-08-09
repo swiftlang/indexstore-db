@@ -53,6 +53,11 @@ final class TibsResolutionTests: XCTestCase {
       src.appendingPathComponent("b.swift", isDirectory: false),
       src.appendingPathComponent("rec/c.swift" , isDirectory: false),
     ])
+    #if os(macOS)
+    XCTAssertNotNil(module.sdk)
+    #else
+    XCTAssertNil(module.sdk)
+    #endif
   }
 
   func testResolutionMixedLangTarget() throws {

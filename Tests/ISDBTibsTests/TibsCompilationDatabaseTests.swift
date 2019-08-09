@@ -31,6 +31,8 @@ final class TibsCompilationDatabaseTests: XCTestCase {
     let build = URL(fileURLWithPath: "/build", isDirectory: true)
     let builder = try TibsBuilder(manifest: m, sourceRoot: src, buildRoot: build, toolchain: tc)
 
+    let sdkargs = TibsBuilder.defaultSDKPath.map { ["-sdk", $0] } ?? []
+
     let expected = JSONCompilationDatabase(commands: [
       Command(
         directory: "/build",
@@ -43,8 +45,10 @@ final class TibsCompilationDatabaseTests: XCTestCase {
           "-emit-module", "-emit-module-path", "A.swiftmodule",
           "-emit-dependencies",
           "-pch-output-dir", "pch",
-          "-module-cache-path", "ModuleCache",
-          "-working-directory", "/build"]),
+          "-module-cache-path", "ModuleCache"
+        ] + sdkargs + [
+          "-working-directory", "/build"
+        ]),
       Command(
         directory: "/build",
         file: "/src/b.swift",
@@ -57,8 +61,10 @@ final class TibsCompilationDatabaseTests: XCTestCase {
           "-emit-module", "-emit-module-path", "B.swiftmodule",
           "-emit-dependencies",
           "-pch-output-dir", "pch",
-          "-module-cache-path", "ModuleCache",
-          "-working-directory", "/build"]),
+          "-module-cache-path", "ModuleCache"
+        ] + sdkargs + [
+          "-working-directory", "/build"
+        ]),
       Command(
         directory: "/build",
         file: "/src/c.swift",
@@ -70,8 +76,10 @@ final class TibsCompilationDatabaseTests: XCTestCase {
           "-emit-module", "-emit-module-path", "C.swiftmodule",
           "-emit-dependencies",
           "-pch-output-dir", "pch",
-          "-module-cache-path", "ModuleCache",
-          "-working-directory", "/build"]),
+          "-module-cache-path", "ModuleCache"
+        ] + sdkargs + [
+          "-working-directory", "/build"
+        ]),
     ])
 
     XCTAssertEqual(builder.compilationDatabase, expected)
@@ -85,6 +93,8 @@ final class TibsCompilationDatabaseTests: XCTestCase {
     let build = URL(fileURLWithPath: "/build", isDirectory: true)
     let builder = try TibsBuilder(manifest: m, sourceRoot: src, buildRoot: build, toolchain: tc)
 
+    let sdkargs = TibsBuilder.defaultSDKPath.map { ["-sdk", $0] } ?? []
+
     let swiftArgs = [
       "/swiftc", "/src/a.swift", "/src/b.swift",
       "-module-name", "main",
@@ -96,6 +106,7 @@ final class TibsCompilationDatabaseTests: XCTestCase {
       "-module-cache-path", "ModuleCache",
       "-emit-objc-header", "-emit-objc-header-path", "main-Swift.h",
       "-import-objc-header", "/src/bridging-header.h",
+    ] + sdkargs + [
       "-Xcc", "-Wno-objc-root-class",
       "-working-directory", "/build"
     ]

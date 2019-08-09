@@ -31,6 +31,7 @@ public final class TibsResolvedTarget {
     public var bridgingHeader: URL?
     public var moduleDeps: [String]
     public var importPaths: [String] { moduleDeps.isEmpty ? [] : ["."] }
+    public var sdk: String?
 
     public init(
       name: String,
@@ -40,7 +41,8 @@ public final class TibsResolvedTarget {
       emitHeaderPath: String? = nil,
       outputFileMap: OutputFileMap,
       bridgingHeader: URL? = nil,
-      moduleDeps: [String] = [])
+      moduleDeps: [String] = [],
+      sdk: String? = nil)
     {
       self.name = name
       self.extraArgs = extraArgs
@@ -50,6 +52,7 @@ public final class TibsResolvedTarget {
       self.outputFileMap = outputFileMap
       self.bridgingHeader = bridgingHeader
       self.moduleDeps = moduleDeps
+      self.sdk = sdk
     }
   }
 
