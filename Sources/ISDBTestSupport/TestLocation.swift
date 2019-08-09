@@ -22,21 +22,23 @@ public struct TestLocation: Hashable {
   /// The one-based line number.
   public var line: Int
 
-  /// The one-based column number.
-  ///
-  /// FIXME: define utf8 vs. utf16 column index.
-  public var column: Int
+  /// The one-based UTF-8 column index.
+  public var utf8Column: Int
 
-  public init(url: URL, line: Int, column: Int) {
+  /// The one-based UTF-16 column index.
+  public var utf16Column: Int
+
+  public init(url: URL, line: Int, utf8Column: Int, utf16Column: Int) {
     self.url = url
     self.line = line
-    self.column = column
+    self.utf8Column = utf8Column
+    self.utf16Column = utf16Column
   }
 }
 
 extension TestLocation: Comparable {
   public static func <(a: TestLocation, b: TestLocation) -> Bool {
-    return (a.url.path, a.line, a.column) < (b.url.path, b.line, b.column)
+    return (a.url.path, a.line, a.utf8Column) < (b.url.path, b.line, b.utf8Column)
   }
 }
 
@@ -48,7 +50,7 @@ extension SymbolLocation {
       path: loc.url.path,
       isSystem: isSystem,
       line: loc.line,
-      utf8Column: loc.column)
+      utf8Column: loc.utf8Column)
   }
 }
 
@@ -61,5 +63,5 @@ extension Symbol {
 }
 
 extension TestLocation: CustomStringConvertible {
-  public var description: String { "\(url.path):\(line):\(column)" }
+  public var description: String { "\(url.path):\(line):\(utf8Column)" }
 }
