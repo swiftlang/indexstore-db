@@ -68,7 +68,8 @@ public final class TibsBuilder {
           emitHeaderPath: clangSources.isEmpty ? nil : "\(name)-Swift.h",
           outputFileMap: outputFileMap,
           bridgingHeader: bridgingHeader,
-          moduleDeps: targetDesc.dependencies?.map { "\($0).swiftmodule" } ?? [])
+          moduleDeps: targetDesc.dependencies?.map { "\($0).swiftmodule" } ?? [],
+          sdk: TibsBuilder.defaultSDKPath)
       }
 
       var clangTUs: [TibsResolvedTarget.ClangTU] = []
@@ -189,6 +190,7 @@ extension TibsBuilder {
           "-emit-objc-header-path", $0
           ] } ?? []
         args += module.bridgingHeader.map { ["-import-objc-header", $0.path] } ?? []
+        args += module.sdk.map { ["-sdk", $0] } ?? []
         args += module.extraArgs
 
         // FIXME: handle via 'directory' field?
@@ -285,7 +287,7 @@ extension TibsBuilder {
           -output-file-map $OUTPUT_FILE_MAP \
           -emit-module -emit-module-path $MODULE_PATH -emit-dependencies \
           -pch-output-dir pch -module-cache-path ModuleCache \
-          $EMIT_HEADER $BRIDGING_HEADER $EXTRA_ARGS \
+          $EMIT_HEADER $BRIDGING_HEADER $SDK $EXTRA_ARGS \
           && \(toolchain.tibs.path) swift-deps-merge $out $DEP_FILES > $out.d
         depfile = $out.d
         deps = gcc
@@ -336,6 +338,7 @@ extension TibsBuilder {
         EXTRA_ARGS = \(module.extraArgs.joined(separator: " "))
         DEP_FILES = \(module.outputFileMap.values.compactMap { $0.dependencies }.joined(separator: " "))
         OUTPUT_FILE_MAP = \(module.outputFileMapPath)
+        SDK = \(module.sdk.map { "-sdk \($0)" } ?? "")
       """)
   }
 
@@ -349,4 +352,41 @@ extension TibsBuilder {
         EXTRA_ARGS = \(tu.extraArgs.joined(separator: " "))
       """)
   }
+}
+
+extension TibsBuilder {
+
+  /// The default sdk path to use on Darwin (on other platforms, returns nil).
+  public static var defaultSDKPath: String? = {
+    #if !os(macOS)
+    return nil
+    #else
+    return xcrunSDKPath()
+    #endif
+  }()
+}
+
+func xcrunSDKPath() -> String {
+  let p = Process()
+  p.launchPath = "/usr/bin/xcrun"
+  p.arguments = ["--show-sdk-path"]
+
+  let out = Pipe()
+  p.standardOutput = out
+
+  p.launch()
+  p.waitUntilExit()
+
+  if p.terminationReason != .exit || p.terminationStatus != 0 {
+    fatalError("unexpected non-zero exit \(p.terminationStatus) from xcrun --show-sdkpath")
+  }
+
+  let data = out.fileHandleForReading.readDataToEndOfFile()
+  guard var path = String(data: data, encoding: .utf8) else {
+    fatalError("invalid output \(data) from xcrun --show-sdkpath")
+  }
+  if path.last == "\n" {
+    path = String(path.dropLast())
+  }
+  return path
 }
