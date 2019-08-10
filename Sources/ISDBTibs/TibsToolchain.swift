@@ -40,17 +40,7 @@ public final class TibsToolchain {
 #endif
 
   public private(set) lazy var clangVersionOutput: String = {
-    let p = Process()
-    p.launchPath = clang.path
-    p.arguments = ["--version"]
-    let pipe = Pipe()
-    p.standardOutput = pipe
-    p.launch()
-    p.waitUntilExit()
-    guard p.terminationReason == .exit && p.terminationStatus == 0 else {
-      fatalError("could not get clang --version")
-    }
-    return String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)!
+    return try! Process.tibs_checkNonZeroExit(arguments: [clang.path, "--version"])
   }()
 
   public private(set) lazy var clangHasIndexSupport: Bool = {
@@ -59,18 +49,7 @@ public final class TibsToolchain {
 
   public private(set) lazy var ninjaVersion: (Int, Int, Int) = {
     precondition(ninja != nil, "expected non-nil ninja in ninjaVersion")
-    let p = Process()
-    p.launchPath = ninja!.path
-    p.arguments = ["--version"]
-    let pipe = Pipe()
-    p.standardOutput = pipe
-    p.launch()
-    p.waitUntilExit()
-    guard p.terminationReason == .exit && p.terminationStatus == 0 else {
-      fatalError("could not get ninja --version")
-    }
-
-    var out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)!
+    var out = try! Process.tibs_checkNonZeroExit(arguments: [ninja!.path, "--version"])
     out = out.trimmingCharacters(in: .whitespacesAndNewlines)
     let components = out.split(separator: ".", maxSplits: 3)
     guard let maj = Int(String(components[0])),
@@ -179,30 +158,17 @@ extension TibsToolchain {
 
 /// Returns the path to the given tool, as found by `xcrun --find` on macOS, or `which` on Linux.
 public func findTool(name: String) -> URL? {
-  let p = Process()
 #if os(macOS)
-  p.launchPath = "/usr/bin/xcrun"
-  p.arguments = ["--find", name]
+  let cmd = ["/usr/bin/xcrun", "--find", name]
 #else
-  p.launchPath = "/usr/bin/which"
-  p.arguments = [name]
+  let cmd = ["/usr/bin/which", name]
 #endif
-  let out = Pipe()
-  p.standardOutput = out
 
-  p.launch()
-  p.waitUntilExit()
-
-  if p.terminationReason != .exit || p.terminationStatus != 0 {
-    return nil
-  }
-
-  let data = out.fileHandleForReading.readDataToEndOfFile()
-  guard var path = String(data: data, encoding: .utf8) else {
+  guard var path = try? Process.tibs_checkNonZeroExit(arguments: cmd) else {
     return nil
   }
   if path.last == "\n" {
     path = String(path.dropLast())
   }
-  return URL(fileURLWithPath: path)
+  return URL(fileURLWithPath: path, isDirectory: false)
 }
