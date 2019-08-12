@@ -118,19 +118,7 @@ extension TibsBuilder {
 
   /// *For Testing* Build and collect a list of commands that were (re)built.
   public func _buildTest() throws -> Set<String> {
-    let pipe = Pipe()
-
-    do {
-      try buildImpl { process in
-        process.standardOutput = pipe
-      }
-    } catch TibsBuilder.Error.buildFailure(let tc, let ts) {
-      let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)!
-      print(out)
-      throw TibsBuilder.Error.buildFailure(tc, exitCode: ts)
-    }
-
-    let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)!
+    let out = try buildImpl()
     var rest = out.startIndex..<out.endIndex
 
     var result = Set<String>()
@@ -144,21 +132,16 @@ extension TibsBuilder {
     return result
   }
 
-  func buildImpl(processCustomization: (Process) -> () = { _ in }) throws {
+  @discardableResult
+  func buildImpl() throws -> String {
     guard let ninja = toolchain.ninja?.path else {
       throw Error.noNinjaBinaryConfigured
     }
 
-    let p = Process()
-    p.launchPath = ninja
-    p.arguments = ["-C", buildRoot.path]
-
-    processCustomization(p)
-
-    p.launch()
-    p.waitUntilExit()
-    if p.terminationReason != .exit || p.terminationStatus != 0 {
-      throw Error.buildFailure(p.terminationReason, exitCode: p.terminationStatus)
+    do {
+      return try Process.tibs_checkNonZeroExit(arguments: [ninja, "-C", buildRoot.path])
+    } catch Process.TibsProcessError.nonZeroExit(let reason, let code) {
+      throw Error.buildFailure(reason, exitCode: code)
     }
   }
 }
@@ -367,24 +350,7 @@ extension TibsBuilder {
 }
 
 func xcrunSDKPath() -> String {
-  let p = Process()
-  p.launchPath = "/usr/bin/xcrun"
-  p.arguments = ["--show-sdk-path"]
-
-  let out = Pipe()
-  p.standardOutput = out
-
-  p.launch()
-  p.waitUntilExit()
-
-  if p.terminationReason != .exit || p.terminationStatus != 0 {
-    fatalError("unexpected non-zero exit \(p.terminationStatus) from xcrun --show-sdkpath")
-  }
-
-  let data = out.fileHandleForReading.readDataToEndOfFile()
-  guard var path = String(data: data, encoding: .utf8) else {
-    fatalError("invalid output \(data) from xcrun --show-sdkpath")
-  }
+  var path = try! Process.tibs_checkNonZeroExit(arguments: ["/usr/bin/xcrun", "--show-sdk-path"])
   if path.last == "\n" {
     path = String(path.dropLast())
   }
