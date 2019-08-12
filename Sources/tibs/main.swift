@@ -26,27 +26,15 @@ var stderr = FileHandle.standardError
 
 func swiftDepsMerge(output: String, _ files: [String]) {
   var allDeps: Set<Substring> = []
+
   for file in files {
-    let content: String
-    do {
-      content = try String(contentsOf: URL(fileURLWithPath: file))
-    } catch {
-      print("error: could not read dep file '\(file)': \(error)", to: &stderr)
+    guard let makefile = Makefile(path: URL(fileURLWithPath: file)) else {
+      print("error: could not read dep file '\(file)'", to: &stderr)
       exit(1)
     }
 
-    let lines = content.split(whereSeparator: { $0.isNewline })
-    for line in lines {
-      guard let depStr = line.split(separator: ":", maxSplits: 1).last else {
-        print("error: malformed dep file '\(file)': expected :", to: &stderr)
-        exit(1)
-      }
-
-      let deps = depStr.split(whereSeparator: { $0.isWhitespace })
-      for dep in deps {
-        allDeps.insert(dep)
-      }
-    }
+    let allOutputs = makefile.outputs.flatMap { $0.deps }
+    allDeps.formUnion(allOutputs)
   }
 
   print("\(output) : \(allDeps.sorted().joined(separator: " "))")

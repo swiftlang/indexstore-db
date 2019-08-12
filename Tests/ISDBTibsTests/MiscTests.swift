@@ -29,4 +29,46 @@ final class MiscTests: XCTestCase {
     XCTAssertFalse(try data2.writeIfChanged(to: url))
     try FileManager.default.removeItem(at: url)
   }
+
+  func testMakefile() throws {
+    typealias Outputs = [(target: Substring, deps: [Substring])]
+    func outputsEqual(actual: Outputs, expected: Outputs) -> Bool {
+      return actual.count == expected.count && zip(actual, expected).allSatisfy(==)
+    }
+
+    let makefiles: [String: Outputs] = [
+      /*simple*/
+      "target: dep1 dep2 dep3": [
+        (target: "target", deps: ["dep1", "dep2", "dep3"])
+      ],
+      /*newlines*/
+      "target1: dep1 \ntarget2: dep1 dep2 dep3": [
+        (target: "target1", deps: ["dep1"]),
+        (target: "target2", deps: ["dep1", "dep2", "dep3"])
+      ],
+      /*nodeps*/
+      "target: ": [
+        (target: "target", deps: [])
+      ],
+      /*spaces*/
+      "target: Dep\\ with\\ spaces" : [
+        (target: "target", deps: ["Dep\\ with\\ spaces"])
+      ],
+      "target\\ with\\ spaces: Dep" : [
+        (target: "target\\ with\\ spaces", deps: ["Dep"])
+      ],
+      /*paths*/
+      "target: Dep/with\\slashes" : [
+        (target: "target", deps: ["Dep/with\\slashes"])
+      ],
+    ]
+
+    for (makefile, exp) in makefiles {
+      guard let parsed = Makefile(contents: makefile) else {
+        XCTFail("Could not parse: \(makefile)")
+        return
+      }
+      XCTAssertTrue(outputsEqual(actual: parsed.outputs, expected: exp), "Makefile parse did not match!\nExpected: \(exp)\nAcutal: \(parsed.outputs)")
+    }
+  }
 }

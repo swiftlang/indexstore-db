@@ -7,6 +7,7 @@ extension MiscTests {
     // to regenerate.
     static let __allTests__MiscTests = [
         ("testDataWriteIfChanged", testDataWriteIfChanged),
+        ("testMakefile", testMakefile),
     ]
 }
 
