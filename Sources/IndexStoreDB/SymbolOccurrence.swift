@@ -72,9 +72,6 @@ extension SymbolOccurrence {
       location: SymbolLocation(indexstoredb_symbol_occurrence_location(value)),
       roles: SymbolRole(rawValue: indexstoredb_symbol_occurrence_roles(value)),
       relations: relations)
-
-    // FIXME: remove unnecessary refcounting of occurrences.
-    indexstoredb_release(value)
   }
 }
 

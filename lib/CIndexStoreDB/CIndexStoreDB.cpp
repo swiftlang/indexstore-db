@@ -120,7 +120,7 @@ indexstoredb_index_symbol_occurrences_by_usr(
   auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachSymbolOccurrenceByUSR(usr, (SymbolRoleSet)roles,
     [&](SymbolOccurrenceRef Occur) -> bool {
-      return receiver(make_object(Occur));
+      return receiver((indexstoredb_symbol_occurrence_t)Occur.get());
     });
 }
 
@@ -134,26 +134,26 @@ indexstoredb_index_related_symbol_occurrences_by_usr(
   auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachRelatedSymbolOccurrenceByUSR(usr, (SymbolRoleSet)roles,
     [&](SymbolOccurrenceRef Occur) -> bool {
-      return receiver(make_object(Occur));
+      return receiver((indexstoredb_symbol_occurrence_t)Occur.get());
     });
 }
 
 const char *
 indexstoredb_symbol_usr(indexstoredb_symbol_t symbol) {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<Symbol>> *)symbol;
-  return obj->value->getUSR().c_str();
+  auto value = (Symbol *)symbol;
+  return value->getUSR().c_str();
 }
 
 const char *
 indexstoredb_symbol_name(indexstoredb_symbol_t symbol) {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<Symbol>> *)symbol;
-  return obj->value->getName().c_str();
+  auto value = (Symbol *)symbol;
+  return value->getName().c_str();
 }
 
 indexstoredb_symbol_kind_t
 indexstoredb_symbol_kind(indexstoredb_symbol_t symbol) {
-  auto symbolObj = (IndexStoreDBObject<std::shared_ptr<Symbol>> *)symbol;
-  return toCSymbolKind(symbolObj->value->getSymbolKind());
+  auto value = (Symbol *)symbol;
+  return toCSymbolKind(value->getSymbolKind());
 }
 
 bool
@@ -172,7 +172,7 @@ indexstoredb_index_canonical_symbol_occurences_by_name(
 {
   auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachCanonicalSymbolOccurrenceByName(symbolName, [&](SymbolOccurrenceRef occur) -> bool {
-    return receiver(make_object(occur));
+    return receiver((indexstoredb_symbol_occurrence_t)occur.get());
   });
 }
 
@@ -195,35 +195,35 @@ indexstoredb_index_canonical_symbol_occurences_containing_pattern(
     ignoreCase,
     [&](SymbolOccurrenceRef occur
   ) -> bool {
-      return receiver(make_object(occur));
+      return receiver((indexstoredb_symbol_occurrence_t)occur.get());
   });
 }
 
 indexstoredb_symbol_t
 indexstoredb_symbol_occurrence_symbol(indexstoredb_symbol_occurrence_t occur) {
-  auto obj = (IndexStoreDBObject<SymbolOccurrenceRef> *)occur;
-  return make_object(obj->value->getSymbol());
+  auto value = (SymbolOccurrence *)occur;
+  return (indexstoredb_symbol_t)value->getSymbol().get();
 }
 
 uint64_t
 indexstoredb_symbol_relation_get_roles(indexstoredb_symbol_relation_t relation) {
-  auto relationObj = (IndexStoreDBObject<SymbolRelation> *)relation;
-  return relationObj->value.getRoles().toRaw();
+  auto value = (SymbolRelation *)relation;
+  return value->getRoles().toRaw();
 }
 
 indexstoredb_symbol_t
 indexstoredb_symbol_relation_get_symbol(indexstoredb_symbol_relation_t relation) {
-  auto relationObj = (IndexStoreDBObject<SymbolRelation> *)relation;
-  return make_object(relationObj->value.getSymbol());
+  auto value = (SymbolRelation *)relation;
+  return (indexstoredb_symbol_t)(value->getSymbol().get());
 }
 
 bool
 indexstoredb_symbol_occurrence_relations(indexstoredb_symbol_occurrence_t occurrence,
                                          bool(^applier)(indexstoredb_symbol_relation_t)) {
-  auto occurrenceObj = (IndexStoreDBObject<SymbolOccurrenceRef> *)occurrence;
-  ArrayRef<SymbolRelation> relations = occurrenceObj->value->getRelations();
-  for (SymbolRelation rel : relations) {
-    if(!applier(make_object(rel))) {
+  auto value = (SymbolOccurrence *)occurrence;
+  ArrayRef<SymbolRelation> relations = value->getRelations();
+  for (auto &rel : relations) {
+    if(!applier((indexstoredb_symbol_relation_t)&rel)) {
       return false;
     }
   }
@@ -232,14 +232,14 @@ indexstoredb_symbol_occurrence_relations(indexstoredb_symbol_occurrence_t occurr
 
 uint64_t
 indexstoredb_symbol_occurrence_roles(indexstoredb_symbol_occurrence_t occur) {
-  auto obj = (IndexStoreDBObject<SymbolOccurrenceRef> *)occur;
-  return (uint64_t)obj->value->getRoles();
+  auto value = (SymbolOccurrence *)occur;
+  return (uint64_t)value->getRoles();
 }
 
 indexstoredb_symbol_location_t indexstoredb_symbol_occurrence_location(
     indexstoredb_symbol_occurrence_t occur) {
-  auto obj = (IndexStoreDBObject<SymbolOccurrenceRef> *)occur;
-  return (indexstoredb_symbol_location_t)&obj->value->getLocation();
+  auto value = (SymbolOccurrence *)occur;
+  return (indexstoredb_symbol_location_t)&value->getLocation();
 }
 
 const char *

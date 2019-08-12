@@ -95,9 +95,6 @@ extension Symbol {
       usr: String(cString: indexstoredb_symbol_usr(value)),
       name: String(cString: indexstoredb_symbol_name(value)),
       kind: IndexSymbolKind(indexstoredb_symbol_kind(value)))
-
-    // FIXME: remove unnecessary refcounting of symbols.
-    indexstoredb_release(value)
   }
 }
 

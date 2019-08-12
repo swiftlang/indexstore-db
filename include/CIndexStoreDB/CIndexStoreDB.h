@@ -51,9 +51,9 @@ INDEXSTOREDB_BEGIN_DECLS
 typedef void *indexstoredb_object_t;
 typedef indexstoredb_object_t indexstoredb_index_t;
 typedef indexstoredb_object_t indexstoredb_indexstore_library_t;
-typedef indexstoredb_object_t indexstoredb_symbol_t;
-typedef indexstoredb_object_t indexstoredb_symbol_occurrence_t;
 
+typedef void *indexstoredb_symbol_t;
+typedef void *indexstoredb_symbol_occurrence_t;
 typedef void *indexstoredb_error_t;
 typedef void *indexstoredb_symbol_location_t;
 typedef void *indexstoredb_symbol_relation_t;
@@ -125,6 +125,9 @@ typedef bool(^indexstoredb_symbol_occurrence_receiver_t)(_Nonnull indexstoredb_s
 /// Returns true to continue.
 typedef bool(^indexstoredb_symbol_name_receiver)(const char *_Nonnull);
 
+/// Creates an index for the given raw index data in \p storePath.
+///
+/// The resulting index must be released using \c indexstoredb_release.
 INDEXSTOREDB_PUBLIC _Nullable
 indexstoredb_index_t
 indexstoredb_index_create(const char * _Nonnull storePath,
@@ -134,6 +137,9 @@ indexstoredb_index_create(const char * _Nonnull storePath,
                   bool listenToUnitEvents,
                   indexstoredb_error_t _Nullable * _Nullable);
 
+/// Creates an indexstore library for the given library.
+///
+/// The resulting object must be released using \c indexstoredb_release.
 INDEXSTOREDB_PUBLIC _Nullable
 indexstoredb_indexstore_library_t
 indexstoredb_load_indexstore_library(const char * _Nonnull dylibPath,
@@ -143,6 +149,10 @@ indexstoredb_load_indexstore_library(const char * _Nonnull dylibPath,
 INDEXSTOREDB_PUBLIC void
 indexstoredb_index_poll_for_unit_changes_and_wait(_Nonnull indexstoredb_index_t index);
 
+/// Iterates over each symbol occurrence matching the given \p usr and \p roles.
+///
+/// The occurrence passed to the receiver is only valid for the duration of the
+/// receiver call.
 INDEXSTOREDB_PUBLIC bool
 indexstoredb_index_symbol_occurrences_by_usr(
     _Nonnull indexstoredb_index_t index,
@@ -150,6 +160,10 @@ indexstoredb_index_symbol_occurrences_by_usr(
     uint64_t roles,
     _Nonnull indexstoredb_symbol_occurrence_receiver_t);
 
+/// Iterates over each symbol occurrence related to the \p usr with \p roles.
+///
+/// The occurrence passed to the receiver is only valid for the duration of the
+/// receiver call.
 INDEXSTOREDB_PUBLIC bool
 indexstoredb_index_related_symbol_occurrences_by_usr(
     _Nonnull indexstoredb_index_t index,
@@ -157,65 +171,91 @@ indexstoredb_index_related_symbol_occurrences_by_usr(
     uint64_t roles,
     _Nonnull indexstoredb_symbol_occurrence_receiver_t);
 
+/// Returns the USR of the given symbol.
+///
+/// The string has the same lifetime as the \c indexstoredb_symbol_t.
 INDEXSTOREDB_PUBLIC
 const char * _Nonnull
 indexstoredb_symbol_usr(_Nonnull indexstoredb_symbol_t);
 
+/// Returns the name of the given symbol.
+///
+/// The string has the same lifetime as the \c indexstoredb_symbol_t.
 INDEXSTOREDB_PUBLIC
 const char * _Nonnull
 indexstoredb_symbol_name(_Nonnull indexstoredb_symbol_t);
 
+/// Returns the symbol of the given symbol occurrence.
+///
+/// The symbol has the same lifetime as the \c indexstoredb_symbol_occurrence_t.
 INDEXSTOREDB_PUBLIC
 _Nonnull indexstoredb_symbol_t
 indexstoredb_symbol_occurrence_symbol(_Nonnull indexstoredb_symbol_occurrence_t);
 
+/// Returns the roles of the given symbol occurrence.
 INDEXSTOREDB_PUBLIC uint64_t
 indexstoredb_symbol_occurrence_roles(_Nonnull indexstoredb_symbol_occurrence_t);
 
-/// The location is owned by the occurrence and shall not be used after the occurrence is freed.
+/// Returns the location of the given symbol occurrence.
+///
+/// The location has the same lifetime as the \c indexstoredb_symbol_occurrence_t.
 INDEXSTOREDB_PUBLIC _Nonnull
 indexstoredb_symbol_location_t
 indexstoredb_symbol_occurrence_location(_Nonnull indexstoredb_symbol_occurrence_t);
 
+/// Returns the path of the given symbol location.
+///
+/// The string has the same lifetime as the \c indexstoredb_symbol_location_t.
 INDEXSTOREDB_PUBLIC
 const char * _Nonnull
 indexstoredb_symbol_location_path(_Nonnull indexstoredb_symbol_location_t);
 
+/// Returns whether the given symbol location is a system location.
 INDEXSTOREDB_PUBLIC bool
 indexstoredb_symbol_location_is_system(_Nonnull indexstoredb_symbol_location_t);
 
+/// Returns the one-based line number of the given symbol location.
 INDEXSTOREDB_PUBLIC int
 indexstoredb_symbol_location_line(_Nonnull indexstoredb_symbol_location_t);
 
+/// Returns the one-based UTF-8 column index of the given symbol location.
 INDEXSTOREDB_PUBLIC int
 indexstoredb_symbol_location_column_utf8(_Nonnull indexstoredb_symbol_location_t);
 
+/// Retains the given \c indexstoredb_object_t and returns it.
 INDEXSTOREDB_PUBLIC _Nonnull
 indexstoredb_object_t
 indexstoredb_retain(_Nonnull indexstoredb_object_t);
 
+/// Releases the given \c indexstoredb_object_t.
 INDEXSTOREDB_PUBLIC void
 indexstoredb_release(_Nonnull indexstoredb_object_t);
 
+/// Returns the string describing the given error.
+///
+/// The string has the same lifetime as the \c indexstoredb_error_t.
 INDEXSTOREDB_PUBLIC const char * _Nonnull
 indexstoredb_error_get_description(_Nonnull indexstoredb_error_t);
 
+/// Destroys the given error.
 INDEXSTOREDB_PUBLIC void
 indexstoredb_error_dispose(_Nullable indexstoredb_error_t);
 
-/// Loops through each symbol in the index and calls the receiver function with each symbol.
-/// @param index An IndexStoreDB object which contains the symbols.
-/// @param receiver A function to be called for each symbol, the CString of the symbol will be passed in to this function.
-/// The function should return a boolean indicating whether the looping should continue.
+/// Iterates over the name of every symbol in the index.
+///
+/// \param index An IndexStoreDB object which contains the symbols.
+/// \param receiver A function to be called for each symbol. The string pointer is only valid for
+/// the duration of the call. The function should return a true to continue iterating.
 INDEXSTOREDB_PUBLIC bool
 indexstoredb_index_symbol_names(_Nonnull indexstoredb_index_t index, _Nonnull indexstoredb_symbol_name_receiver);
 
-/// Loops through each canonical symbol that matches the string and performs the passed in function.
-/// @param index An IndexStoreDB object which contains the symbols.
-/// @param symbolName The name of the symbol whose canonical occurence should be found.
-/// @param receiver A function to be called for each canonical occurence.
-/// The SymbolOccurenceRef of the symbol will be passed in to this function.
-/// The function should return a boolean indicating whether the looping should continue.
+/// Iterates over every canonical symbol that matches the string.
+///
+/// \param index An IndexStoreDB object which contains the symbols.
+/// \param symbolName The name of the symbol whose canonical occurence should be found.
+/// \param receiver A function to be called for each canonical occurence.
+/// The canonical symbol occurrence will be passed in to this function. It is valid only for the
+/// duration of the call. The function should return true to continue iterating.
 INDEXSTOREDB_PUBLIC bool
 indexstoredb_index_canonical_symbol_occurences_by_name(
     indexstoredb_index_t _Nonnull index,
@@ -223,15 +263,15 @@ indexstoredb_index_canonical_symbol_occurences_by_name(
     indexstoredb_symbol_occurrence_receiver_t _Nonnull receiver
 );
 
-/// Loops through each canonical symbol that matches the pattern and performs the passed in function.
-/// @param index An IndexStoreDB object which contains the symbols.
-/// @param anchorStart When true, symbol names should only be considered matching when the first characters of the symbol name match the pattern.
-/// @param anchorEnd When true, symbol names should only be considered matching when the first characters of the symbol name match the pattern.
-/// @param subsequence When true, symbols will be matched even if the pattern is not matched contiguously.
-/// @param ignoreCase When true, symbols may be returned even if the case of letters does not match the pattern.
-/// @param receiver A function to be called for each canonical occurence that matches the pattern.
-/// The SymbolOccurenceRef of the symbol will be passed in to this function.
-/// The function should return a boolean indicating whether the looping should continue.
+/// Iterates over every canonical symbol that matches the pattern.
+///
+/// \param index An IndexStoreDB object which contains the symbols.
+/// \param anchorStart When true, symbol names should only be considered matching when the first characters of the symbol name match the pattern.
+/// \param anchorEnd When true, symbol names should only be considered matching when the first characters of the symbol name match the pattern.
+/// \param subsequence When true, symbols will be matched even if the pattern is not matched contiguously.
+/// \param ignoreCase When true, symbols may be returned even if the case of letters does not match the pattern.
+/// \param receiver A function to be called for each canonical occurence that matches the pattern.
+/// It is valid only for the duration of the call. The function should return true to continue iterating.
 INDEXSTOREDB_PUBLIC bool
 indexstoredb_index_canonical_symbol_occurences_containing_pattern(
     _Nonnull indexstoredb_index_t index,
@@ -242,27 +282,28 @@ indexstoredb_index_canonical_symbol_occurences_containing_pattern(
     bool ignoreCase,
     _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver);
 
-/// Gets the set of roles of the passed in symbol relation
-/// @param relation A symbol relation
+/// Returns the set of roles of the given symbol relation.
 INDEXSTOREDB_PUBLIC uint64_t
 indexstoredb_symbol_relation_get_roles(_Nonnull  indexstoredb_symbol_relation_t);
 
-/// Gets the symbol associated with the passed in relation
-/// @param relation A symbol relation
+/// Returns the symbol of the given symbol relation.
+///
+/// The symbol has the same lifetime as the \c indexstoredb_symbol_relation_t.
 INDEXSTOREDB_PUBLIC _Nonnull indexstoredb_symbol_t
 indexstoredb_symbol_relation_get_symbol(_Nonnull indexstoredb_symbol_relation_t);
 
-/// Loops through each relation that a passed in symbol has, and performs the passed in function.
+/// Iterates over the relations of the given symbol occurrence.
+///
 /// The relations are owned by the occurrence and shall not be used after the occurrence is freed.
-/// @param occurrence The symbol occurrence that whose relations should be found.
-/// @param applier The function that should be performed on each symbol relation.
+///
+/// \param occurrence The symbol occurrence that whose relations should be found.
+/// \param applier The function that should be performed on each symbol relation.
 /// The function should return a boolean indicating whether the looping should continue.
 INDEXSTOREDB_PUBLIC bool
 indexstoredb_symbol_occurrence_relations(_Nonnull indexstoredb_symbol_occurrence_t,
                                          bool(^ _Nonnull applier)(indexstoredb_symbol_relation_t _Nonnull ));
 
-/// Get the SymbolKind of a Symbol
-/// @param symbol The symbol whose kind should be found.
+/// Returns the kind of the given symbol.
 INDEXSTOREDB_PUBLIC indexstoredb_symbol_kind_t
 indexstoredb_symbol_kind(_Nonnull indexstoredb_symbol_t);
 
