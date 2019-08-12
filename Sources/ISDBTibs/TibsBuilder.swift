@@ -123,7 +123,7 @@ extension TibsBuilder {
 
     var result = Set<String>()
     while let range = out.range(of: "] Indexing ", range: rest) {
-      let srcEnd = out[range.upperBound...].index(of: "\n") ?? rest.upperBound
+      let srcEnd = out[range.upperBound...].firstIndex(where: {$0.isNewline}) ?? rest.upperBound
       let target = String(out[range.upperBound ..< srcEnd])
       result.insert(target.trimmingCharacters(in: CharacterSet(charactersIn: "'\"")))
       rest = srcEnd..<rest.upperBound
