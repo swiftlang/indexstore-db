@@ -262,23 +262,36 @@ extension TibsBuilder {
   }
 
   public func writeNinjaRules<Output: TextOutputStream>(to stream: inout Output) {
+#if os(Windows)
+    let callCmd = "cmd.exe /C "
+#else
+    let callCmd = ""
+#endif
+    let swiftIndexCommand = callCmd + """
+      \(escapeCommand([toolchain.swiftc.path])) $in $IMPORT_PATHS -module-name $MODULE_NAME \
+       -index-store-path index -index-ignore-system-modules \
+       -output-file-map $OUTPUT_FILE_MAP \
+      -emit-module -emit-module-path $MODULE_PATH -emit-dependencies \
+      -pch-output-dir pch -module-cache-path ModuleCache \
+      $EMIT_HEADER $BRIDGING_HEADER $SDK $EXTRA_ARGS \
+      && \(toolchain.tibs.path) swift-deps-merge $out $DEP_FILES > $out.d
+      """
+    let ccIndexCommand = callCmd + """
+      \(escapeCommand([toolchain.clang.path])) -fsyntax-only $in $IMPORT_PATHS -index-store-path index \
+      -index-ignore-system-symbols -fmodules -fmodules-cache-path=ModuleCache \
+      -MMD -MF $OUTPUT_NAME.d -o $out $EXTRA_ARGS && touch $out
+      """
     stream.write("""
       rule swiftc_index
         description = Indexing Swift Module $MODULE_NAME
-        command = \(toolchain.swiftc.path) $in $IMPORT_PATHS -module-name $MODULE_NAME \
-          -index-store-path index -index-ignore-system-modules \
-          -output-file-map $OUTPUT_FILE_MAP \
-          -emit-module -emit-module-path $MODULE_PATH -emit-dependencies \
-          -pch-output-dir pch -module-cache-path ModuleCache \
-          $EMIT_HEADER $BRIDGING_HEADER $SDK $EXTRA_ARGS \
-          && \(toolchain.tibs.path) swift-deps-merge $out $DEP_FILES > $out.d
+        command = \(swiftIndexCommand)
         depfile = $out.d
         deps = gcc
         restat = 1 # Swift doesn't rewrite modules that haven't changed
 
       rule cc_index
         description = Indexing $in
-        command = \(toolchain.clang.path) -fsyntax-only $in $IMPORT_PATHS -index-store-path index -index-ignore-system-symbols -fmodules -fmodules-cache-path=ModuleCache -MMD -MF $OUTPUT_NAME.d -o $out $EXTRA_ARGS && touch $out
+        command = \(ccIndexCommand)
         depfile = $out.d
         deps = gcc
       """)
@@ -310,9 +323,9 @@ extension TibsBuilder {
     }
 
     stream.write("""
-      build \(outputs.joined(separator: " ")) : \
-      swiftc_index \(module.sources.map { $0.path }.joined(separator: " ")) \
-      | \(deps.joined(separator: " "))
+      build \(escapePath(path: outputs.joined(separator: " "))) : \
+      swiftc_index \(module.sources.map { escapePath(path: $0.path) }.joined(separator: " ")) \
+      | \(escapePath(path: deps.joined(separator: " ")))
         MODULE_NAME = \(module.name)
         MODULE_PATH = \(module.emitModulePath)
         IMPORT_PATHS = \(module.importPaths.map { "-I \($0)" }.joined(separator: " "))
@@ -328,8 +341,8 @@ extension TibsBuilder {
   public func writeNinjaSnippet<Output: TextOutputStream>(for tu: TibsResolvedTarget.ClangTU, to stream: inout Output) {
 
     stream.write("""
-      build \(tu.outputPath): \
-      cc_index \(tu.source.path) | \(toolchain.clang.path) \(tu.generatedHeaderDep ?? "")
+      build \(escapePath(path: tu.outputPath)): \
+      cc_index \(escapePath(path: tu.source.path)) | \(escapePath(path: toolchain.clang.path)) \(tu.generatedHeaderDep ?? "")
         IMPORT_PATHS = \(tu.importPaths.map { "-I \($0)" }.joined(separator: " "))
         OUTPUT_NAME = \(tu.outputPath)
         EXTRA_ARGS = \(tu.extraArgs.joined(separator: " "))
@@ -356,3 +369,80 @@ func xcrunSDKPath() -> String {
   }
   return path
 }
+
+#if os(Windows)
+func quoteWindowsCommandLine(_ commandLine: [String]) -> String {
+  func quoteWindowsCommandArg(arg: String) -> String {
+    // Windows escaping, adapted from Daniel Colascione's "Everyone quotes
+    // command line arguments the wrong way" - Microsoft Developer Blog
+    if !arg.contains(where: {" \t\n\"".contains($0)}) {
+      return arg
+    }
+
+    // To escape the command line, we surround the argument with quotes. However
+    // the complication comes due to how the Windows command line parser treats
+    // backslashes (\) and quotes (")
+    //
+    // - \ is normally treated as a literal backslash
+    //     - e.g. foo\bar\baz => foo\bar\baz
+    // - However, the sequence \" is treated as a literal "
+    //     - e.g. foo\"bar => foo"bar
+    //
+    // But then what if we are given a path that ends with a \? Surrounding
+    // foo\bar\ with " would be "foo\bar\" which would be an unterminated string
+
+    // since it ends on a literal quote. To allow this case the parser treats:
+    //
+    // - \\" as \ followed by the " metachar
+    // - \\\" as \ followed by a literal "
+    // - In general:
+    //     - 2n \ followed by " => n \ followed by the " metachar
+    //     - 2n+1 \ followed by " => n \ followed by a literal "
+    var quoted = "\""
+    var unquoted = arg.unicodeScalars
+
+    while !unquoted.isEmpty {
+      guard let firstNonBackslash = unquoted.firstIndex(where: { $0 != "\\" }) else {
+        // String ends with a backslash e.g. foo\bar\, escape all the backslashes
+        // then add the metachar " below
+        let backslashCount = unquoted.count
+        quoted.append(String(repeating: "\\", count: backslashCount * 2))
+        break
+      }
+      let backslashCount = unquoted.distance(from: unquoted.startIndex, to: firstNonBackslash)
+      if (unquoted[firstNonBackslash] == "\"") {
+        // This is  a string of \ followed by a " e.g. foo\"bar. Escape the
+        // backslashes and the quote
+        quoted.append(String(repeating: "\\", count: backslashCount * 2 + 1))
+        quoted.append(String(unquoted[firstNonBackslash]))
+      } else {
+        // These are just literal backslashes
+        quoted.append(String(repeating: "\\", count: backslashCount))
+        quoted.append(String(unquoted[firstNonBackslash]))
+      }
+      // Drop the backslashes and the following character
+      unquoted.removeFirst(backslashCount + 1)
+    }
+    quoted.append("\"")
+    return quoted
+  }
+  return commandLine.map(quoteWindowsCommandArg).joined(separator: " ")
+}
+#endif
+
+func escapeCommand(_ args: [String]) -> String {
+  let escaped: String
+#if os(Windows)
+  escaped = quoteWindowsCommandLine(args)
+#else
+  escaped = args.joined(separator: " ")
+#endif
+  return escapePath(path: escaped)
+}
+
+func escapePath(path: String) -> String {
+  // Ninja escapes using $, this only matters during build lines
+  // since those are terminated by a :
+  return path.replacingOccurrences(of: ":", with: "$:")
+}
+
