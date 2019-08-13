@@ -11,6 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+#if os(Windows)
+import WinSDK
+#endif
 
 /// The set of commandline tools used to build a tibs project.
 public final class TibsToolchain {
@@ -86,7 +89,11 @@ public final class TibsToolchain {
       let fsec = Float(usec) / 1_000_000
       fputs("warning: waiting \(fsec) second\(fsec == 1.0 ? "" : "s") to ensure file timestamp " +
             "differs; \(reason)\n", stderr)
+#if os(Windows)
+      Sleep(usec / 1000)
+#else
       usleep(usec)
+#endif
     }
   }
 }
@@ -168,6 +175,13 @@ extension TibsToolchain {
 public func findTool(name: String) -> URL? {
 #if os(macOS)
   let cmd = ["/usr/bin/xcrun", "--find", name]
+#elseif os(Windows)
+  var buf = [WCHAR](repeating: 0, count: Int(MAX_PATH))
+  GetWindowsDirectoryW(&buf, DWORD(MAX_PATH))
+  var wherePath = String(decodingCString: &buf, as: UTF16.self)
+    .appendingPathComponent("system32")
+    .appendingPathComponent("where.exe")
+  let cmd = [wherePath, name]
 #else
   let cmd = ["/usr/bin/which", name]
 #endif
@@ -175,8 +189,9 @@ public func findTool(name: String) -> URL? {
   guard var path = try? Process.tibs_checkNonZeroExit(arguments: cmd) else {
     return nil
   }
-  if path.last == "\n" {
-    path = String(path.dropLast())
-  }
+#if os(Windows)
+  path = String((path.split { $0.isNewline })[0])
+#endif
+  path = path.trimmingCharacters(in: .whitespacesAndNewlines)
   return URL(fileURLWithPath: path, isDirectory: false)
 }
