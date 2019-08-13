@@ -24,10 +24,16 @@ public final class TibsToolchain {
     self.swiftc = swiftc
     self.clang = clang
 
+#if os(Windows)
+    let dylibFolder = "bin"
+#else
+    let dylibFolder = "lib"
+#endif
+
     self.libIndexStore = libIndexStore ?? swiftc
       .deletingLastPathComponent()
       .deletingLastPathComponent()
-      .appendingPathComponent("lib/libIndexStore.\(TibsToolchain.dylibExt)", isDirectory: false)
+      .appendingPathComponent("\(dylibFolder)/libIndexStore.\(TibsToolchain.dylibExt)", isDirectory: false)
 
     self.tibs = tibs
     self.ninja = ninja
@@ -35,6 +41,8 @@ public final class TibsToolchain {
 
 #if os(macOS)
   public static let dylibExt = "dylib"
+#elseif os(Windows)
+  public static let dylibExt = "dll"
 #else
   public static let dylibExt = "so"
 #endif
