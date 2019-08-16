@@ -46,7 +46,9 @@ public:
                                              StringRef dbasePath,
                                              std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                                              std::shared_ptr<IndexSystemDelegate> Delegate,
-                                             bool readonly, Optional<size_t> initialDBSize,
+                                             bool readonly,
+                                             bool listenToUnitEvents,
+                                             Optional<size_t> initialDBSize,
                                              std::string &Error);
 
   void waitUntilDoneInitializing();
@@ -64,6 +66,9 @@ public:
   // FIXME: Accept a list of active main files so that it can remove stale unit
   // files.
   void purgeStaleData();
+
+  /// *For Testing* Poll for any changes to units and wait until they have been registered.
+  void pollForUnitChangesAndWait();
 
   void printStats(raw_ostream &OS);
 
@@ -126,7 +131,7 @@ public:
 
   /// Returns unit test class/method occurrences that are referenced from units associated with the provided output file paths.
   /// \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
-  bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<StringRef> FilePaths,
+  bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,
       function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 
 private:

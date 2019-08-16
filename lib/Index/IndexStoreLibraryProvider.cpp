@@ -13,7 +13,12 @@
 #include "IndexStoreDB/Index/IndexStoreLibraryProvider.h"
 #include "indexstore/IndexStoreCXX.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ConvertUTF.h"
+#if defined(_WIN32)
+#include <Windows.h>
+#else
 #include <dlfcn.h>
+#endif
 
 using namespace IndexStoreDB;
 using namespace index;
@@ -28,11 +33,28 @@ IndexStoreLibraryRef GlobalIndexStoreLibraryProvider::getLibraryForStorePath(Str
 
   // Note: we're using dlsym with RTLD_DEFAULT because we cannot #incldue indexstore.h and indexstore_functions.h
   std::string ignored;
-  return loadIndexStoreLibraryFromDLHandle(RTLD_DEFAULT, ignored);
+#if defined(_WIN32)
+  void* defaultHandle = GetModuleHandleW(NULL);
+#else
+  void* defaultHandle = RTLD_DEFAULT;
+#endif
+  return loadIndexStoreLibraryFromDLHandle(defaultHandle, ignored);
 }
 
 IndexStoreLibraryRef index::loadIndexStoreLibrary(std::string dylibPath,
                                                   std::string &error) {
+#if defined(_WIN32)
+  llvm::SmallVector<llvm::UTF16, 30> u16Path;
+  if (!convertUTF8ToUTF16String(dylibPath, u16Path)) {
+    error += "Failed to convert path: " + dylibPath + " to UTF-16";
+    return nullptr;
+  }
+  HMODULE dlHandle = LoadLibraryW((LPCWSTR)u16Path.data());
+  if (dlHandle == NULL) {
+    error += "Failed to load " + dylibPath + ". Error: " + std::to_string(GetLastError());
+    return nullptr;
+  }
+#else
   auto flags = RTLD_LAZY | RTLD_LOCAL;
 #ifdef RTLD_FIRST
   flags |= RTLD_FIRST;
@@ -44,6 +66,7 @@ IndexStoreLibraryRef index::loadIndexStoreLibrary(std::string dylibPath,
     error += dlerror();
     return nullptr;
   }
+#endif
 
   // Intentionally leak the dlhandle; we have no reason to dlclose it and it may be unsafe.
   (void)dlHandle;
@@ -54,12 +77,21 @@ IndexStoreLibraryRef index::loadIndexStoreLibrary(std::string dylibPath,
 static IndexStoreLibraryRef loadIndexStoreLibraryFromDLHandle(void *dlHandle, std::string &error) {
   indexstore_functions_t api;
 
+#if defined(_WIN32)
+#define INDEXSTORE_FUNCTION(func, required) \
+  api.func = (decltype(indexstore_functions_t::func))GetProcAddress((HMODULE)dlHandle, "indexstore_" #func); \
+  if (!api.func && required) { \
+    error = "indexstore library missing required function indexstore_" #func; \
+    return nullptr; \
+  }
+#else
 #define INDEXSTORE_FUNCTION(func, required) \
   api.func = (decltype(indexstore_functions_t::func))dlsym(dlHandle, "indexstore_" #func); \
   if (!api.func && required) { \
     error = "indexstore library missing required function indexstore_" #func; \
     return nullptr; \
   }
+#endif
 
 #include "indexstore_functions.def"
 

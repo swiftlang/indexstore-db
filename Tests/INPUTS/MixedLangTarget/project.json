@@ -1,0 +1,12 @@
+{
+  "clang_flags": ["-Wno-objc-root-class"],
+  "sources": [
+    "a.swift",
+    "b.swift",
+    "b.c",
+    "c.m",
+    "d.cpp",
+    "e.mm",
+  ],
+  "bridging_header": "bridging-header.h"
+}

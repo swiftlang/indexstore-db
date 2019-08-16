@@ -121,7 +121,8 @@ StringRef ReadTransaction::Implementation::getModuleName(IDCode moduleNameCode) 
 
 bool ReadTransaction::Implementation::getProviderFileReferences(IDCode provider,
     llvm::function_ref<bool(TimestampedPath path)> receiver) {
-  return getProviderFileCodeReferences(provider, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
+  auto unitFilter = [](IDCode unitCode)->bool { return true; };
+  return getProviderFileCodeReferences(provider, unitFilter, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
     std::string pathString;
     llvm::raw_string_ostream OS(pathString);
     if (!getFullFilePathFromCode(pathCode, OS)) {
@@ -138,9 +139,11 @@ bool ReadTransaction::Implementation::getProviderFileReferences(IDCode provider,
   });
 }
 
+/// `unitFilter` returns `true` if the unit should be included, `false` if it should be ignored.
 static bool passFileReferencesForProviderCursor(lmdb::val &key,
                                                 lmdb::val &value,
                                                 lmdb::cursor &cursor,
+                                                function_ref<bool(IDCode unitCode)> unitFilter,
                                                 llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
   // Entries are sorted by file code and there can be multiple same file entries
   // from different units. We want to pass each file only once with its most recent
@@ -159,32 +162,46 @@ static bool passFileReferencesForProviderCursor(lmdb::val &key,
     const auto &entry = *(TimestampedFileForProviderData*)value.data();
     llvm::sys::TimePoint<> modTime = llvm::sys::TimePoint<>(std::chrono::nanoseconds(entry.NanoTime));
     if (!currFileCode) {
-      currFileCode = entry.FileCode;
-      currUnitCode = entry.UnitCode;
-      currModTime = modTime;
-      currModuleNameCode = entry.ModuleNameCode;
-      currIsSystem = entry.IsSystem;
+      if (unitFilter(entry.UnitCode)) {
+        currFileCode = entry.FileCode;
+        currUnitCode = entry.UnitCode;
+        currModTime = modTime;
+        currModuleNameCode = entry.ModuleNameCode;
+        currIsSystem = entry.IsSystem;
+      }
     } else if (currFileCode.getValue() == entry.FileCode) {
       if (currModTime < modTime) {
-        currModTime = modTime;
-        currUnitCode = entry.UnitCode;
+        if (unitFilter(entry.UnitCode)) {
+          currModTime = modTime;
+          currUnitCode = entry.UnitCode;
+        }
       }
     } else {
       if (!passCurrFile())
         return false;
-      currFileCode = entry.FileCode;
-      currUnitCode = entry.UnitCode;
-      currModTime = modTime;
-      currModuleNameCode = entry.ModuleNameCode;
-      currIsSystem = entry.IsSystem;
+      if (unitFilter(entry.UnitCode)) {
+        currFileCode = entry.FileCode;
+        currUnitCode = entry.UnitCode;
+        currModTime = modTime;
+        currModuleNameCode = entry.ModuleNameCode;
+        currIsSystem = entry.IsSystem;
+      } else {
+        currFileCode.reset();
+        currUnitCode.reset();
+      }
     }
   } while (cursor.get(key, value, MDB_NEXT_DUP));
 
-  return passCurrFile();
+  if (currFileCode) {
+    return passCurrFile();
+  } else {
+    return true;
+  }
 }
 
 bool ReadTransaction::Implementation::getProviderFileCodeReferences(IDCode provider,
-    llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
+    function_ref<bool(IDCode unitCode)> unitFilter,
+    function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
   auto &db = DBase->impl();
   auto &dbiFilesByProvider = db.getDBITimestampedFilesByProvider();
   auto cursor = lmdb::cursor::open(Txn, dbiFilesByProvider);
@@ -195,10 +212,12 @@ bool ReadTransaction::Implementation::getProviderFileCodeReferences(IDCode provi
   if (!found)
     return true;
 
-  return passFileReferencesForProviderCursor(key, value, cursor, std::move(receiver));
+  return passFileReferencesForProviderCursor(key, value, cursor, std::move(unitFilter), std::move(receiver));
 }
 
-bool ReadTransaction::Implementation::foreachProviderAndFileCodeReference(llvm::function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
+bool ReadTransaction::Implementation::foreachProviderAndFileCodeReference(
+    function_ref<bool(IDCode unitCode)> unitFilter,
+    function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
   auto &db = DBase->impl();
   auto &dbiFilesByProvider = db.getDBITimestampedFilesByProvider();
   auto cursor = lmdb::cursor::open(Txn, dbiFilesByProvider);
@@ -207,7 +226,7 @@ bool ReadTransaction::Implementation::foreachProviderAndFileCodeReference(llvm::
   lmdb::val value{};
   while (cursor.get(key, value, MDB_NEXT_NODUP)) {
     IDCode providerCode = *(IDCode*)key.data();
-    bool cont = passFileReferencesForProviderCursor(key, value, cursor, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
+    bool cont = passFileReferencesForProviderCursor(key, value, cursor, unitFilter, [&](IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem) -> bool {
       return receiver(providerCode, pathCode, unitCode, modTime, moduleNameCode, isSystem);
     });
     if (!cont)
@@ -236,6 +255,20 @@ static bool passMultipleIDCodes(lmdb::cursor &cursor, lmdb::val &key, lmdb::val 
       if (!receiver(entries))
         return false;
     }
+  }
+  return true;
+}
+
+bool ReadTransaction::Implementation::foreachProviderContainingTestSymbols(function_ref<bool(IDCode provider)> receiver) {
+  auto &db = DBase->impl();
+  auto cursor = lmdb::cursor::open(Txn, db.getDBISymbolProvidersWithTestSymbols());
+
+  lmdb::val key{};
+  lmdb::val value{};
+  while (cursor.get(key, value, MDB_NEXT)) {
+    IDCode providerCode = *(IDCode*)key.data();
+    if (!receiver(providerCode))
+      return false;
   }
   return true;
 }
@@ -635,12 +668,19 @@ bool ReadTransaction::getProviderFileReferences(IDCode provider,
 }
 
 bool ReadTransaction::getProviderFileCodeReferences(IDCode provider,
-    llvm::function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
-  return Impl->getProviderFileCodeReferences(provider, std::move(receiver));
+    function_ref<bool(IDCode unitCode)> unitFilter,
+    function_ref<bool(IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
+  return Impl->getProviderFileCodeReferences(provider, std::move(unitFilter), std::move(receiver));
 }
 
-bool ReadTransaction::foreachProviderAndFileCodeReference(llvm::function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
-  return Impl->foreachProviderAndFileCodeReference(std::move(receiver));
+bool ReadTransaction::foreachProviderAndFileCodeReference(
+    function_ref<bool(IDCode unitCode)> unitFilter,
+    function_ref<bool(IDCode provider, IDCode pathCode, IDCode unitCode, llvm::sys::TimePoint<> modTime, IDCode moduleNameCode, bool isSystem)> receiver) {
+  return Impl->foreachProviderAndFileCodeReference(std::move(unitFilter), std::move(receiver));
+}
+
+bool ReadTransaction::foreachProviderContainingTestSymbols(function_ref<bool(IDCode provider)> receiver) {
+  return Impl->foreachProviderContainingTestSymbols(std::move(receiver));
 }
 
 bool ReadTransaction::foreachUSROfGlobalSymbolKind(SymbolKind symKind, llvm::function_ref<bool(ArrayRef<IDCode> usrCodes)> receiver) {
