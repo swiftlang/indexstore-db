@@ -46,6 +46,7 @@ struct UnitInfo {
   bool HasMainFile;
   bool HasSysroot;
   bool IsSystem;
+  bool HasTestSymbols;
   SymbolProviderKind SymProviderKind;
   ArrayRef<IDCode> FileDepends;
   ArrayRef<IDCode> UnitDepends;

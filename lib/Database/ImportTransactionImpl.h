@@ -29,6 +29,9 @@ public:
 
   IDCode getUnitCode(StringRef unitName);
   IDCode addProviderName(StringRef name, bool *wasInserted);
+  // Marks a provider as containing test symbols.
+  void setProviderContainsTestSymbols(IDCode provider);
+  bool providerContainsTestSymbols(IDCode provider);
   /// \returns a IDCode of the USR.
   IDCode addSymbolInfo(IDCode provider, StringRef USR, StringRef symbolName, SymbolInfo symInfo,
                        SymbolRoleSet roles, SymbolRoleSet relatedRoles);

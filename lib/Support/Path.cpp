@@ -16,17 +16,19 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Mutex.h"
+#if defined(_WIN32)
+#include <Windows.h>
+#else
 #include <unistd.h>
+#endif
 #include <limits.h>
 #include <stdlib.h>
 
-using namespace IndexStoreDB;
+#if defined(_WIN32)
+#define PATH_MAX MAX_PATH
+#endif
 
-static StringRef getCanonicalPath(const char *Path, char *PathBuf) {
-  if (const char *path = realpath(Path, PathBuf))
-    return path;
-  return StringRef();
-}
+using namespace IndexStoreDB;
 
 namespace {
 class CanonicalPathCacheImpl {
@@ -61,11 +63,11 @@ CanonicalPathCacheImpl::getCanonicalPath(StringRef Path, StringRef WorkingDir) {
       return It->second;
   }
 
-  char PathBuf[PATH_MAX];
-  StringRef CanonPath = ::getCanonicalPath(AbsPath.c_str(), PathBuf);
-  if (CanonPath.empty()) {
+  llvm::SmallString<PATH_MAX> Buffer;
+  if (llvm::sys::fs::real_path(AbsPath.c_str(), Buffer, false)) {
     return CanonicalFilePathRef::getAsCanonicalPath(AbsPath);
   }
+  StringRef CanonPath = Buffer;
 
   {
     llvm::sys::ScopedLock L(StateMtx);

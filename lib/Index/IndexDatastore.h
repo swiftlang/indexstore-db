@@ -41,6 +41,7 @@ public:
                                                 std::shared_ptr<IndexSystemDelegate> Delegate,
                                                 std::shared_ptr<CanonicalPathCache> CanonPathCache,
                                                 bool readonly,
+                                                bool listenToUnitEvents,
                                                 std::string &Error);
 
   void waitUntilDoneInitializing();
@@ -53,6 +54,9 @@ public:
   void checkUnitContainingFileIsOutOfDate(StringRef file);
 
   void purgeStaleData();
+
+  /// *For Testing* Poll for any changes to units and wait until they have been registered.
+  void pollForUnitChangesAndWait();
 
 private:
   IndexDatastore(void *Impl) : Impl(Impl) {}

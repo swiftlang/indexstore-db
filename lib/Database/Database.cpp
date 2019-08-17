@@ -23,6 +23,15 @@
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#if defined(_WIN32)
+#include "Windows.h"
+#endif
+
+#if defined(_WIN32)
+typedef HANDLE indexstorePid_t;
+#else
+typedef pid_t indexstorePid_t;
+#endif
 
 // Dispatch on Linux doesn't have QOS_* macros.
 #if !__has_include(<sys/qos.h>)
@@ -32,7 +41,7 @@
 using namespace IndexStoreDB;
 using namespace IndexStoreDB::db;
 
-const unsigned Database::DATABASE_FORMAT_VERSION = 12;
+const unsigned Database::DATABASE_FORMAT_VERSION = 13;
 
 static const char *DeadProcessDBSuffix = "-dead";
 
@@ -97,7 +106,11 @@ Database::Implementation::create(StringRef path, bool readonly, Optional<size_t>
   SmallString<128> savedPathBuf = versionPath;
   llvm::sys::path::append(savedPathBuf, "saved");
   SmallString<128> processPathBuf = versionPath;
+#if defined(WIN32)
+  llvm::raw_svector_ostream(processPathBuf) << "/p" << GetCurrentProcess();
+#else
   llvm::raw_svector_ostream(processPathBuf) << "/p" << getpid();
+#endif
 
   bool existingDB = true;
 
@@ -144,7 +157,7 @@ retry:
     db->SavedPath = savedPathBuf.str();
     db->ProcessPath = processPathBuf.str();
     db->DBEnv = lmdb::env::create();
-    db->DBEnv.set_max_dbs(13);
+    db->DBEnv.set_max_dbs(14);
 
     // Start with 64MB. We'll update with the actual size after we open the database.
     db->MapSize = initialDBSize.getValueOr(64ULL*1024ULL*1024ULL);
@@ -168,6 +181,7 @@ retry:
     db->DBISymbolProvidersByUSR = lmdb::dbi::open(txn, "usrs", MDB_INTEGERKEY|MDB_DUPSORT|MDB_DUPFIXED|MDB_CREATE);
     db->DBISymbolProvidersByUSR.set_dupsort(txn, providersForUSR_compare);
     db->DBISymbolProviderNameByCode = lmdb::dbi::open(txn, "providers", MDB_INTEGERKEY|MDB_CREATE);
+    db->DBISymbolProvidersWithTestSymbols = lmdb::dbi::open(txn, "providers-with-test-symbols", MDB_INTEGERKEY|MDB_CREATE);
     db->DBIUSRsBySymbolName = lmdb::dbi::open(txn, "symbol-names", MDB_DUPSORT|MDB_DUPFIXED|MDB_INTEGERDUP|MDB_CREATE);
     db->DBIUSRsByGlobalSymbolKind = lmdb::dbi::open(txn, "symbol-kinds", MDB_INTEGERKEY|MDB_DUPSORT|MDB_DUPFIXED|MDB_INTEGERDUP|MDB_CREATE);
     db->DBIDirNameByCode = lmdb::dbi::open(txn, "directories", MDB_INTEGERKEY|MDB_CREATE);
@@ -240,7 +254,7 @@ UnitInfo Database::Implementation::getUnitInfo(IDCode unitCode, lmdb::txn &Txn) 
   llvm::sys::TimePoint<> modTime = llvm::sys::TimePoint<>(std::chrono::nanoseconds(infoData.NanoTime));
   return UnitInfo{ unitName, unitCode, modTime,
     infoData.OutFileCode, infoData.MainFileCode, infoData.SysrootCode, infoData.TargetCode,
-    infoData.HasMainFile, infoData.HasSysroot, infoData.IsSystem,
+    infoData.HasMainFile, infoData.HasSysroot, infoData.IsSystem, infoData.HasTestSymbols,
     SymbolProviderKind(infoData.SymProviderKind),
     fileDepends, unitDepends, providerDepends };
 }
@@ -268,10 +282,16 @@ void Database::Implementation::increaseMapSize() {
   LOG_INFO_FUNC(High, "increased lmdb map size to: " << MapSize);
 }
 
-static bool isProcessStillExecuting(pid_t PID) {
+static bool isProcessStillExecuting(indexstorePid_t PID) {
+#if defined(_WIN32)
+  DWORD dwExitCode;
+  bool result = GetExitCodeProcess(PID, &dwExitCode);
+  return result && (dwExitCode == STILL_ACTIVE);
+#else
   if (getsid(PID) == -1 && errno == ESRCH)
     return false;
   return true;
+#endif
 }
 
 // This runs in a background priority queue.
@@ -282,7 +302,11 @@ static void cleanupDiscardedDBsImpl(StringRef versionedPath) {
   // A directory is dead if it has been marked with the suffix "-dead" or if it
   // has the name "p<PID>" where process PID is no longer running.
 
-  pid_t currPID = getpid();
+#if defined(WIN32)
+  indexstorePid_t currPID = GetCurrentProcess();
+#else
+  indexstorePid_t currPID = getpid();
+#endif
 
   std::error_code EC;
   directory_iterator Begin(versionedPath, EC);
@@ -291,7 +315,7 @@ static void cleanupDiscardedDBsImpl(StringRef versionedPath) {
     auto &Item = *Begin;
     StringRef currPath = Item.path();
 
-    auto shouldRemove = [](StringRef fullpath, pid_t currPID) -> bool {
+    auto shouldRemove = [](StringRef fullpath, indexstorePid_t currPID) -> bool {
       StringRef path = llvm::sys::path::filename(fullpath);
       if (path.endswith(DeadProcessDBSuffix))
         return true;
@@ -300,9 +324,9 @@ static void cleanupDiscardedDBsImpl(StringRef versionedPath) {
       size_t pathPID;
       if (path.substr(1).getAsInteger(10, pathPID))
         return false;
-      if (pathPID == currPID)
+      if ((indexstorePid_t)pathPID == currPID)
         return false;
-      return !isProcessStillExecuting(pathPID);
+      return !isProcessStillExecuting((indexstorePid_t)pathPID);
     };
 
     if (shouldRemove(currPath, currPID)) {

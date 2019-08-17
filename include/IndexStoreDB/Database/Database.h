@@ -17,6 +17,7 @@
 #include "IndexStoreDB/Support/LLVM.h"
 #include "IndexStoreDB/Support/Visibility.h"
 #include <memory>
+#include <string>
 
 namespace IndexStoreDB {
 namespace db {

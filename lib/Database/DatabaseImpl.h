@@ -27,6 +27,7 @@ class Database::Implementation {
   lmdb::env DBEnv{nullptr};
   lmdb::dbi DBISymbolProvidersByUSR{0};
   lmdb::dbi DBISymbolProviderNameByCode{0};
+  lmdb::dbi DBISymbolProvidersWithTestSymbols{0};
   lmdb::dbi DBIUSRsBySymbolName{0};
   lmdb::dbi DBIUSRsByGlobalSymbolKind{0};
   lmdb::dbi DBIDirNameByCode{0};
@@ -59,6 +60,7 @@ public:
   lmdb::env &getDBEnv() { return DBEnv; }
   lmdb::dbi &getDBISymbolProvidersByUSR() { return DBISymbolProvidersByUSR; }
   lmdb::dbi &getDBISymbolProviderNameByCode() { return DBISymbolProviderNameByCode; }
+  lmdb::dbi &getDBISymbolProvidersWithTestSymbols() { return DBISymbolProvidersWithTestSymbols; }
   lmdb::dbi &getDBIUSRsBySymbolName() { return DBIUSRsBySymbolName; }
   lmdb::dbi &getDBIUSRsByGlobalSymbolKind() { return DBIUSRsByGlobalSymbolKind; }
   lmdb::dbi &getDBIDirNameByCode() { return DBIDirNameByCode; }
@@ -137,6 +139,7 @@ struct UnitInfoData {
   bool HasMainFile : 1;
   bool HasSysroot : 1;
   bool IsSystem : 1;
+  bool HasTestSymbols : 1;
   uint32_t FileDependSize;
   uint32_t UnitDependSize;
   uint32_t ProviderDependSize;

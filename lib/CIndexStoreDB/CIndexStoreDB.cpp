@@ -22,6 +22,8 @@
 using namespace IndexStoreDB;
 using namespace index;
 
+static indexstoredb_symbol_kind_t toCSymbolKind(SymbolKind K);
+
 class IndexStoreDBObjectBase
     : public llvm::ThreadSafeRefCountedBase<IndexStoreDBObjectBase> {
 public:
@@ -72,8 +74,8 @@ public:
 indexstoredb_index_t
 indexstoredb_index_create(const char *storePath, const char *databasePath,
                           indexstore_library_provider_t libProvider,
-                          // delegate,
-                          bool readonly, indexstoredb_error_t *error) {
+                          bool readonly, bool listenToUnitEvents,
+                          indexstoredb_error_t *error) {
 
   auto delegate = std::make_shared<IndexSystemDelegate>();
   auto libProviderObj = std::make_shared<BlockIndexStoreLibraryProvider>(libProvider);
@@ -81,7 +83,7 @@ indexstoredb_index_create(const char *storePath, const char *databasePath,
   std::string errMsg;
   if (auto index =
           IndexSystem::create(storePath, databasePath, libProviderObj, delegate,
-                              readonly, llvm::None, errMsg)) {
+                              readonly, listenToUnitEvents, llvm::None, errMsg)) {
 
     return make_object(index);
 
@@ -103,6 +105,10 @@ indexstoredb_load_indexstore_library(const char *dylibPath,
   return nullptr;
 }
 
+void indexstoredb_index_poll_for_unit_changes_and_wait(indexstoredb_index_t index) {
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  obj->value->pollForUnitChangesAndWait();
+}
 
 bool
 indexstoredb_index_symbol_occurrences_by_usr(
@@ -114,7 +120,7 @@ indexstoredb_index_symbol_occurrences_by_usr(
   auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachSymbolOccurrenceByUSR(usr, (SymbolRoleSet)roles,
     [&](SymbolOccurrenceRef Occur) -> bool {
-      return receiver(make_object(Occur));
+      return receiver((indexstoredb_symbol_occurrence_t)Occur.get());
     });
 }
 
@@ -128,38 +134,112 @@ indexstoredb_index_related_symbol_occurrences_by_usr(
   auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachRelatedSymbolOccurrenceByUSR(usr, (SymbolRoleSet)roles,
     [&](SymbolOccurrenceRef Occur) -> bool {
-      return receiver(make_object(Occur));
+      return receiver((indexstoredb_symbol_occurrence_t)Occur.get());
     });
 }
 
 const char *
 indexstoredb_symbol_usr(indexstoredb_symbol_t symbol) {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<Symbol>> *)symbol;
-  return obj->value->getUSR().c_str();
+  auto value = (Symbol *)symbol;
+  return value->getUSR().c_str();
 }
 
 const char *
 indexstoredb_symbol_name(indexstoredb_symbol_t symbol) {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<Symbol>> *)symbol;
-  return obj->value->getName().c_str();
+  auto value = (Symbol *)symbol;
+  return value->getName().c_str();
+}
+
+indexstoredb_symbol_kind_t
+indexstoredb_symbol_kind(indexstoredb_symbol_t symbol) {
+  auto value = (Symbol *)symbol;
+  return toCSymbolKind(value->getSymbolKind());
+}
+
+bool
+indexstoredb_index_symbol_names(indexstoredb_index_t index, indexstoredb_symbol_name_receiver receiver) {
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachSymbolName([&](StringRef ref) -> bool {
+    return receiver(ref.str().c_str());
+  });
+}
+
+bool
+indexstoredb_index_canonical_symbol_occurences_by_name(
+  indexstoredb_index_t index,
+  const char *_Nonnull symbolName,
+  indexstoredb_symbol_occurrence_receiver_t receiver)
+{
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachCanonicalSymbolOccurrenceByName(symbolName, [&](SymbolOccurrenceRef occur) -> bool {
+    return receiver((indexstoredb_symbol_occurrence_t)occur.get());
+  });
+}
+
+bool
+indexstoredb_index_canonical_symbol_occurences_containing_pattern(
+  indexstoredb_index_t index,
+  const char *_Nonnull pattern,
+  bool anchorStart,
+  bool anchorEnd,
+  bool subsequence,
+  bool ignoreCase,
+  indexstoredb_symbol_occurrence_receiver_t receiver)
+{
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachCanonicalSymbolOccurrenceContainingPattern(
+    pattern,
+    anchorStart,
+    anchorEnd,
+    subsequence,
+    ignoreCase,
+    [&](SymbolOccurrenceRef occur
+  ) -> bool {
+      return receiver((indexstoredb_symbol_occurrence_t)occur.get());
+  });
 }
 
 indexstoredb_symbol_t
 indexstoredb_symbol_occurrence_symbol(indexstoredb_symbol_occurrence_t occur) {
-  auto obj = (IndexStoreDBObject<SymbolOccurrenceRef> *)occur;
-  return make_object(obj->value->getSymbol());
+  auto value = (SymbolOccurrence *)occur;
+  return (indexstoredb_symbol_t)value->getSymbol().get();
+}
+
+uint64_t
+indexstoredb_symbol_relation_get_roles(indexstoredb_symbol_relation_t relation) {
+  auto value = (SymbolRelation *)relation;
+  return value->getRoles().toRaw();
+}
+
+indexstoredb_symbol_t
+indexstoredb_symbol_relation_get_symbol(indexstoredb_symbol_relation_t relation) {
+  auto value = (SymbolRelation *)relation;
+  return (indexstoredb_symbol_t)(value->getSymbol().get());
+}
+
+bool
+indexstoredb_symbol_occurrence_relations(indexstoredb_symbol_occurrence_t occurrence,
+                                         bool(^applier)(indexstoredb_symbol_relation_t)) {
+  auto value = (SymbolOccurrence *)occurrence;
+  ArrayRef<SymbolRelation> relations = value->getRelations();
+  for (auto &rel : relations) {
+    if(!applier((indexstoredb_symbol_relation_t)&rel)) {
+      return false;
+    }
+  }
+  return true;
 }
 
 uint64_t
 indexstoredb_symbol_occurrence_roles(indexstoredb_symbol_occurrence_t occur) {
-  auto obj = (IndexStoreDBObject<SymbolOccurrenceRef> *)occur;
-  return (uint64_t)obj->value->getRoles();
+  auto value = (SymbolOccurrence *)occur;
+  return (uint64_t)value->getRoles();
 }
 
 indexstoredb_symbol_location_t indexstoredb_symbol_occurrence_location(
     indexstoredb_symbol_occurrence_t occur) {
-  auto obj = (IndexStoreDBObject<SymbolOccurrenceRef> *)occur;
-  return (indexstoredb_symbol_location_t)&obj->value->getLocation();
+  auto value = (SymbolOccurrence *)occur;
+  return (indexstoredb_symbol_location_t)&value->getLocation();
 }
 
 const char *
@@ -207,4 +287,65 @@ void
 indexstoredb_error_dispose(indexstoredb_error_t error) {
   if (error)
    delete (IndexStoreDBError *)error;
+}
+
+static indexstoredb_symbol_kind_t toCSymbolKind(SymbolKind K) {
+  switch (K) {
+  case SymbolKind::Unknown:
+    return INDEXSTOREDB_SYMBOL_KIND_UNKNOWN;
+  case SymbolKind::Module:
+    return INDEXSTOREDB_SYMBOL_KIND_MODULE;
+  case SymbolKind::Namespace:
+    return INDEXSTOREDB_SYMBOL_KIND_NAMESPACE;
+  case SymbolKind::NamespaceAlias:
+    return INDEXSTOREDB_SYMBOL_KIND_NAMESPACEALIAS;
+  case SymbolKind::Macro:
+    return INDEXSTOREDB_SYMBOL_KIND_MACRO;
+  case SymbolKind::Enum:
+    return INDEXSTOREDB_SYMBOL_KIND_ENUM;
+  case SymbolKind::Struct:
+    return INDEXSTOREDB_SYMBOL_KIND_STRUCT;
+  case SymbolKind::Class:
+    return INDEXSTOREDB_SYMBOL_KIND_CLASS;
+  case SymbolKind::Protocol:
+    return INDEXSTOREDB_SYMBOL_KIND_PROTOCOL;
+  case SymbolKind::Extension:
+    return INDEXSTOREDB_SYMBOL_KIND_EXTENSION;
+  case SymbolKind::Union:
+    return INDEXSTOREDB_SYMBOL_KIND_UNION;
+  case SymbolKind::TypeAlias:
+    return INDEXSTOREDB_SYMBOL_KIND_TYPEALIAS;
+  case SymbolKind::Function:
+    return INDEXSTOREDB_SYMBOL_KIND_FUNCTION;
+  case SymbolKind::Variable:
+    return INDEXSTOREDB_SYMBOL_KIND_VARIABLE;
+  case SymbolKind::Parameter:
+    return INDEXSTOREDB_SYMBOL_KIND_PARAMETER;
+  case SymbolKind::Field:
+    return INDEXSTOREDB_SYMBOL_KIND_FIELD;
+  case SymbolKind::EnumConstant:
+    return INDEXSTOREDB_SYMBOL_KIND_ENUMCONSTANT;
+  case SymbolKind::InstanceMethod:
+    return INDEXSTOREDB_SYMBOL_KIND_INSTANCEMETHOD;
+  case SymbolKind::ClassMethod:
+    return INDEXSTOREDB_SYMBOL_KIND_CLASSMETHOD;
+  case SymbolKind::StaticMethod:
+    return INDEXSTOREDB_SYMBOL_KIND_STATICMETHOD;
+  case SymbolKind::InstanceProperty:
+    return INDEXSTOREDB_SYMBOL_KIND_INSTANCEPROPERTY;
+  case SymbolKind::ClassProperty:
+    return INDEXSTOREDB_SYMBOL_KIND_CLASSPROPERTY;
+  case SymbolKind::StaticProperty:
+    return INDEXSTOREDB_SYMBOL_KIND_STATICPROPERTY;
+  case SymbolKind::Constructor:
+    return INDEXSTOREDB_SYMBOL_KIND_CONSTRUCTOR;
+  case SymbolKind::Destructor:
+    return INDEXSTOREDB_SYMBOL_KIND_DESTRUCTOR;
+  case SymbolKind::ConversionFunction:
+    return INDEXSTOREDB_SYMBOL_KIND_CONVERSIONFUNCTION;
+  case SymbolKind::CommentTag:
+    return INDEXSTOREDB_SYMBOL_KIND_COMMENTTAG;
+  default:
+    return INDEXSTOREDB_SYMBOL_KIND_UNKNOWN;
+  }
 }

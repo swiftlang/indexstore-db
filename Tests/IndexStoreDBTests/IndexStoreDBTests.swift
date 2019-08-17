@@ -46,7 +46,7 @@ final class IndexStoreDBTests: XCTestCase {
 
   func testErrors() {
     checkThrows(.create("failed creating directory")) {
-      _ = try IndexStoreDB(storePath: "/nope", databasePath: "/nope", library: nil)
+      _ = try IndexStoreDB(storePath: "/nope:", databasePath: "/nope:", library: nil)
     }
 
     checkThrows(.create("could not determine indexstore library")) {

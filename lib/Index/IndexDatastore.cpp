@@ -87,6 +87,11 @@ struct DoneInitState {
   unsigned RemainingInitUnits = 0; // this is not accessed concurrently.
 };
 
+struct PollUnitsState {
+  llvm::sys::Mutex pollMtx;
+  llvm::StringMap<sys::TimePoint<>> knownUnits;
+};
+
 class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
   IndexStoreRef IdxStore;
   SymbolIndexRef SymIndex;
@@ -97,6 +102,8 @@ class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
 
   DoneInitState InitializingState;
   dispatch_semaphore_t InitSemaphore;
+
+  PollUnitsState pollUnitsState;
 
   mutable llvm::sys::Mutex StateMtx;
   std::unordered_map<IDCode, std::shared_ptr<UnitMonitor>> UnitMonitorsByCode;
@@ -109,7 +116,6 @@ public:
     SymIndex(std::move(SymIndex)),
     Delegate(std::move(Delegate)),
     CanonPathCache(std::move(canonPathCache)) {
-
     InitSemaphore = dispatch_semaphore_create(0);
   }
   ~StoreUnitRepo() {
@@ -124,6 +130,9 @@ public:
   void processedInitialUnitCount(unsigned count);
   void finishedUnitInitialization();
   void waitUntilDoneInitializing();
+
+  /// *For Testing* Poll for any changes to units and wait until they have been registered.
+  void pollForUnitChangesAndWait();
 
   void purgeStaleData();
 
@@ -153,6 +162,7 @@ public:
             std::shared_ptr<IndexSystemDelegate> Delegate,
             std::shared_ptr<CanonicalPathCache> CanonPathCache,
             bool readonly,
+            bool listenToUnitEvents,
             std::string &Error);
 
   void waitUntilDoneInitializing();
@@ -160,6 +170,9 @@ public:
   bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);
   void checkUnitContainingFileIsOutOfDate(StringRef file);
   void purgeStaleData();
+
+  /// *For Testing* Poll for any changes to units and wait until they have been registered.
+  void pollForUnitChangesAndWait();
 };
 
 class UnitMonitor {
@@ -296,6 +309,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
   IDCode unitCode;
   bool needDatabaseUpdate;
   Optional<bool> optIsSystem;
+  Optional<bool> PrevHasTestSymbols;
   IDCode PrevMainFileCode;
   IDCode PrevOutFileCode;
   Optional<StoreUnitInfo> StoreUnitInfoOpt;
@@ -312,6 +326,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
     if (!needDatabaseUpdate) {
       PrevMainFileCode = unitImport.getPrevMainFileCode();
       PrevOutFileCode = unitImport.getPrevOutFileCode();
+      PrevHasTestSymbols = unitImport.getHasTestSymbols();
       return false;
     }
 
@@ -333,7 +348,6 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
     }
     CanonicalFilePath CanonOutFile = CanonPathCache->getCanonicalPath(Reader.getOutputFile(), WorkDir);
     unitImport.setOutFile(CanonOutFile);
-    StoreUnitInfoOpt = StoreUnitInfo{unitName, CanonMainFile, CanonOutFile, unitModTime};
 
     CanonicalFilePath CanonSysroot = CanonPathCache->getCanonicalPath(Reader.getSysrootPath(), WorkDir);
     unitImport.setSysroot(CanonSysroot);
@@ -385,6 +399,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
     });
 
     unitImport.commit();
+    StoreUnitInfoOpt = StoreUnitInfo{unitName, CanonMainFile, CanonOutFile, unitImport.getHasTestSymbols().getValue(), unitModTime};
     import.commit();
     return false;
   };
@@ -397,7 +412,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
       ReadTransaction reader(SymIndex->getDBase());
       CanonicalFilePath mainFile = reader.getFullFilePathFromCode(PrevMainFileCode);
       CanonicalFilePath outFile = reader.getFullFilePathFromCode(PrevOutFileCode);
-      StoreUnitInfoOpt = StoreUnitInfo{unitName, mainFile, outFile, unitModTime};
+      StoreUnitInfoOpt = StoreUnitInfo{unitName, mainFile, outFile, PrevHasTestSymbols.getValue(), unitModTime};
     }
     Delegate->processedStoreUnit(StoreUnitInfoOpt.getValue());
   }
@@ -477,6 +492,56 @@ void StoreUnitRepo::waitUntilDoneInitializing() {
   dispatch_semaphore_wait(InitSemaphore, DISPATCH_TIME_FOREVER);
 }
 
+void StoreUnitRepo::pollForUnitChangesAndWait() {
+  sys::ScopedLock L(pollUnitsState.pollMtx);
+  std::vector<UnitEventInfo> events;
+  {
+    llvm::StringMap<sys::TimePoint<>> knownUnits;
+    llvm::StringMap<sys::TimePoint<>> foundUnits;
+
+    std::swap(knownUnits, pollUnitsState.knownUnits);
+
+    IdxStore->foreachUnit(/*sort=*/false, [&](StringRef unitName) {
+      std::string error;
+      auto optModTime = IdxStore->getUnitModificationTime(unitName, error);
+      if (!optModTime) {
+        LOG_WARN_FUNC("error getting mod time for unit '" << unitName << "':" << error);
+        return true;
+      }
+
+      auto modTime = toTimePoint(optModTime.getValue());
+      foundUnits[unitName] = modTime;
+
+      auto I = knownUnits.find(unitName);
+      if (I != knownUnits.end() && I->getValue() != modTime) {
+        events.push_back({IndexStore::UnitEvent::Kind::Modified, unitName.str()});
+      } else {
+        events.push_back({IndexStore::UnitEvent::Kind::Added, unitName.str()});
+      }
+
+      return true;
+    });
+
+    for (const auto &known : knownUnits) {
+      if (foundUnits.count(known.getKey()) == 0) {
+        events.push_back({IndexStore::UnitEvent::Kind::Removed, known.getKey().str()});
+      }
+    }
+
+    pollUnitsState.knownUnits = std::move(foundUnits);
+  }
+
+  Delegate->processingAddedPending(events.size());
+
+  dispatch_sync(getGlobalQueueForUnitChanges(), ^{
+    onFilesChange(std::move(events), [&](unsigned numCompleted){
+      Delegate->processingCompleted(numCompleted);
+    }, []{
+      // FIXME: the database should recover.
+    });
+  });
+}
+
 std::shared_ptr<UnitMonitor> StoreUnitRepo::getUnitMonitor(IDCode unitCode) const {
   sys::ScopedLock L(StateMtx);
   auto It = UnitMonitorsByCode.find(unitCode);
@@ -501,6 +566,7 @@ void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
                                     bool synchronous) {
   CanonicalFilePath MainFilePath;
   CanonicalFilePath OutFilePath;
+  bool hasTestSymbols = false;
   llvm::sys::TimePoint<> CurrModTime;
   SmallVector<IDCode, 8> dependentUnits;
   {
@@ -511,13 +577,14 @@ void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
         MainFilePath = reader.getFullFilePathFromCode(unitInfo.MainFileCode);
       }
       OutFilePath = reader.getFullFilePathFromCode(unitInfo.OutFileCode);
+      hasTestSymbols = unitInfo.HasTestSymbols;
       CurrModTime = unitInfo.ModTime;
     }
     reader.getDirectDependentUnits(unitCode, dependentUnits);
   }
 
   if (!MainFilePath.empty() && Delegate) {
-    StoreUnitInfo unitInfo{unitName, MainFilePath, OutFilePath, CurrModTime};
+    StoreUnitInfo unitInfo{unitName, MainFilePath, OutFilePath, hasTestSymbols, CurrModTime};
     Delegate->unitIsOutOfDate(unitInfo, outOfDateModTime, hint, synchronous);
   }
 
@@ -773,6 +840,7 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
                               std::shared_ptr<IndexSystemDelegate> Delegate,
                               std::shared_ptr<CanonicalPathCache> CanonPathCache,
                               bool readonly,
+                              bool listenToUnitEvents,
                               std::string &Error) {
   this->IdxStore = std::move(idxStore);
   if (!this->IdxStore)
@@ -823,10 +891,12 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
     Block_release(onUnitChangeBlock);
   };
 
-  this->IdxStore->setUnitEventHandler(OnUnitsChange);
-  bool err = this->IdxStore->startEventListening(/*waitInitialSync=*/false, Error);
-  if (err)
-    return true;
+  if (listenToUnitEvents) {
+    this->IdxStore->setUnitEventHandler(OnUnitsChange);
+    bool err = this->IdxStore->startEventListening(/*waitInitialSync=*/false, Error);
+    if (err)
+      return true;
+  }
 
   this->UnitRepo = std::move(UnitRepo);
   return false;
@@ -863,6 +933,10 @@ void IndexDatastoreImpl::purgeStaleData() {
   UnitRepo->purgeStaleData();
 }
 
+void IndexDatastoreImpl::pollForUnitChangesAndWait() {
+  UnitRepo->pollForUnitChangesAndWait();
+}
+
 //===----------------------------------------------------------------------===//
 // IndexDatastore
 //===----------------------------------------------------------------------===//
@@ -873,10 +947,10 @@ IndexDatastore::create(IndexStoreRef idxStore,
                        std::shared_ptr<IndexSystemDelegate> Delegate,
                        std::shared_ptr<CanonicalPathCache> CanonPathCache,
                        bool readonly,
+                       bool listenToUnitEvents,
                        std::string &Error) {
   std::unique_ptr<IndexDatastoreImpl> Impl(new IndexDatastoreImpl());
-  bool Err = Impl->init(std::move(idxStore), std::move(SymIndex), std::move(Delegate), std::move(CanonPathCache),
-                        readonly, Error);
+  bool Err = Impl->init(std::move(idxStore), std::move(SymIndex), std::move(Delegate), std::move(CanonPathCache), readonly, listenToUnitEvents, Error);
   if (Err)
     return nullptr;
 
@@ -909,4 +983,8 @@ void IndexDatastore::checkUnitContainingFileIsOutOfDate(StringRef file) {
 
 void IndexDatastore::purgeStaleData() {
   return IMPL->purgeStaleData();
+}
+
+void IndexDatastore::pollForUnitChangesAndWait() {
+  return IMPL->pollForUnitChangesAndWait();
 }
