@@ -78,14 +78,17 @@ public final class TibsToolchain {
     // FIXME: this method is very incomplete. If we're running on a filesystem that doesn't support
     // high resolution time stamps, we'll need to detect that here. This should only be done for
     // testing.
-    var usec: UInt32 = 0
+
+    // Empirically, a little over 10 ms resolution is seen on some systems.
+    let minimum: UInt32 = 20_000
+    var usec: UInt32 = minimum
     var reason: String = ""
     if ninjaVersion < (1, 9, 0) {
       usec = 1_000_000
       reason = "upgrade to ninja >= 1.9.0 for high precision timestamp support"
     }
 
-    if usec > 0 {
+    if usec > minimum {
       let fsec = Float(usec) / 1_000_000
       fputs("warning: waiting \(fsec) second\(fsec == 1.0 ? "" : "s") to ensure file timestamp " +
             "differs; \(reason)\n", stderr)
