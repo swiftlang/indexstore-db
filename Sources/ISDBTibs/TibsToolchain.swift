@@ -82,16 +82,20 @@ public final class TibsToolchain {
     // Empirically, a little over 10 ms resolution is seen on some systems.
     let minimum: UInt32 = 20_000
     var usec: UInt32 = minimum
-    var reason: String = ""
+    var warning: String? = nil
+
     if ninjaVersion < (1, 9, 0) {
       usec = 1_000_000
-      reason = "upgrade to ninja >= 1.9.0 for high precision timestamp support"
+      warning = "upgrade to ninja >= 1.9.0 for high precision timestamp support"
     }
 
-    if usec > minimum {
-      let fsec = Float(usec) / 1_000_000
-      fputs("warning: waiting \(fsec) second\(fsec == 1.0 ? "" : "s") to ensure file timestamp " +
-            "differs; \(reason)\n", stderr)
+    if usec > 0 {
+      if let warning = warning {
+        let fsec = Float(usec) / 1_000_000
+        fputs("warning: waiting \(fsec) second\(fsec == 1.0 ? "" : "s") to ensure file timestamp " +
+              "differs; \(warning)\n", stderr)
+      }
+
 #if os(Windows)
       Sleep(usec / 1000)
 #else
