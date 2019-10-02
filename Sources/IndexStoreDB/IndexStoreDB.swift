@@ -175,8 +175,10 @@ public class IndexStoreLibrary {
   }
 }
 
-extension indexstoredb_error_t: CustomStringConvertible {
-  public var description: String {
+// Note: this cannot conform to CustomStringConvertible, since it is a typealias
+// of an UnsafeMutableRawPointer.
+extension indexstoredb_error_t {
+  var description: String {
     return String(cString: indexstoredb_error_get_description(self))
   }
 }
