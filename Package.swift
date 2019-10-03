@@ -1,4 +1,4 @@
-// swift-tools-version:4.2
+// swift-tools-version:5.0
 
 import PackageDescription
 
@@ -88,8 +88,12 @@ let package = Package(
     .target(
       name: "IndexStoreDB_LLVMSupport",
       dependencies: [],
-      path: "lib/LLVMSupport"),
+      path: "lib/LLVMSupport",
+      cxxSettings: [
+        .define("LLVM_ON_WIN32", .when(platforms: [.windows])),
+      ]
+    ),
   ],
 
-  cxxLanguageStandard: .cxx11
+  cxxLanguageStandard: .cxx14
 )
