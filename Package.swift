@@ -18,7 +18,9 @@ let package = Package(
       name: "tibs",
       targets: ["tibs"])
   ],
-  dependencies: [],
+  dependencies: [
+    .package(url: "https://github.com/apple/swift-argument-parser", from: "0.0.1"),
+  ],
   targets: [
 
     // MARK: Swift interface
@@ -45,7 +47,7 @@ let package = Package(
     // Commandline tool for working with tibs projects.
     .target(
       name: "tibs",
-      dependencies: ["ISDBTibs"]),
+      dependencies: ["ISDBTibs", "ArgumentParser"]),
 
     // Test support library, built on top of tibs.
     .target(

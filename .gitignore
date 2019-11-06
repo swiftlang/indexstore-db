@@ -6,3 +6,5 @@ Package.resolved
 /*.xcodeproj
 /*.sublime-project
 /*.sublime-workspace
+/.swiftpm
+
