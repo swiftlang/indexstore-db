@@ -28,6 +28,9 @@ public final class TibsTestWorkspace {
   /// A test-specific directory that we can put temporary files into.
   public let tmpDir: URL
 
+  /// Whether to automatically remove `tmpDir` during `deinit`.
+  public var removeTmpDir: Bool
+
   /// Whether the sources can be modified during this test. If this is true, we can call `edit()`.
   public let mutableSources: Bool
 
@@ -49,8 +52,8 @@ public final class TibsTestWorkspace {
   /// * parameters:
   ///   * immutableProjectDir: The directory containing the project.
   ///   * persistentBuildDir: The directory to build in.
-  ///   * tmpDir: A test-specific directory that we can put temporary files into. Will be cleared
-  ///       by `deinit`.
+  ///   * tmpDir: A test-specific directory that we can put temporary files into.
+  ///   * removeTmpDir: Whether to automatically remove `tmpDir` during `deinit`.
   ///   * toolchain: The toolchain to use for building and indexing.
   ///
   /// * throws: If there are any file system errors.
@@ -58,11 +61,13 @@ public final class TibsTestWorkspace {
     immutableProjectDir: URL,
     persistentBuildDir: URL,
     tmpDir: URL,
+    removeTmpDir: Bool = true,
     toolchain: TibsToolchain) throws
   {
     self.projectDir = immutableProjectDir
     self.tmpDir = tmpDir
     self.mutableSources = false
+    self.removeTmpDir = removeTmpDir
 
     let fm = FileManager.default
     _ = try? fm.removeItem(at: tmpDir)
@@ -99,15 +104,16 @@ public final class TibsTestWorkspace {
   /// * parameters:
   ///   * projectDir: The directory containing the project. The sources will be copied to a
   ///       temporary location.
-  ///   * tmpDir: A test-specific directory that we can put temporary files into. Will be cleared
-  ///       by `deinit`.
+  ///   * tmpDir: A test-specific directory that we can put temporary files into.
+  ///   * removeTmpDir: Whether to automatically remove `tmpDir` during `deinit`.
   ///   * toolchain: The toolchain to use for building and indexing.
   ///
   /// * throws: If there are any file system errors.
-  public init(projectDir: URL, tmpDir: URL, toolchain: TibsToolchain) throws {
+  public init(projectDir: URL, tmpDir: URL, removeTmpDir: Bool = true, toolchain: TibsToolchain) throws {
     self.projectDir = projectDir
     self.tmpDir = tmpDir
     self.mutableSources = true
+    self.removeTmpDir = removeTmpDir
 
     let fm = FileManager.default
     _ = try? fm.removeItem(at: tmpDir)
@@ -142,7 +148,9 @@ public final class TibsTestWorkspace {
   }
 
   deinit {
-    _ = try? FileManager.default.removeItem(atPath: tmpDir.path)
+    if removeTmpDir {
+      _ = try? FileManager.default.removeItem(atPath: tmpDir.path)
+    }
   }
 
   public func buildAndIndex() throws {
