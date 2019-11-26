@@ -26,7 +26,7 @@
 #endif
 
 #ifndef INDEXSTOREDB_PUBLIC
-# if defined(_WIN32) && defined(_DLL)
+# if defined(_WIN32) && defined(_WINDLL)
 #   if defined(CIndexStoreDB_EXPORTS)
 #     define INDEXSTOREDB_PUBLIC __declspec(dllexport)
 #   else
