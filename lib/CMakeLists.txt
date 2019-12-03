@@ -1,0 +1,6 @@
+add_subdirectory(LLVMSupport)
+add_subdirectory(Support)
+add_subdirectory(Core)
+add_subdirectory(Database)
+add_subdirectory(Index)
+add_subdirectory(CIndexStoreDB)
