@@ -11,23 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 import CIndexStoreDB
-import protocol Foundation.LocalizedError
-
-public enum IndexStoreDBError: Error {
-  case create(String)
-  case loadIndexStore(String)
-}
-
-extension IndexStoreDBError: LocalizedError {
-  public var errorDescription: String? {
-    switch self {
-    case .create(let msg):
-      return "indexstoredb_index_create error: \(msg)"
-    case .loadIndexStore(let msg):
-      return "indexstoredb_load_indexstore_library error: \(msg)"
-    }
-  }
-}
 
 /// IndexStoreDB index.
 public final class IndexStoreDB {
@@ -185,13 +168,5 @@ public class IndexStoreLibrary {
 
   deinit {
     indexstoredb_release(library)
-  }
-}
-
-// Note: this cannot conform to CustomStringConvertible, since it is a typealias
-// of an UnsafeMutableRawPointer.
-extension indexstoredb_error_t {
-  var description: String {
-    return String(cString: indexstoredb_error_get_description(self))
   }
 }
