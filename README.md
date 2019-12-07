@@ -23,6 +23,10 @@ The C++ code in the index requires `libdispatch`, but unlike Swift code, it cann
 $ swift build -Xcxx -I<path_to_swift_toolchain>/usr/lib/swift -Xcxx -I<path_to_swift_toolchain>/usr/lib/swift/Block
 ```
 
+## Some Example Users
+
+[**Pecker**](https://github.com/woshiccm/Pecker): a tool to detect unused code based on [SwiftSyntax](https://github.com/apple/swift-syntax.git) and [IndexStoreDB](https://github.com/apple/indexstore-db.git).
+
 ## Development
 
 For more information about developing IndexStoreDB, see [Development](Documentation/Development.md).
