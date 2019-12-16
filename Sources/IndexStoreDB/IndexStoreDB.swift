@@ -34,6 +34,16 @@ public final class IndexStoreDB {
 
   let impl: indexstoredb_index_t
 
+  /// Create or open an IndexStoreDB at the givin `databasePath`.
+  ///
+  /// * Parameters:
+  ///   * storePath: Path to the index store.
+  ///   * databasePath: Path to the index database (or where it will be created).
+  ///   * library: The index store library to use.
+  ///   * readonly: If `true`, read an existing database, but do not create or modify.
+  ///   * listenToUnitEvents: Only `true` is supported outside unit tests. Setting to `false`
+  ///     disables reading or updating from the index store unless `pollForUnitChangesAndWait()`
+  ///     is called.
   public init(
     storePath: String,
     databasePath: String,
