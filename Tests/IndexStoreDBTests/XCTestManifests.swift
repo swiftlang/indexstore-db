@@ -19,6 +19,7 @@ extension IndexTests {
         ("testEditsSimple", testEditsSimple),
         ("testMixedLangTarget", testMixedLangTarget),
         ("testSwiftModules", testSwiftModules),
+        ("testWaitUntilDoneInitializing", testWaitUntilDoneInitializing),
     ]
 }
 
