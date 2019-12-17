@@ -190,4 +190,30 @@ final class IndexTests: XCTestCase {
       newDecl.at(ws.testLoc("c:anotherOne"), roles: .call),
     ])
   }
+
+  func testWaitUntilDoneInitializing() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
+    try ws.builder.build()
+    let libIndexStore = try IndexStoreLibrary(dylibPath: ws.builder.toolchain.libIndexStore.path)
+    let indexWait = try IndexStoreDB(
+      storePath: ws.builder.indexstore.path,
+      databasePath: ws.tmpDir.appendingPathComponent("wait", isDirectory: true).path,
+      library: libIndexStore,
+      waitUntilDoneInitializing: true,
+      listenToUnitEvents: true)
+
+    let csym = Symbol(usr: "s:4main1cyyF", name: "c()", kind: .function)
+    let waitOccs = indexWait.occurrences(ofUSR: csym.usr, roles: [.reference, .definition])
+
+    checkOccurrences(waitOccs, expected: [
+      SymbolOccurrence(
+       symbol: csym,
+        location: SymbolLocation(ws.testLoc("c")),
+       roles: [.definition, .canonical]),
+      SymbolOccurrence(
+        symbol: csym,
+        location: SymbolLocation(ws.testLoc("c:call")),
+        roles: [.reference, .call, .calledBy, .containedBy]),
+    ])
+  }
 }

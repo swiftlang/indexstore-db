@@ -34,10 +34,23 @@ public final class IndexStoreDB {
 
   let impl: indexstoredb_index_t
 
+  /// Create or open an IndexStoreDB at the givin `databasePath`.
+  ///
+  /// * Parameters:
+  ///   * storePath: Path to the index store.
+  ///   * databasePath: Path to the index database (or where it will be created).
+  ///   * library: The index store library to use.
+  ///   * wait: If `true`, wait for the database to be populated from the
+  ///     (current) contents of the index store at `storePath` before returning.
+  ///   * readonly: If `true`, read an existing database, but do not create or modify.
+  ///   * listenToUnitEvents: Only `true` is supported outside unit tests. Setting to `false`
+  ///     disables reading or updating from the index store unless `pollForUnitChangesAndWait()`
+  ///     is called.
   public init(
     storePath: String,
     databasePath: String,
     library: IndexStoreLibrary?,
+    waitUntilDoneInitializing wait: Bool = false,
     readonly: Bool = false,
     listenToUnitEvents: Bool = true
   ) throws {
@@ -47,7 +60,7 @@ public final class IndexStoreDB {
     }
 
     var error: indexstoredb_error_t? = nil
-    guard let index = indexstoredb_index_create(storePath, databasePath, libProviderFunc, readonly, listenToUnitEvents, &error) else {
+    guard let index = indexstoredb_index_create(storePath, databasePath, libProviderFunc, wait, readonly, listenToUnitEvents, &error) else {
       defer { indexstoredb_error_dispose(error) }
       throw IndexStoreDBError.create(error?.description ?? "unknown")
     }

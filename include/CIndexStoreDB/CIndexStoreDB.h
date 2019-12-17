@@ -133,6 +133,7 @@ indexstoredb_index_t
 indexstoredb_index_create(const char * _Nonnull storePath,
                   const char * _Nonnull databasePath,
                   _Nonnull indexstore_library_provider_t libProvider,
+                  bool wait,
                   bool readonly,
                   bool listenToUnitEvents,
                   indexstoredb_error_t _Nullable * _Nullable);

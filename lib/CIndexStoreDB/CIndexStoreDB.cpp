@@ -74,7 +74,7 @@ public:
 indexstoredb_index_t
 indexstoredb_index_create(const char *storePath, const char *databasePath,
                           indexstore_library_provider_t libProvider,
-                          bool readonly, bool listenToUnitEvents,
+                          bool wait, bool readonly, bool listenToUnitEvents,
                           indexstoredb_error_t *error) {
 
   auto delegate = std::make_shared<IndexSystemDelegate>();
@@ -84,6 +84,9 @@ indexstoredb_index_create(const char *storePath, const char *databasePath,
   if (auto index =
           IndexSystem::create(storePath, databasePath, libProviderObj, delegate,
                               readonly, listenToUnitEvents, llvm::None, errMsg)) {
+
+    if (wait)
+      index->waitUntilDoneInitializing();
 
     return make_object(index);
 
