@@ -17,6 +17,7 @@ extension IndexTests {
     // to regenerate.
     static let __allTests__IndexTests = [
         ("testBasic", testBasic),
+        ("testDelegate", testDelegate),
         ("testEditsSimple", testEditsSimple),
         ("testMixedLangTarget", testMixedLangTarget),
         ("testSwiftModules", testSwiftModules),
