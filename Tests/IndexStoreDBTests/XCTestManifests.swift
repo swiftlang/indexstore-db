@@ -19,6 +19,7 @@ extension IndexTests {
         ("testBasic", testBasic),
         ("testDelegate", testDelegate),
         ("testEditsSimple", testEditsSimple),
+        ("testMainFilesContainingFile", testMainFilesContainingFile),
         ("testMixedLangTarget", testMixedLangTarget),
         ("testSwiftModules", testSwiftModules),
         ("testWaitUntilDoneInitializing", testWaitUntilDoneInitializing),

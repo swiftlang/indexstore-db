@@ -165,6 +165,22 @@ public final class IndexStoreDB {
     }
     return result
   }
+
+  @discardableResult
+  public func forEachMainFileContainingFile(path: String, body: @escaping (String) -> Bool) -> Bool {
+    return indexstoredb_index_main_files_containing_file(impl, path) { mainFile in
+      body(String(cString: mainFile))
+    }
+  }
+
+  public func mainFilesContainingFile(path: String) -> [String] {
+    var result: [String] = []
+    forEachMainFileContainingFile(path: path) { mainFile in
+      result.append(mainFile)
+      return true
+    }
+    return result
+  }
 }
 
 public protocol IndexStoreLibraryProvider {

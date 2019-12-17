@@ -252,4 +252,28 @@ final class IndexTests: XCTestCase {
     XCTAssertEqual(delegate.added, 3)
     XCTAssertEqual(delegate.completed, 3)
   }
+
+  func testMainFilesContainingFile() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "MainFiles") else { return }
+    try ws.buildAndIndex()
+    let index = ws.index
+
+    let mainSwift = ws.testLoc("main_swift").url.path
+    let main1 = ws.testLoc("main1").url.path
+    let main2 = ws.testLoc("main2").url.path
+    let uniq1 = ws.testLoc("uniq1").url.path
+    let shared = ws.testLoc("shared").url.path
+    let unknown = ws.testLoc("unknown").url.path
+
+    let mainFiles = { (_ path: String) -> Set<String> in
+      Set(index.mainFilesContainingFile(path: path))
+    }
+
+    XCTAssertEqual(mainFiles(mainSwift), [mainSwift])
+    XCTAssertEqual(mainFiles(main1), [main1])
+    XCTAssertEqual(mainFiles(main2), [main2])
+    XCTAssertEqual(mainFiles(uniq1), [main1])
+    XCTAssertEqual(mainFiles(shared), [main1, main2])
+    XCTAssertEqual(mainFiles(unknown), [])
+  }
 }

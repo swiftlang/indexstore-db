@@ -387,3 +387,15 @@ static indexstoredb_symbol_kind_t toCSymbolKind(SymbolKind K) {
     return INDEXSTOREDB_SYMBOL_KIND_UNKNOWN;
   }
 }
+
+bool
+indexstoredb_index_main_files_containing_file(
+  indexstoredb_index_t index,
+  const char *path,
+  indexstoredb_path_receiver receiver)
+{
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachMainUnitContainingFile(path, [&](const StoreUnitInfo &unitInfo) -> bool {
+    return receiver(unitInfo.MainFilePath.getPath().str().c_str());
+  });
+}
