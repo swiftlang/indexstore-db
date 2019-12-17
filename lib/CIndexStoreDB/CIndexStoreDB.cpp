@@ -24,6 +24,8 @@ using namespace index;
 
 static indexstoredb_symbol_kind_t toCSymbolKind(SymbolKind K);
 
+namespace {
+
 class IndexStoreDBObjectBase
     : public llvm::ThreadSafeRefCountedBase<IndexStoreDBObjectBase> {
 public:
@@ -91,6 +93,8 @@ public:
     callback(&event);
   }
 };
+
+} // end anonymous namespace
 
 indexstoredb_index_t
 indexstoredb_index_create(const char *storePath, const char *databasePath,
