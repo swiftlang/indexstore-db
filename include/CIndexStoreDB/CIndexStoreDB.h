@@ -116,6 +116,13 @@ typedef enum {
   INDEXSTOREDB_SYMBOL_KIND_COMMENTTAG = 1000,
 } indexstoredb_symbol_kind_t;
 
+typedef enum {
+  INDEXSTOREDB_EVENT_PROCESSING_ADDED_PENDING = 0,
+  INDEXSTOREDB_EVENT_PROCESSING_COMPLETED = 1,
+} indexstoredb_delegate_event_kind_t;
+
+typedef void *indexstoredb_delegate_event_t;
+
 /// Returns true on success.
 typedef _Nullable indexstoredb_indexstore_library_t(^indexstore_library_provider_t)(const char * _Nonnull);
 
@@ -125,6 +132,8 @@ typedef bool(^indexstoredb_symbol_occurrence_receiver_t)(_Nonnull indexstoredb_s
 /// Returns true to continue.
 typedef bool(^indexstoredb_symbol_name_receiver)(const char *_Nonnull);
 
+typedef void(^indexstoredb_delegate_event_receiver_t)(_Nonnull indexstoredb_delegate_event_t);
+
 /// Creates an index for the given raw index data in \p storePath.
 ///
 /// The resulting index must be released using \c indexstoredb_release.
@@ -133,6 +142,7 @@ indexstoredb_index_t
 indexstoredb_index_create(const char * _Nonnull storePath,
                   const char * _Nonnull databasePath,
                   _Nonnull indexstore_library_provider_t libProvider,
+                  _Nonnull indexstoredb_delegate_event_receiver_t delegate,
                   bool wait,
                   bool readonly,
                   bool listenToUnitEvents,
@@ -149,6 +159,13 @@ indexstoredb_load_indexstore_library(const char * _Nonnull dylibPath,
 /// *For Testing* Poll for any changes to index units and wait until they have been registered.
 INDEXSTOREDB_PUBLIC void
 indexstoredb_index_poll_for_unit_changes_and_wait(_Nonnull indexstoredb_index_t index);
+
+INDEXSTOREDB_PUBLIC
+indexstoredb_delegate_event_kind_t
+indexstoredb_delegate_event_get_kind(_Nonnull indexstoredb_delegate_event_t);
+
+INDEXSTOREDB_PUBLIC
+uint64_t indexstoredb_delegate_event_get_count(_Nonnull indexstoredb_delegate_event_t);
 
 /// Iterates over each symbol occurrence matching the given \p usr and \p roles.
 ///

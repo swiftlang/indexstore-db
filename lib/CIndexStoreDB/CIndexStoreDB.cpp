@@ -71,13 +71,35 @@ public:
   }
 };
 
+struct DelegateEvent {
+  indexstoredb_delegate_event_kind_t kind;
+  uint64_t count;
+};
+
+class BlockIndexSystemDelegate: public IndexSystemDelegate {
+  indexstoredb_delegate_event_receiver_t callback;
+public:
+  BlockIndexSystemDelegate(indexstoredb_delegate_event_receiver_t callback) : callback(Block_copy(callback)) {}
+  ~BlockIndexSystemDelegate() { Block_release(callback); }
+
+  virtual void processingAddedPending(unsigned NumActions) {
+    DelegateEvent event{INDEXSTOREDB_EVENT_PROCESSING_ADDED_PENDING, NumActions};
+    callback(&event);
+  }
+  virtual void processingCompleted(unsigned NumActions) {
+    DelegateEvent event{INDEXSTOREDB_EVENT_PROCESSING_COMPLETED, NumActions};
+    callback(&event);
+  }
+};
+
 indexstoredb_index_t
 indexstoredb_index_create(const char *storePath, const char *databasePath,
                           indexstore_library_provider_t libProvider,
+                          indexstoredb_delegate_event_receiver_t delegateCallback,
                           bool wait, bool readonly, bool listenToUnitEvents,
                           indexstoredb_error_t *error) {
 
-  auto delegate = std::make_shared<IndexSystemDelegate>();
+  auto delegate = std::make_shared<BlockIndexSystemDelegate>(delegateCallback);
   auto libProviderObj = std::make_shared<BlockIndexStoreLibraryProvider>(libProvider);
 
   std::string errMsg;
@@ -111,6 +133,15 @@ indexstoredb_load_indexstore_library(const char *dylibPath,
 void indexstoredb_index_poll_for_unit_changes_and_wait(indexstoredb_index_t index) {
   auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
   obj->value->pollForUnitChangesAndWait();
+}
+
+indexstoredb_delegate_event_kind_t
+indexstoredb_delegate_event_get_kind(indexstoredb_delegate_event_t event) {
+  return reinterpret_cast<DelegateEvent *>(event)->kind;
+}
+
+uint64_t indexstoredb_delegate_event_get_count(indexstoredb_delegate_event_t event) {
+  return reinterpret_cast<DelegateEvent *>(event)->count;
 }
 
 bool

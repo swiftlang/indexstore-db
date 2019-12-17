@@ -44,6 +44,17 @@ public final class TibsTestWorkspace {
   /// The source code index.
   public var index: IndexStoreDB
 
+  /// The wrapper delegate.
+  ///
+  /// Use `delegate` to set the underlying delegate to forward to.
+  var wrapperDelegate: ForwardingIndexDelegate = ForwardingIndexDelegate()
+
+  /// The (underlying) index delegate.
+  public var delegate: IndexDelegate? {
+    get { wrapperDelegate.delegate }
+    set { wrapperDelegate.delegate = newValue }
+  }
+
   /// Creates a tibs test workspace for a given project with immutable sources and a build directory
   /// that can persist across test runs (typically inside the main project build directory).
   ///
@@ -92,6 +103,7 @@ public final class TibsTestWorkspace {
       storePath: builder.indexstore.path,
       databasePath: databaseDir.path,
       library: libIndexStore,
+      delegate: wrapperDelegate,
       listenToUnitEvents: false)
   }
 
@@ -138,6 +150,7 @@ public final class TibsTestWorkspace {
       storePath: builder.indexstore.path,
       databasePath: databaseDir.path,
       library: libIndexStore,
+      delegate: wrapperDelegate,
       listenToUnitEvents: false)
   }
 

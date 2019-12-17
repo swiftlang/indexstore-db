@@ -94,6 +94,12 @@ private:
       LocalOther->unitIsOutOfDate(std::move(unitInfo), outOfDateModTime, hint, false);
     });
   }
+
+public:
+  /// For Testing. Wait for any outstanding async work to finish.
+  void _wait() {
+    Queue.dispatchSync([]{});
+  }
 };
 
 class IndexSystemImpl {
@@ -273,6 +279,7 @@ void IndexSystemImpl::purgeStaleData() {
 
 void IndexSystemImpl::pollForUnitChangesAndWait() {
   IndexStore->pollForUnitChangesAndWait();
+  DelegateWrap->_wait();
 }
 
 void IndexSystemImpl::printStats(raw_ostream &OS) {

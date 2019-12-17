@@ -216,4 +216,40 @@ final class IndexTests: XCTestCase {
         roles: [.reference, .call, .calledBy, .containedBy]),
     ])
   }
+
+  func testDelegate() throws {
+    class Delegate: IndexDelegate {
+      let queue: DispatchQueue = DispatchQueue(label: "testDelegate mutex")
+      var _added: Int = 0
+      var _completed: Int = 0
+      var added: Int { queue.sync { _added } }
+      var completed: Int { queue.sync { _completed } }
+
+      func processingAddedPending(_ count: Int) {
+        queue.sync {
+          _added += count
+        }
+      }
+      func processingCompleted(_ count: Int) {
+        queue.sync {
+          _completed += count
+        }
+      }
+    }
+
+    guard let ws = try mutableTibsTestWorkspace(name: "proj1") else { return }
+
+    let delegate = Delegate()
+    ws.delegate = delegate
+
+    ws.index.pollForUnitChangesAndWait()
+
+    XCTAssertEqual(delegate.added, 0)
+    XCTAssertEqual(delegate.completed, 0)
+
+    try ws.buildAndIndex()
+
+    XCTAssertEqual(delegate.added, 3)
+    XCTAssertEqual(delegate.completed, 3)
+  }
 }

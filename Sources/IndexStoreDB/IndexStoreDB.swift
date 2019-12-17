@@ -15,6 +15,7 @@ import CIndexStoreDB
 /// IndexStoreDB index.
 public final class IndexStoreDB {
 
+  let delegate: IndexDelegate?
   let impl: indexstoredb_index_t
 
   /// Create or open an IndexStoreDB at the givin `databasePath`.
@@ -33,17 +34,34 @@ public final class IndexStoreDB {
     storePath: String,
     databasePath: String,
     library: IndexStoreLibrary?,
+    delegate: IndexDelegate? = nil,
     waitUntilDoneInitializing wait: Bool = false,
     readonly: Bool = false,
     listenToUnitEvents: Bool = true
   ) throws {
+    self.delegate = delegate
 
     let libProviderFunc = { (cpath: UnsafePointer<Int8>) -> indexstoredb_indexstore_library_t? in
       return library?.library
     }
 
+    let delegateFunc = { [weak delegate] (event: indexstoredb_delegate_event_t) in
+      guard let delegate = delegate else { return }
+      let kind = indexstoredb_delegate_event_get_kind(event)
+      switch kind {
+      case INDEXSTOREDB_EVENT_PROCESSING_ADDED_PENDING:
+        let count = indexstoredb_delegate_event_get_count(event)
+        delegate.processingAddedPending(Int(count))
+      case INDEXSTOREDB_EVENT_PROCESSING_COMPLETED:
+        let count = indexstoredb_delegate_event_get_count(event)
+        delegate.processingCompleted(Int(count))
+      default:
+        return
+      }
+    }
+
     var error: indexstoredb_error_t? = nil
-    guard let index = indexstoredb_index_create(storePath, databasePath, libProviderFunc, wait, readonly, listenToUnitEvents, &error) else {
+    guard let index = indexstoredb_index_create(storePath, databasePath, libProviderFunc, delegateFunc, wait, readonly, listenToUnitEvents, &error) else {
       defer { indexstoredb_error_dispose(error) }
       throw IndexStoreDBError.create(error?.description ?? "unknown")
     }
