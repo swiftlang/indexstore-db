@@ -55,7 +55,8 @@ public final class TibsToolchain {
   }()
 
   public private(set) lazy var clangHasIndexSupport: Bool = {
-    clangVersionOutput.starts(with: "Apple") || clangVersionOutput.contains("swift-clang")
+    clangVersionOutput.starts(with: "Apple") || clangVersionOutput.contains("swift-clang") ||
+    clangVersionOutput.contains("apple/llvm-project")
   }()
 
   public private(set) lazy var ninjaVersion: (Int, Int, Int) = {
@@ -189,6 +190,8 @@ public func findTool(name: String) -> URL? {
     .appendingPathComponent("system32")
     .appendingPathComponent("where.exe")
   let cmd = [wherePath, name]
+#elseif os(Android)
+  let cmd = ["/system/bin/which", name]
 #else
   let cmd = ["/usr/bin/which", name]
 #endif
