@@ -185,8 +185,6 @@ public:
     StringRef getUnitName() const {
       return stringFromIndexStoreStringRef(lib->api().unit_event_get_unit_name(obj));
     }
-
-    timespec getModificationTime() const { return lib->api().unit_event_get_modification_time(obj); }
   };
 
   class UnitEventNotification {

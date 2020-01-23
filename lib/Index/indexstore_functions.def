@@ -16,7 +16,6 @@ INDEXSTORE_FUNCTION(unit_event_notification_get_event, true)
 INDEXSTORE_FUNCTION(unit_event_notification_is_initial, true)
 INDEXSTORE_FUNCTION(unit_event_get_kind, true)
 INDEXSTORE_FUNCTION(unit_event_get_unit_name, true)
-INDEXSTORE_FUNCTION(unit_event_get_modification_time, true)
 #if INDEXSTORE_HAS_BLOCKS
 INDEXSTORE_FUNCTION(store_set_unit_event_handler, true)
 #endif
