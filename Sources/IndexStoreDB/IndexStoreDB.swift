@@ -167,15 +167,21 @@ public final class IndexStoreDB {
   }
 
   @discardableResult
-  public func forEachMainFileContainingFile(path: String, body: @escaping (String) -> Bool) -> Bool {
+  public func forEachMainFileContainingFile(path: String, crossLanguage: Bool, body: @escaping (String) -> Bool) -> Bool {
+    let fromSwift = path.hasSuffix(".swift")
     return indexstoredb_index_main_files_containing_file(impl, path) { mainFile in
-      body(String(cString: mainFile))
+      let mainFileStr = String(cString: mainFile)
+      let toSwift = mainFileStr.hasSuffix(".swift")
+      if !crossLanguage && fromSwift != toSwift {
+        return true // continue
+      }
+      return body(mainFileStr)
     }
   }
 
-  public func mainFilesContainingFile(path: String) -> [String] {
+  public func mainFilesContainingFile(path: String, crossLanguage: Bool = false) -> [String] {
     var result: [String] = []
-    forEachMainFileContainingFile(path: path) { mainFile in
+    forEachMainFileContainingFile(path: path, crossLanguage: crossLanguage) { mainFile in
       result.append(mainFile)
       return true
     }

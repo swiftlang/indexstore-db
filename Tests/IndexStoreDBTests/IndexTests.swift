@@ -265,15 +265,18 @@ final class IndexTests: XCTestCase {
     let shared = ws.testLoc("shared").url.path
     let unknown = ws.testLoc("unknown").url.path
 
-    let mainFiles = { (_ path: String) -> Set<String> in
-      Set(index.mainFilesContainingFile(path: path))
+    let mainFiles = { (_ path: String, crossLang: Bool) -> Set<String> in
+      Set(index.mainFilesContainingFile(path: path, crossLanguage: crossLang))
     }
 
-    XCTAssertEqual(mainFiles(mainSwift), [mainSwift])
-    XCTAssertEqual(mainFiles(main1), [main1])
-    XCTAssertEqual(mainFiles(main2), [main2])
-    XCTAssertEqual(mainFiles(uniq1), [main1])
-    XCTAssertEqual(mainFiles(shared), [main1, main2])
-    XCTAssertEqual(mainFiles(unknown), [])
+    XCTAssertEqual(mainFiles(mainSwift, true), [mainSwift])
+    XCTAssertEqual(mainFiles(mainSwift, false), [mainSwift])
+    XCTAssertEqual(mainFiles(main1, false), [main1])
+    XCTAssertEqual(mainFiles(main2, false), [main2])
+    XCTAssertEqual(mainFiles(uniq1, false), [main1])
+    XCTAssertEqual(mainFiles(shared, false), [main1, main2])
+    XCTAssertEqual(mainFiles(shared, true), [main1, main2, mainSwift])
+    XCTAssertEqual(mainFiles(unknown, true), [])
+    XCTAssertEqual(mainFiles(unknown, false), [])
   }
 }
