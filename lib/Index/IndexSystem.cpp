@@ -26,7 +26,6 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <unordered_map>
@@ -210,14 +209,6 @@ bool IndexSystemImpl::init(StringRef StorePath,
   if (!idxStoreLib) {
     Error = "could not determine indexstore library";
     return true;
-  }
-
-  if (!readonly) {
-    // Create the index store path, if it does not already exist.
-    if (std::error_code EC = llvm::sys::fs::create_directories(StorePath)) {
-      Error = "could not create directories for data store path ";
-      Error += StorePath.str() + ": " + EC.message();
-    }
   }
 
   auto idxStore = indexstore::IndexStore::create(StorePath, idxStoreLib, Error);
