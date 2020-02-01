@@ -6,6 +6,7 @@ extension IndexStoreDBTests {
     //   `swift test --generate-linuxmain`
     // to regenerate.
     static let __allTests__IndexStoreDBTests = [
+        ("testCreateIndexStoreAndDBDirs", testCreateIndexStoreAndDBDirs),
         ("testErrors", testErrors),
     ]
 }
