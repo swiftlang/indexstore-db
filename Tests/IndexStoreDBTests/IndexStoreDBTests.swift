@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 import IndexStoreDB
-import ISDBTibs
 import XCTest
 import Foundation
 
@@ -52,23 +51,6 @@ final class IndexStoreDBTests: XCTestCase {
 
     checkThrows(.create("could not determine indexstore library")) {
       _ = try IndexStoreDB(storePath: "\(tmp)/idx", databasePath: "\(tmp)/db", library: nil)
-    }
-  }
-
-  func testCreateIndexStoreAndDBDirs() {
-    let toolchain = TibsToolchain.testDefault
-    let libIndexStore = try! IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
-
-    // Normal - create the missing directories.
-    XCTAssertNoThrow(try IndexStoreDB(storePath: tmp + "/store", databasePath: tmp + "/db", library: libIndexStore))
-
-    // Readonly - do not create.
-    checkThrows(.create("failed opening database")) {
-      _ = try IndexStoreDB(storePath: tmp + "/store", databasePath: tmp + "/db-readonly", library: libIndexStore, readonly: true)
-    }
-    // Readonly - do not create.
-    checkThrows(.create("index store path does not exist")) {
-      _ = try IndexStoreDB(storePath: tmp + "/store-readonly", databasePath: tmp + "/db", library: libIndexStore, readonly: true)
     }
   }
 
