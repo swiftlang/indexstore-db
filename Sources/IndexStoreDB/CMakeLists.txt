@@ -6,7 +6,9 @@ if(CMAKE_VERSION VERSION_LESS 3.16)
 endif()
 
 add_library(IndexStoreDB
+  IndexDelegate.swift
   IndexStoreDB.swift
+  IndexStoreDBError.swift
   SymbolLocation.swift
   SymbolOccurrence.swift
   SymbolRole.swift
