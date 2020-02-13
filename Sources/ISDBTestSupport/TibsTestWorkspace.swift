@@ -44,6 +44,17 @@ public final class TibsTestWorkspace {
   /// The source code index.
   public var index: IndexStoreDB
 
+  /// The wrapper delegate.
+  ///
+  /// Use `delegate` to set the underlying delegate to forward to.
+  var wrapperDelegate: ForwardingIndexDelegate = ForwardingIndexDelegate()
+
+  /// The (underlying) index delegate.
+  public var delegate: IndexDelegate? {
+    get { wrapperDelegate.delegate }
+    set { wrapperDelegate.delegate = newValue }
+  }
+
   /// Creates a tibs test workspace for a given project with immutable sources and a build directory
   /// that can persist across test runs (typically inside the main project build directory).
   ///
@@ -74,7 +85,6 @@ public final class TibsTestWorkspace {
 
     try fm.createDirectory(at: persistentBuildDir, withIntermediateDirectories: true, attributes: nil)
     let databaseDir = tmpDir
-    try fm.createDirectory(at: databaseDir, withIntermediateDirectories: true, attributes: nil)
 
     self.sources = try TestSources(rootDirectory: projectDir)
 
@@ -85,16 +95,15 @@ public final class TibsTestWorkspace {
       buildRoot: persistentBuildDir,
       toolchain: toolchain)
 
-    try fm.createDirectory(at: builder.indexstore, withIntermediateDirectories: true, attributes: nil)
-
     try builder.writeBuildFiles()
 
     let libIndexStore = try IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
 
     self.index = try IndexStoreDB(
       storePath: builder.indexstore.path,
-      databasePath: tmpDir.path,
+      databasePath: databaseDir.path,
       library: libIndexStore,
+      delegate: wrapperDelegate,
       listenToUnitEvents: false)
   }
 
@@ -123,7 +132,6 @@ public final class TibsTestWorkspace {
     let sourceDir = tmpDir.appendingPathComponent("src", isDirectory: true)
     try fm.copyItem(at: projectDir, to: sourceDir)
     let databaseDir = tmpDir.appendingPathComponent("db", isDirectory: true)
-    try fm.createDirectory(at: databaseDir, withIntermediateDirectories: true, attributes: nil)
 
     self.sources = try TestSources(rootDirectory: sourceDir)
 
@@ -134,16 +142,15 @@ public final class TibsTestWorkspace {
       buildRoot: buildDir,
       toolchain: toolchain)
 
-    try fm.createDirectory(at: builder.indexstore, withIntermediateDirectories: true, attributes: nil)
-
     try builder.writeBuildFiles()
 
     let libIndexStore = try IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
 
     self.index = try IndexStoreDB(
       storePath: builder.indexstore.path,
-      databasePath: tmpDir.path,
+      databasePath: databaseDir.path,
       library: libIndexStore,
+      delegate: wrapperDelegate,
       listenToUnitEvents: false)
   }
 

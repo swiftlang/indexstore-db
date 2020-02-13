@@ -352,6 +352,11 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
     CanonicalFilePath CanonSysroot = CanonPathCache->getCanonicalPath(Reader.getSysrootPath(), WorkDir);
     unitImport.setSysroot(CanonSysroot);
 
+    // Collect the newly discovered records and process them outside of the libIndexStore callback.
+    // This is because processing populates the database and C++ exceptions can be thrown; libIndexStore builds with -fno-exceptions so we cannot
+    // be throwing C++ exceptions from inside its frames.
+    SmallVector<StoreSymbolRecordRef, 16> newStoreRecords;
+
     Reader.foreachDependency([&](IndexUnitDependency Dep)->bool {
       switch (Dep.getKind()) {
         case IndexUnitDependency::DependencyKind::Record: {
@@ -374,7 +379,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
             break;
           }
 
-          SymIndex->importSymbols(import, Rec);
+          newStoreRecords.push_back(std::move(Rec));
           break;
         }
 
@@ -397,6 +402,10 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
       }
       return true;
     });
+
+    for (const auto &rec : newStoreRecords) {
+      SymIndex->importSymbols(import, rec);
+    }
 
     unitImport.commit();
     StoreUnitInfoOpt = StoreUnitInfo{unitName, CanonMainFile, CanonOutFile, unitImport.getHasTestSymbols().getValue(), unitModTime};

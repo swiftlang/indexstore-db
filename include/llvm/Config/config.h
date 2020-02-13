@@ -17,7 +17,9 @@
 #define LLVM_ENABLE_CRASH_DUMPS 0
 
 /* Define to 1 if you have the `backtrace' function. */
+#if !defined(__ANDROID__)
 #define HAVE_BACKTRACE TRUE
+#endif
 
 #define BACKTRACE_HEADER <execinfo.h>
 
@@ -86,7 +88,9 @@
 /* #undef HAVE_FFI_H */
 
 /* Define to 1 if you have the `futimens' function. */
-/* #undef HAVE_FUTIMENS */
+#if defined(__ANDROID__)
+#define HAVE_FUTIMENS 1
+#endif
 
 /* Define to 1 if you have the `futimes' function. */
 #define HAVE_FUTIMES 1
@@ -118,7 +122,9 @@
 #define HAVE_LIBPTHREAD 1
 
 /* Define to 1 if you have the `pthread_getname_np' function. */
+#if !defined(__ANDROID__)
 #define HAVE_PTHREAD_GETNAME_NP 1
+#endif
 
 /* Define to 1 if you have the `pthread_setname_np' function. */
 #define HAVE_PTHREAD_SETNAME_NP 1

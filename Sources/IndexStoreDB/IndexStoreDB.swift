@@ -11,27 +11,11 @@
 //===----------------------------------------------------------------------===//
 
 import CIndexStoreDB
-import protocol Foundation.LocalizedError
-
-public enum IndexStoreDBError: Error {
-  case create(String)
-  case loadIndexStore(String)
-}
-
-extension IndexStoreDBError: LocalizedError {
-  public var errorDescription: String? {
-    switch self {
-    case .create(let msg):
-      return "indexstoredb_index_create error: \(msg)"
-    case .loadIndexStore(let msg):
-      return "indexstoredb_load_indexstore_library error: \(msg)"
-    }
-  }
-}
 
 /// IndexStoreDB index.
 public final class IndexStoreDB {
 
+  let delegate: IndexDelegate?
   let impl: indexstoredb_index_t
 
   /// Create or open an IndexStoreDB at the givin `databasePath`.
@@ -50,17 +34,34 @@ public final class IndexStoreDB {
     storePath: String,
     databasePath: String,
     library: IndexStoreLibrary?,
+    delegate: IndexDelegate? = nil,
     waitUntilDoneInitializing wait: Bool = false,
     readonly: Bool = false,
     listenToUnitEvents: Bool = true
   ) throws {
+    self.delegate = delegate
 
     let libProviderFunc = { (cpath: UnsafePointer<Int8>) -> indexstoredb_indexstore_library_t? in
       return library?.library
     }
 
+    let delegateFunc = { [weak delegate] (event: indexstoredb_delegate_event_t) in
+      guard let delegate = delegate else { return }
+      let kind = indexstoredb_delegate_event_get_kind(event)
+      switch kind {
+      case INDEXSTOREDB_EVENT_PROCESSING_ADDED_PENDING:
+        let count = indexstoredb_delegate_event_get_count(event)
+        delegate.processingAddedPending(Int(count))
+      case INDEXSTOREDB_EVENT_PROCESSING_COMPLETED:
+        let count = indexstoredb_delegate_event_get_count(event)
+        delegate.processingCompleted(Int(count))
+      default:
+        return
+      }
+    }
+
     var error: indexstoredb_error_t? = nil
-    guard let index = indexstoredb_index_create(storePath, databasePath, libProviderFunc, wait, readonly, listenToUnitEvents, &error) else {
+    guard let index = indexstoredb_index_create(storePath, databasePath, libProviderFunc, delegateFunc, wait, readonly, listenToUnitEvents, &error) else {
       defer { indexstoredb_error_dispose(error) }
       throw IndexStoreDBError.create(error?.description ?? "unknown")
     }
@@ -164,6 +165,28 @@ public final class IndexStoreDB {
     }
     return result
   }
+
+  @discardableResult
+  public func forEachMainFileContainingFile(path: String, crossLanguage: Bool, body: @escaping (String) -> Bool) -> Bool {
+    let fromSwift = path.hasSuffix(".swift")
+    return indexstoredb_index_main_files_containing_file(impl, path) { mainFile in
+      let mainFileStr = String(cString: mainFile)
+      let toSwift = mainFileStr.hasSuffix(".swift")
+      if !crossLanguage && fromSwift != toSwift {
+        return true // continue
+      }
+      return body(mainFileStr)
+    }
+  }
+
+  public func mainFilesContainingFile(path: String, crossLanguage: Bool = false) -> [String] {
+    var result: [String] = []
+    forEachMainFileContainingFile(path: path, crossLanguage: crossLanguage) { mainFile in
+      result.append(mainFile)
+      return true
+    }
+    return result
+  }
 }
 
 public protocol IndexStoreLibraryProvider {
@@ -185,13 +208,5 @@ public class IndexStoreLibrary {
 
   deinit {
     indexstoredb_release(library)
-  }
-}
-
-// Note: this cannot conform to CustomStringConvertible, since it is a typealias
-// of an UnsafeMutableRawPointer.
-extension indexstoredb_error_t {
-  var description: String {
-    return String(cString: indexstoredb_error_get_description(self))
   }
 }

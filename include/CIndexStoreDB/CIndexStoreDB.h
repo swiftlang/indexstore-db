@@ -116,6 +116,13 @@ typedef enum {
   INDEXSTOREDB_SYMBOL_KIND_COMMENTTAG = 1000,
 } indexstoredb_symbol_kind_t;
 
+typedef enum {
+  INDEXSTOREDB_EVENT_PROCESSING_ADDED_PENDING = 0,
+  INDEXSTOREDB_EVENT_PROCESSING_COMPLETED = 1,
+} indexstoredb_delegate_event_kind_t;
+
+typedef void *indexstoredb_delegate_event_t;
+
 /// Returns true on success.
 typedef _Nullable indexstoredb_indexstore_library_t(^indexstore_library_provider_t)(const char * _Nonnull);
 
@@ -125,6 +132,11 @@ typedef bool(^indexstoredb_symbol_occurrence_receiver_t)(_Nonnull indexstoredb_s
 /// Returns true to continue.
 typedef bool(^indexstoredb_symbol_name_receiver)(const char *_Nonnull);
 
+typedef void(^indexstoredb_delegate_event_receiver_t)(_Nonnull indexstoredb_delegate_event_t);
+
+/// Returns true to continue.
+typedef bool(^indexstoredb_path_receiver)(const char *_Nonnull);
+
 /// Creates an index for the given raw index data in \p storePath.
 ///
 /// The resulting index must be released using \c indexstoredb_release.
@@ -133,6 +145,7 @@ indexstoredb_index_t
 indexstoredb_index_create(const char * _Nonnull storePath,
                   const char * _Nonnull databasePath,
                   _Nonnull indexstore_library_provider_t libProvider,
+                  _Nonnull indexstoredb_delegate_event_receiver_t delegate,
                   bool wait,
                   bool readonly,
                   bool listenToUnitEvents,
@@ -149,6 +162,13 @@ indexstoredb_load_indexstore_library(const char * _Nonnull dylibPath,
 /// *For Testing* Poll for any changes to index units and wait until they have been registered.
 INDEXSTOREDB_PUBLIC void
 indexstoredb_index_poll_for_unit_changes_and_wait(_Nonnull indexstoredb_index_t index);
+
+INDEXSTOREDB_PUBLIC
+indexstoredb_delegate_event_kind_t
+indexstoredb_delegate_event_get_kind(_Nonnull indexstoredb_delegate_event_t);
+
+INDEXSTOREDB_PUBLIC
+uint64_t indexstoredb_delegate_event_get_count(_Nonnull indexstoredb_delegate_event_t);
 
 /// Iterates over each symbol occurrence matching the given \p usr and \p roles.
 ///
@@ -307,6 +327,21 @@ indexstoredb_symbol_occurrence_relations(_Nonnull indexstoredb_symbol_occurrence
 /// Returns the kind of the given symbol.
 INDEXSTOREDB_PUBLIC indexstoredb_symbol_kind_t
 indexstoredb_symbol_kind(_Nonnull indexstoredb_symbol_t);
+
+/// Iterates over the compilation units that contain \p path and return their main file.
+///
+/// This can be used to find the main files that include a given header. The main file is typically
+/// the one that e.g. a build system would have explicit knowledge of.
+///
+/// \param index An IndexStoreDB object which contains the symbols.
+/// \param path The source file to search for.
+/// \param receiver A function to be called for each main file path. The string pointer is only valid for
+/// the duration of the call. The function should return a true to continue iterating.
+INDEXSTOREDB_PUBLIC bool
+indexstoredb_index_main_files_containing_file(
+  _Nonnull indexstoredb_index_t index,
+  const char *_Nonnull path,
+  _Nonnull indexstoredb_path_receiver receiver);
 
 INDEXSTOREDB_END_DECLS
 

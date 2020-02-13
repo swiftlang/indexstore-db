@@ -363,7 +363,7 @@ extension TibsBuilder {
 }
 
 func xcrunSDKPath() -> String {
-  var path = try! Process.tibs_checkNonZeroExit(arguments: ["/usr/bin/xcrun", "--show-sdk-path"])
+  var path = try! Process.tibs_checkNonZeroExit(arguments: ["/usr/bin/xcrun", "--show-sdk-path", "--sdk", "macosx"])
   if path.last == "\n" {
     path = String(path.dropLast())
   }

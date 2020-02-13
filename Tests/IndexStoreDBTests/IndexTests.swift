@@ -216,4 +216,67 @@ final class IndexTests: XCTestCase {
         roles: [.reference, .call, .calledBy, .containedBy]),
     ])
   }
+
+  func testDelegate() throws {
+    class Delegate: IndexDelegate {
+      let queue: DispatchQueue = DispatchQueue(label: "testDelegate mutex")
+      var _added: Int = 0
+      var _completed: Int = 0
+      var added: Int { queue.sync { _added } }
+      var completed: Int { queue.sync { _completed } }
+
+      func processingAddedPending(_ count: Int) {
+        queue.sync {
+          _added += count
+        }
+      }
+      func processingCompleted(_ count: Int) {
+        queue.sync {
+          _completed += count
+        }
+      }
+    }
+
+    guard let ws = try mutableTibsTestWorkspace(name: "proj1") else { return }
+
+    let delegate = Delegate()
+    ws.delegate = delegate
+
+    ws.index.pollForUnitChangesAndWait()
+
+    XCTAssertEqual(delegate.added, 0)
+    XCTAssertEqual(delegate.completed, 0)
+
+    try ws.buildAndIndex()
+
+    XCTAssertEqual(delegate.added, 3)
+    XCTAssertEqual(delegate.completed, 3)
+  }
+
+  func testMainFilesContainingFile() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "MainFiles") else { return }
+    try ws.buildAndIndex()
+    let index = ws.index
+
+    let mainSwift = ws.testLoc("main_swift").url.path
+    let main1 = ws.testLoc("main1").url.path
+    let main2 = ws.testLoc("main2").url.path
+    let uniq1 = ws.testLoc("uniq1").url.path
+    let shared = ws.testLoc("shared").url.path
+    let unknown = ws.testLoc("unknown").url.path
+
+    let mainFiles = { (_ path: String, crossLang: Bool) -> Set<String> in
+      Set(index.mainFilesContainingFile(path: path, crossLanguage: crossLang))
+    }
+
+    XCTAssertEqual(mainFiles(mainSwift, true), [mainSwift])
+    XCTAssertEqual(mainFiles(mainSwift, false), [mainSwift])
+    XCTAssertEqual(mainFiles(main1, false), [main1])
+    XCTAssertEqual(mainFiles(main2, false), [main2])
+    XCTAssertEqual(mainFiles(uniq1, false), [main1])
+    XCTAssertEqual(mainFiles(shared, false), [main1, main2])
+    XCTAssertEqual(mainFiles(shared, true), [main1, main2, mainSwift])
+    XCTAssertEqual(mainFiles(unknown, true), [])
+    XCTAssertEqual(mainFiles(unknown, false), [])
+  }
 }

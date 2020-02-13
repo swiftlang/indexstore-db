@@ -26,6 +26,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <unordered_map>
@@ -92,6 +93,12 @@ private:
     Queue.dispatch([=]{
       LocalOther->unitIsOutOfDate(std::move(unitInfo), outOfDateModTime, hint, false);
     });
+  }
+
+public:
+  /// For Testing. Wait for any outstanding async work to finish.
+  void _wait() {
+    Queue.dispatchSync([]{});
   }
 };
 
@@ -211,6 +218,14 @@ bool IndexSystemImpl::init(StringRef StorePath,
     return true;
   }
 
+  if (!readonly) {
+    // Create the index store path, if it does not already exist.
+    if (std::error_code EC = llvm::sys::fs::create_directories(StorePath)) {
+      Error = "could not create directories for data store path ";
+      Error += StorePath.str() + ": " + EC.message();
+    }
+  }
+
   auto idxStore = indexstore::IndexStore::create(StorePath, idxStoreLib, Error);
   if (!idxStore)
     return true;
@@ -264,6 +279,7 @@ void IndexSystemImpl::purgeStaleData() {
 
 void IndexSystemImpl::pollForUnitChangesAndWait() {
   IndexStore->pollForUnitChangesAndWait();
+  DelegateWrap->_wait();
 }
 
 void IndexSystemImpl::printStats(raw_ostream &OS) {
