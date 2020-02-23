@@ -5,7 +5,7 @@
  *	BerkeleyDB API, but much simplified.
  */
 /*
- * Copyright 2011-2018 Howard Chu, Symas Corp.
+ * Copyright 2011-2020 Howard Chu, Symas Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -3350,9 +3350,9 @@ mdb_txn_end(MDB_txn *txn, unsigned mode)
 			txn->mt_parent->mt_flags &= ~MDB_TXN_HAS_CHILD;
 			env->me_pgstate = ((MDB_ntxn *)txn)->mnt_pgstate;
 			mdb_midl_free(txn->mt_free_pgs);
-			mdb_midl_free(txn->mt_spill_pgs);
 			free(txn->mt_u.dirty_list);
 		}
+		mdb_midl_free(txn->mt_spill_pgs);
 
 		mdb_midl_free(pghead);
 	}
@@ -3459,9 +3459,9 @@ mdb_freelist_save(MDB_txn *txn)
 			} else {
 				x = mdb_mid2l_search(dl, mp->mp_pgno);
 				mdb_tassert(txn, dl[x].mid == mp->mp_pgno);
+				mdb_dpage_free(env, mp);
 			}
 			dl[x].mptr = NULL;
-			mdb_dpage_free(env, mp);
 		}
 		{
 			/* squash freed slots out of the dirty list */
@@ -3793,6 +3793,8 @@ done:
 	return MDB_SUCCESS;
 }
 
+static int ESECT mdb_env_share_locks(MDB_env *env, int *excl);
+
 int
 mdb_txn_commit(MDB_txn *txn)
 {
@@ -4015,6 +4017,15 @@ mdb_txn_commit(MDB_txn *txn)
 	if ((rc = mdb_env_write_meta(txn)))
 		goto fail;
 	end_mode = MDB_END_COMMITTED|MDB_END_UPDATE;
+	if (env->me_flags & MDB_PREVSNAPSHOT) {
+		if (!(env->me_flags & MDB_NOLOCK)) {
+			int excl;
+			rc = mdb_env_share_locks(env, &excl);
+			if (rc)
+				goto fail;
+		}
+		env->me_flags ^= MDB_PREVSNAPSHOT;
+	}
 
 done:
 	mdb_txn_end(txn, end_mode);
@@ -4296,7 +4307,8 @@ static MDB_meta *
 mdb_env_pick_meta(const MDB_env *env)
 {
 	MDB_meta *const *metas = env->me_metas;
-	return metas[ metas[0]->mm_txnid < metas[1]->mm_txnid ];
+	return metas[ (metas[0]->mm_txnid < metas[1]->mm_txnid) ^
+		((env->me_flags & MDB_PREVSNAPSHOT) != 0) ];
 }
 
 int ESECT
@@ -4384,22 +4396,27 @@ mdb_env_map(MDB_env *env, void *addr)
 		return mdb_nt2win32(rc);
 	env->me_map = map;
 #else
+	int mmap_flags = MAP_SHARED;
+	int prot = PROT_READ;
+#ifdef MAP_NOSYNC	/* Used on FreeBSD */
+	if (flags & MDB_NOSYNC)
+		mmap_flags |= MAP_NOSYNC;
+#endif
 #ifdef MDB_VL32
 	(void) flags;
-	env->me_map = mmap(addr, NUM_METAS * env->me_psize, PROT_READ, MAP_SHARED,
+	env->me_map = mmap(addr, NUM_METAS * env->me_psize, prot, mmap_flags,
 		env->me_fd, 0);
 	if (env->me_map == MAP_FAILED) {
 		env->me_map = NULL;
 		return ErrCode();
 	}
 #else
-	int prot = PROT_READ;
 	if (flags & MDB_WRITEMAP) {
 		prot |= PROT_WRITE;
 		if (ftruncate(env->me_fd, env->me_mapsize) < 0)
 			return ErrCode();
 	}
-	env->me_map = mmap(addr, env->me_mapsize, prot, MAP_SHARED,
+	env->me_map = mmap(addr, env->me_mapsize, prot, mmap_flags,
 		env->me_fd, 0);
 	if (env->me_map == MAP_FAILED) {
 		env->me_map = NULL;
@@ -4729,7 +4746,7 @@ mdb_env_open2(MDB_env *env, int prev)
 		env->me_pidquery = PROCESS_QUERY_INFORMATION;
 	/* Grab functions we need from NTDLL */
 	if (!NtCreateSection) {
-		HMODULE h = GetModuleHandle("NTDLL.DLL");
+		HMODULE h = GetModuleHandleW(L"NTDLL.DLL");
 		if (!h)
 			return MDB_PROBLEM;
 		NtClose = (NtCloseFunc *)GetProcAddress(h, "NtClose");
@@ -4868,6 +4885,9 @@ mdb_env_open2(MDB_env *env, int prev)
 #endif
 	env->me_maxpg = env->me_mapsize / env->me_psize;
 
+	if (env->me_txns)
+		env->me_txns->mti_txnid = meta.mm_txnid;
+
 #if MDB_DEBUG
 	{
 		MDB_meta *meta = mdb_env_pick_meta(env);
@@ -4967,9 +4987,6 @@ static int ESECT
 mdb_env_share_locks(MDB_env *env, int *excl)
 {
 	int rc = 0;
-	MDB_meta *meta = mdb_env_pick_meta(env);
-
-	env->me_txns->mti_txnid = meta->mm_txnid;
 
 #ifdef _WIN32
 	{
@@ -5391,7 +5408,7 @@ fail:
 	 */
 #define	CHANGEABLE	(MDB_NOSYNC|MDB_NOMETASYNC|MDB_MAPASYNC|MDB_NOMEMINIT)
 #define	CHANGELESS	(MDB_FIXEDMAP|MDB_NOSUBDIR|MDB_RDONLY| \
-	MDB_WRITEMAP|MDB_NOTLS|MDB_NOLOCK|MDB_NORDAHEAD|MDB_PREVMETA)
+	MDB_WRITEMAP|MDB_NOTLS|MDB_NOLOCK|MDB_NORDAHEAD|MDB_PREVSNAPSHOT)
 
 #if VALID_FLAGS & PERSISTENT_FLAGS & (CHANGEABLE|CHANGELESS)
 # error "Persistent DB flags & env flags overlap, but both go in mm_flags"
@@ -5477,6 +5494,10 @@ mdb_env_open(MDB_env *env, const char *path, unsigned int flags, mdb_mode_t mode
 		rc = mdb_env_setup_locks(env, &fname, mode, &excl);
 		if (rc)
 			goto leave;
+		if ((flags & MDB_PREVSNAPSHOT) && !excl) {
+			rc = EAGAIN;
+			goto leave;
+		}
 	}
 
 	rc = mdb_fopen(env, &fname,
@@ -5491,7 +5512,7 @@ mdb_env_open(MDB_env *env, const char *path, unsigned int flags, mdb_mode_t mode
 			goto leave;
 	}
 
-	if ((rc = mdb_env_open2(env, flags & MDB_PREVMETA)) == MDB_SUCCESS) {
+	if ((rc = mdb_env_open2(env, flags & MDB_PREVSNAPSHOT)) == MDB_SUCCESS) {
 		if (!(flags & (MDB_RDONLY|MDB_WRITEMAP))) {
 			/* Synchronous fd for meta writes. Needed even with
 			 * MDB_NOSYNC/MDB_NOMETASYNC, in case these get reset.
@@ -5501,7 +5522,7 @@ mdb_env_open(MDB_env *env, const char *path, unsigned int flags, mdb_mode_t mode
 				goto leave;
 		}
 		DPRINTF(("opened dbenv %p", (void *) env));
-		if (excl > 0) {
+		if (excl > 0 && !(flags & MDB_PREVSNAPSHOT)) {
 			rc = mdb_env_share_locks(env, &excl);
 			if (rc)
 				goto leave;
@@ -7456,7 +7477,7 @@ mdb_cursor_put(MDB_cursor *mc, MDB_val *key, MDB_val *data,
 
 	dkey.mv_size = 0;
 
-	if (flags == MDB_CURRENT) {
+	if (flags & MDB_CURRENT) {
 		if (!(mc->mc_flags & C_INITIALIZED))
 			return EINVAL;
 		rc = MDB_SUCCESS;
@@ -7650,7 +7671,7 @@ more:
 						offset *= 4; /* space for 4 more */
 						break;
 					}
-					/* FALLTHRU: Big enough MDB_DUPFIXED sub-page */
+					/* FALLTHRU */ /* Big enough MDB_DUPFIXED sub-page */
 				case MDB_CURRENT:
 					fp->mp_flags |= P_DIRTY;
 					COPY_PGNO(fp->mp_pgno, mp->mp_pgno);
@@ -7849,7 +7870,7 @@ put_sub:
 			xdata.mv_size = 0;
 			xdata.mv_data = "";
 			leaf = NODEPTR(mc->mc_pg[mc->mc_top], mc->mc_ki[mc->mc_top]);
-			if (flags & MDB_CURRENT) {
+			if (flags == MDB_CURRENT) {
 				xflags = MDB_CURRENT|MDB_NOSPILL;
 			} else {
 				mdb_xcursor_init1(mc, leaf);
@@ -9625,7 +9646,7 @@ mdb_page_split(MDB_cursor *mc, MDB_val *newkey, MDB_val *newdata, pgno_t newpgno
 			 * the split so the new page is emptier than the old page.
 			 * This yields better packing during sequential inserts.
 			 */
-			if (nkeys < 20 || nsize > pmax/16 || newindx >= nkeys) {
+			if (nkeys < 32 || nsize > pmax/16 || newindx >= nkeys) {
 				/* Find split point */
 				psize = 0;
 				if (newindx <= split_indx || newindx >= nkeys) {
