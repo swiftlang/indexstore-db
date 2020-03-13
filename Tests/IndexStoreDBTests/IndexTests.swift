@@ -32,7 +32,7 @@ final class IndexTests: XCTestCase {
 
     let ccanon = SymbolOccurrence(
       symbol: csym,
-      location: SymbolLocation(ws.testLoc("c")),
+      location: SymbolLocation(ws.testLoc("c"), moduleName: "main"),
       roles: [.definition, .canonical],
       relations: [])
 
@@ -135,9 +135,9 @@ final class IndexTests: XCTestCase {
 
     let aaa = Symbol(usr: "s:1A3aaayyF", name: "aaa()", kind: .function)
     checkOccurrences(ws.index.occurrences(ofUSR: aaa.usr, roles: .all), expected: [
-      aaa.at(ws.testLoc("aaa:def"), roles: .definition),
-      aaa.at(ws.testLoc("aaa:call"), roles: .call),
-      aaa.at(ws.testLoc("aaa:call:c"), roles: .call),
+      aaa.at(ws.testLoc("aaa:def"), moduleName: "A", roles: .definition),
+      aaa.at(ws.testLoc("aaa:call"), moduleName: "B", roles: .call),
+      aaa.at(ws.testLoc("aaa:call:c"), moduleName: "C", roles: .call),
     ])
   }
 

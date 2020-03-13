@@ -367,8 +367,16 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
           if (!Dep.isSystem())
             UserFileDepends.push_back(CanonPath);
           StringRef recordName = Dep.getName();
+          StringRef moduleName = Dep.getModuleName();
+          if (moduleName.empty()) {
+            // Workaround for swift compiler not associating the module name with records of swift files.
+            // FIXME: Fix this on swift compiler and remove this.
+            if (CanonPath.getPath().endswith(".swift")) {
+              moduleName = Reader.getModuleName();
+            }
+          }
           bool isNewProvider;
-          IDCode providerCode = unitImport.addProviderDependency(recordName, CanonPath, Dep.getModuleName(), Dep.isSystem(), &isNewProvider);
+          IDCode providerCode = unitImport.addProviderDependency(recordName, CanonPath, moduleName, Dep.isSystem(), &isNewProvider);
           if (!isNewProvider)
             break;
 

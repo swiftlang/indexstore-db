@@ -14,12 +14,14 @@ import CIndexStoreDB
 
 public struct SymbolLocation: Equatable {
   public var path: String
+  public var moduleName: String
   public var isSystem: Bool
   public var line: Int
   public var utf8Column: Int
 
-  public init(path: String, isSystem: Bool = false, line: Int, utf8Column: Int) {
+  public init(path: String, moduleName: String, isSystem: Bool = false, line: Int, utf8Column: Int) {
     self.path = path
+    self.moduleName = moduleName
     self.isSystem = isSystem
     self.line = line
     self.utf8Column = utf8Column
@@ -28,14 +30,14 @@ public struct SymbolLocation: Equatable {
 
 extension SymbolLocation: Comparable {
   public static func <(a: SymbolLocation, b: SymbolLocation) -> Bool {
-    return (a.path, a.line, a.utf8Column, a.isSystem ? 1 : 0)
-      < (b.path, b.line, b.utf8Column, b.isSystem ? 1 : 0)
+    return (a.path, a.moduleName, a.line, a.utf8Column, a.isSystem ? 1 : 0)
+      < (b.path, a.moduleName, b.line, b.utf8Column, b.isSystem ? 1 : 0)
   }
 }
 
 extension SymbolLocation: CustomStringConvertible {
   public var description: String {
-    "\(path):\(line):\(utf8Column)\(isSystem ? " [system]" : "")"
+    "\(!moduleName.isEmpty ? "\(moduleName)::" : "")\(path):\(line):\(utf8Column)\(isSystem ? " [system]" : "")"
   }
 }
 
@@ -44,6 +46,7 @@ extension SymbolLocation: CustomStringConvertible {
 extension SymbolLocation {
   public init(_ loc: indexstoredb_symbol_location_t) {
     path = String(cString: indexstoredb_symbol_location_path(loc))
+    moduleName = String(cString: indexstoredb_symbol_location_module_name(loc))
     isSystem = indexstoredb_symbol_location_is_system(loc)
     line = Int(indexstoredb_symbol_location_line(loc))
     utf8Column = Int(indexstoredb_symbol_location_column_utf8(loc))
