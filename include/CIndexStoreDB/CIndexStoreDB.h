@@ -231,6 +231,13 @@ INDEXSTOREDB_PUBLIC
 const char * _Nonnull
 indexstoredb_symbol_location_path(_Nonnull indexstoredb_symbol_location_t);
 
+/// Returns the module name of the given symbol location.
+///
+/// The string has the same lifetime as the \c indexstoredb_symbol_location_t.
+INDEXSTOREDB_PUBLIC
+const char * _Nonnull
+indexstoredb_symbol_location_module_name(_Nonnull indexstoredb_symbol_location_t);
+
 /// Returns whether the given symbol location is a system location.
 INDEXSTOREDB_PUBLIC bool
 indexstoredb_symbol_location_is_system(_Nonnull indexstoredb_symbol_location_t);

@@ -286,6 +286,12 @@ indexstoredb_symbol_location_path(indexstoredb_symbol_location_t loc) {
   return obj->getPath().getPathString().c_str();
 }
 
+const char *
+indexstoredb_symbol_location_module_name(indexstoredb_symbol_location_t loc) {
+  auto obj = (SymbolLocation *)loc;
+  return obj->getPath().getModuleName().c_str();
+}
+
 bool
 indexstoredb_symbol_location_is_system(indexstoredb_symbol_location_t loc) {
   auto obj = (SymbolLocation *)loc;

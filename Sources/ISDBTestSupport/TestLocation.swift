@@ -16,6 +16,9 @@ import IndexStoreDB
 /// A source location (file:line:column) in a test project, for use with the TestLocationScanner.
 public struct TestLocation: Hashable {
 
+  /// Marker string to mark a `SymbolLocation` as containing an unknown module name from a test location.
+  public static let unknownModuleName: String = "<UNKNOWN>"
+
   /// The path/url of the source file.
   public var url: URL
 
@@ -45,9 +48,10 @@ extension TestLocation: Comparable {
 extension SymbolLocation {
 
   /// Constructs a SymbolLocation from a TestLocation, using a non-system path by default.
-  public init(_ loc: TestLocation, isSystem: Bool = false) {
+  public init(_ loc: TestLocation, moduleName: String = TestLocation.unknownModuleName, isSystem: Bool = false) {
     self.init(
       path: loc.url.path,
+      moduleName: moduleName,
       isSystem: isSystem,
       line: loc.line,
       utf8Column: loc.utf8Column)
@@ -57,8 +61,8 @@ extension SymbolLocation {
 extension Symbol {
 
   /// Returns a SymbolOccurrence with the given location and roles.
-  public func at(_ location: TestLocation, roles: SymbolRole) -> SymbolOccurrence {
-    return self.at(SymbolLocation(location), roles: roles)
+  public func at(_ location: TestLocation, moduleName: String = TestLocation.unknownModuleName, roles: SymbolRole) -> SymbolOccurrence {
+    return self.at(SymbolLocation(location, moduleName: moduleName), roles: roles)
   }
 }
 
