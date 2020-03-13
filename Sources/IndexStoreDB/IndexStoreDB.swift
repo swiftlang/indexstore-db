@@ -187,6 +187,27 @@ public final class IndexStoreDB {
     }
     return result
   }
+
+  /// Iterates over the name of every symbol in the index.
+  ///
+  /// - Parameter body: A closure to be called for each symbol. The closure should return true to
+  /// continue iterating.
+  @discardableResult
+  public func forEachSymbolName(body: @escaping (String) -> Bool) -> Bool {
+    return indexstoredb_index_symbol_names(impl) { name in
+      body(String(cString: name))
+    }
+  }
+
+  /// Returns an array with every symbol name in the index.
+  public func allSymbolNames() -> [String] {
+    var result: [String] = []
+    forEachSymbolName { name in
+      result.append(name)
+      return true
+    }
+    return result
+  }
 }
 
 public protocol IndexStoreLibraryProvider {

@@ -279,4 +279,14 @@ final class IndexTests: XCTestCase {
     XCTAssertEqual(mainFiles(unknown, true), [])
     XCTAssertEqual(mainFiles(unknown, false), [])
   }
+
+  func testAllSymbolNames() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
+    try ws.buildAndIndex()
+    let index = ws.index
+
+    let expectedSymbolNames = ["a()", "b()", "c()"]
+
+    XCTAssertEqual(index.allSymbolNames(), expectedSymbolNames)
+  }
 }
