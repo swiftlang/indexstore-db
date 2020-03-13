@@ -199,11 +199,11 @@ public final class IndexStoreDB {
     }
   }
 
-  /// Returns a set with every symbol in the index.
-  public func allSymbolNames() -> Set<String> {
-    var result: Set<String> = []
+  /// Returns an array with every symbol name in the index.
+  public func allSymbolNames() -> [String] {
+    var result: [String] = []
     forEachSymbolName { name in
-      result.insert(name)
+      result.append(name)
       return true
     }
     return result

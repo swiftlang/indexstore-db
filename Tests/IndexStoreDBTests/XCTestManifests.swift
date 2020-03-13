@@ -16,6 +16,7 @@ extension IndexTests {
     //   `swift test --generate-linuxmain`
     // to regenerate.
     static let __allTests__IndexTests = [
+        ("testAllSymbolNames", testAllSymbolNames),
         ("testBasic", testBasic),
         ("testDelegate", testDelegate),
         ("testEditsSimple", testEditsSimple),
