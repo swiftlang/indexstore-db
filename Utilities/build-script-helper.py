@@ -33,10 +33,10 @@ def get_swiftpm_options(args):
     swiftpm_args += [
       # Dispatch headers
       '-Xcxx', '-I', '-Xcxx',
-      os.path.join(args.toolchain, 'usr', 'lib', 'swift'),
+      os.path.join(args.toolchain, 'lib', 'swift'),
       # For <Block.h>
       '-Xcxx', '-I', '-Xcxx',
-      os.path.join(args.toolchain, 'usr', 'lib', 'swift', 'Block'),
+      os.path.join(args.toolchain, 'lib', 'swift', 'Block'),
     ]
 
   return swiftpm_args
@@ -66,7 +66,7 @@ def main():
   args.toolchain = os.path.abspath(args.toolchain)
 
   if args.toolchain:
-    swift_exec = os.path.join(args.toolchain, 'usr', 'bin', 'swift')
+    swift_exec = os.path.join(args.toolchain, 'bin', 'swift')
   else:
     swift_exec = 'swift'
 
@@ -74,7 +74,7 @@ def main():
 
   env = os.environ
   # Set the toolchain used in tests at runtime
-  env['INDEXSTOREDB_TOOLCHAIN_PATH'] = args.toolchain
+  env['INDEXSTOREDB_TOOLCHAIN_BIN_PATH'] = args.toolchain
 
   if args.ninja_bin:
     env['NINJA_BIN'] = args.ninja_bin
