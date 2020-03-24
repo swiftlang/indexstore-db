@@ -352,22 +352,33 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
     CanonicalFilePath CanonSysroot = CanonPathCache->getCanonicalPath(Reader.getSysrootPath(), WorkDir);
     unitImport.setSysroot(CanonSysroot);
 
-    // Collect the newly discovered records and process them outside of the libIndexStore callback.
+    // Collect the dependency info and process them outside of the libIndexStore callback.
     // This is because processing populates the database and C++ exceptions can be thrown; libIndexStore builds with -fno-exceptions so we cannot
     // be throwing C++ exceptions from inside its frames.
-    SmallVector<StoreSymbolRecordRef, 16> newStoreRecords;
-
+    struct UnitDependencyInfo {
+      IndexUnitDependency::DependencyKind Kind;
+      bool IsSystem;
+      std::string FilePath;
+      std::string Name;
+      std::string ModuleName;
+    };
+    SmallVector<UnitDependencyInfo, 16> dependencies;
     Reader.foreachDependency([&](IndexUnitDependency Dep)->bool {
-      switch (Dep.getKind()) {
+      dependencies.push_back(UnitDependencyInfo{Dep.getKind(), Dep.isSystem(), Dep.getFilePath(), Dep.getName(), Dep.getModuleName()});
+      return true;
+    });
+
+    for (const UnitDependencyInfo &dep : dependencies) {
+      switch (dep.Kind) {
         case IndexUnitDependency::DependencyKind::Record: {
-          CanonicalFilePath CanonPath = CanonPathCache->getCanonicalPath(Dep.getFilePath(), WorkDir);
+          CanonicalFilePath CanonPath = CanonPathCache->getCanonicalPath(dep.FilePath, WorkDir);
           if (CanonPath.empty())
             break;
 
-          if (!Dep.isSystem())
+          if (!dep.IsSystem)
             UserFileDepends.push_back(CanonPath);
-          StringRef recordName = Dep.getName();
-          StringRef moduleName = Dep.getModuleName();
+          StringRef recordName = dep.Name;
+          StringRef moduleName = dep.ModuleName;
           if (moduleName.empty()) {
             // Workaround for swift compiler not associating the module name with records of swift files.
             // FIXME: Fix this on swift compiler and remove this.
@@ -376,7 +387,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
             }
           }
           bool isNewProvider;
-          IDCode providerCode = unitImport.addProviderDependency(recordName, CanonPath, moduleName, Dep.isSystem(), &isNewProvider);
+          IDCode providerCode = unitImport.addProviderDependency(recordName, CanonPath, moduleName, dep.IsSystem, &isNewProvider);
           if (!isNewProvider)
             break;
 
@@ -387,32 +398,27 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
             break;
           }
 
-          newStoreRecords.push_back(std::move(Rec));
+          SymIndex->importSymbols(import, Rec);
           break;
         }
 
         case IndexUnitDependency::DependencyKind::Unit: {
-          IDCode unitDepCode = unitImport.addUnitDependency(Dep.getName());
-          if (!Dep.isSystem())
+          IDCode unitDepCode = unitImport.addUnitDependency(dep.Name);
+          if (!dep.IsSystem)
             UserUnitDepends.push_back(unitDepCode);
           break;
         }
 
         case IndexUnitDependency::DependencyKind::File: {
-          CanonicalFilePath CanonPath = CanonPathCache->getCanonicalPath(Dep.getFilePath(), WorkDir);
+          CanonicalFilePath CanonPath = CanonPathCache->getCanonicalPath(dep.FilePath, WorkDir);
           if (CanonPath.empty())
             break;
 
-          if (!Dep.isSystem())
+          if (!dep.IsSystem)
             UserFileDepends.push_back(CanonPath);
           unitImport.addFileDependency(CanonPath);
         }
       }
-      return true;
-    });
-
-    for (const auto &rec : newStoreRecords) {
-      SymIndex->importSymbols(import, rec);
     }
 
     unitImport.commit();
