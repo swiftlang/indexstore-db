@@ -70,7 +70,7 @@ if(CMAKE_CXX_SIMULATE_ID MATCHES MSVC)
     /GR)
 endif()
 target_include_directories(LLVMSupport PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  ${PROJECT_SOURCE_DIR}/include)
 
 if(NOT BUILD_SHARED_LIBS)
   set_property(GLOBAL APPEND PROPERTY IndexStoreDB_EXPORTS LLVMSupport)

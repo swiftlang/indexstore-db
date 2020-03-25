@@ -9,8 +9,8 @@ add_library(Index STATIC
   SymbolIndex.cpp)
 target_compile_options(Index PRIVATE
   -fblocks)
-target_include_directories(Index PRIVATE
-  include)
+target_include_directories(Index PUBLIC
+  ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(Index PRIVATE
   dispatch
   Database
