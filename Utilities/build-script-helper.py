@@ -29,6 +29,9 @@ def get_swiftpm_options(args):
   if args.verbose:
     swiftpm_args += ['--verbose']
 
+  if args.sanitize:
+    swiftpm_args += ['--sanitize=%s' % args.sanitize]
+
   if platform.system() != 'Darwin':
     swiftpm_args += [
       # Dispatch headers
@@ -49,6 +52,7 @@ def main():
     parser.add_argument('--ninja-bin', metavar='PATH', help='ninja binary to use for testing')
     parser.add_argument('--build-path', metavar='PATH', default='.build', help='build in the given path')
     parser.add_argument('--configuration', '-c', default='debug', help='build using configuration (release|debug)')
+    parser.add_argument('--sanitize', help='build using the given sanitizier (address|thread|undefined)')
     parser.add_argument('--verbose', '-v', action='store_true', help='enable verbose output')
 
   subparsers = parser.add_subparsers(title='subcommands', dest='action', metavar='action')
@@ -78,6 +82,10 @@ def main():
 
   if args.ninja_bin:
     env['NINJA_BIN'] = args.ninja_bin
+
+  if args.sanitize == 'address':
+    # Workaround reports in Foundation.
+    env['ASAN_OPTIONS'] = 'detect_leaks=false'
 
   if args.action == 'build':
     swiftpm('build', swift_exec, swiftpm_args, env)
