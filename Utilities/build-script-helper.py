@@ -86,6 +86,9 @@ def main():
   if args.sanitize == 'address':
     # Workaround reports in Foundation.
     env['ASAN_OPTIONS'] = 'detect_leaks=false'
+  if args.sanitize == 'undefined':
+    supp = os.path.join(args.package_path, 'Utilities', 'ubsan_supressions.supp')
+    env['UBSAN_OPTIONS'] = 'halt_on_error=true,suppressions=%s' % supp
 
   if args.action == 'build':
     swiftpm('build', swift_exec, swiftpm_args, env)
