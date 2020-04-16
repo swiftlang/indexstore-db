@@ -41,12 +41,19 @@ class FileVisibilityChecker {
   std::unordered_map<db::IDCode, unsigned> MainFilesRefCount;
   std::unordered_map<db::IDCode, bool> UnitVisibilityCache;
 
+  std::unordered_set<db::IDCode> OutUnitFiles;
+  bool UseExplicitOutputUnits;
+
 public:
   FileVisibilityChecker(db::DatabaseRef dbase,
-                        std::shared_ptr<CanonicalPathCache> canonPathCache);
+                        std::shared_ptr<CanonicalPathCache> canonPathCache,
+                        bool useExplicitOutputUnits);
 
   void registerMainFiles(ArrayRef<StringRef> filePaths, StringRef productName);
   void unregisterMainFiles(ArrayRef<StringRef> filePaths, StringRef productName);
+
+  void addUnitOutFilePaths(ArrayRef<StringRef> filePaths);
+  void removeUnitOutFilePaths(ArrayRef<StringRef> filePaths);
 
   bool isUnitVisible(const db::UnitInfo &unitInfo, db::ReadTransaction &reader);
 };

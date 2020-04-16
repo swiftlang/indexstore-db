@@ -20,6 +20,7 @@ extension IndexTests {
         ("testBasic", testBasic),
         ("testDelegate", testDelegate),
         ("testEditsSimple", testEditsSimple),
+        ("testExplicitOutputUnits", testExplicitOutputUnits),
         ("testMainFilesContainingFile", testMainFilesContainingFile),
         ("testMixedLangTarget", testMixedLangTarget),
         ("testSwiftModules", testSwiftModules),

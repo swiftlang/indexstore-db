@@ -73,6 +73,7 @@ public final class TibsTestWorkspace {
     persistentBuildDir: URL,
     tmpDir: URL,
     removeTmpDir: Bool = true,
+    useExplicitOutputUnits: Bool = false,
     toolchain: TibsToolchain) throws
   {
     self.projectDir = immutableProjectDir
@@ -104,6 +105,7 @@ public final class TibsTestWorkspace {
       databasePath: databaseDir.path,
       library: libIndexStore,
       delegate: wrapperDelegate,
+      useExplicitOutputUnits: useExplicitOutputUnits,
       listenToUnitEvents: false)
   }
 
@@ -118,7 +120,13 @@ public final class TibsTestWorkspace {
   ///   * toolchain: The toolchain to use for building and indexing.
   ///
   /// * throws: If there are any file system errors.
-  public init(projectDir: URL, tmpDir: URL, removeTmpDir: Bool = true, toolchain: TibsToolchain) throws {
+  public init(
+    projectDir: URL,
+    tmpDir: URL,
+    removeTmpDir: Bool = true,
+    useExplicitOutputUnits: Bool = false,
+    toolchain: TibsToolchain) throws
+  {
     self.projectDir = projectDir
     self.tmpDir = tmpDir
     self.mutableSources = true
@@ -151,6 +159,7 @@ public final class TibsTestWorkspace {
       databasePath: databaseDir.path,
       library: libIndexStore,
       delegate: wrapperDelegate,
+      useExplicitOutputUnits: useExplicitOutputUnits,
       listenToUnitEvents: false)
   }
 
@@ -198,6 +207,7 @@ extension XCTestCase {
   ///   support this test.
   public func staticTibsTestWorkspace(
     name: String,
+    useExplicitOutputUnits: Bool = false,
     testFile: String = #file
   ) throws -> TibsTestWorkspace? {
     let testDirName = testDirectoryName
@@ -211,6 +221,7 @@ extension XCTestCase {
         .appendingPathComponent("isdb-tests/\(testDirName)", isDirectory: true),
       tmpDir: URL(fileURLWithPath: NSTemporaryDirectory())
         .appendingPathComponent("isdb-test-data/\(testDirName)", isDirectory: true),
+      useExplicitOutputUnits: useExplicitOutputUnits,
       toolchain: toolchain)
 
     if workspace.builder.targets.contains(where: { target in !target.clangTUs.isEmpty })

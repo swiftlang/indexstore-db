@@ -33,6 +33,10 @@ public final class TibsResolvedTarget {
     public var importPaths: [String] { moduleDeps.isEmpty ? [] : ["."] }
     public var sdk: String?
 
+    public var indexOutputPaths: [String] {
+      return outputFileMap.values.compactMap{ $0.swiftmodule }
+    }
+
     public init(
       name: String,
       extraArgs: [String] = [],
@@ -82,6 +86,10 @@ public final class TibsResolvedTarget {
   public var swiftModule: SwiftModule?
   public var clangTUs: [ClangTU]
   public var dependencies: [String]
+
+  public var indexOutputPaths: [String] {
+    return clangTUs.map{ $0.outputPath } + (swiftModule?.indexOutputPaths ?? [])
+  }
 
   public init(name: String, swiftModule: SwiftModule?, clangTUs: [ClangTU], dependencies: [String]) {
     self.name = name

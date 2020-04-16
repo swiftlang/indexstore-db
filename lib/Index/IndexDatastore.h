@@ -40,6 +40,7 @@ public:
                                                 SymbolIndexRef SymIndex,
                                                 std::shared_ptr<IndexSystemDelegate> Delegate,
                                                 std::shared_ptr<CanonicalPathCache> CanonPathCache,
+                                                bool useExplicitOutputUnits,
                                                 bool readonly,
                                                 bool listenToUnitEvents,
                                                 std::string &Error);
@@ -52,6 +53,9 @@ public:
   /// Check whether any unit(s) containing \p file are out of date and if so,
   /// *synchronously* notify the delegate.
   void checkUnitContainingFileIsOutOfDate(StringRef file);
+
+  void addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
+  void removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
 
   void purgeStaleData();
 

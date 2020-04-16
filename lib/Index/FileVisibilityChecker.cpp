@@ -20,8 +20,9 @@ using namespace IndexStoreDB::index;
 using namespace llvm;
 
 FileVisibilityChecker::FileVisibilityChecker(DatabaseRef dbase,
-                                             std::shared_ptr<CanonicalPathCache> canonPathCache)
-    : DBase(std::move(dbase)), CanonPathCache(std::move(canonPathCache)) {}
+                                             std::shared_ptr<CanonicalPathCache> canonPathCache,
+                                             bool useExplicitOutputUnits)
+    : DBase(std::move(dbase)), CanonPathCache(std::move(canonPathCache)), UseExplicitOutputUnits(useExplicitOutputUnits) {}
 
 void FileVisibilityChecker::registerMainFiles(ArrayRef<StringRef> filePaths, StringRef productName) {
   sys::ScopedLock L(VisibleCacheMtx);
@@ -60,16 +61,53 @@ void FileVisibilityChecker::unregisterMainFiles(ArrayRef<StringRef> filePaths, S
   UnitVisibilityCache.clear();
 }
 
+void FileVisibilityChecker::addUnitOutFilePaths(ArrayRef<StringRef> filePaths) {
+  sys::ScopedLock L(VisibleCacheMtx);
+
+  ReadTransaction reader(DBase);
+  for (StringRef filePath : filePaths) {
+    CanonicalFilePath canonPath = CanonPathCache->getCanonicalPath(filePath);
+    if (canonPath.empty())
+      continue;
+    IDCode pathCode = reader.getFilePathCode(canonPath);
+    OutUnitFiles.insert(pathCode);
+  }
+  UnitVisibilityCache.clear();
+}
+
+void FileVisibilityChecker::removeUnitOutFilePaths(ArrayRef<StringRef> filePaths) {
+  sys::ScopedLock L(VisibleCacheMtx);
+
+  ReadTransaction reader(DBase);
+  for (StringRef filePath : filePaths) {
+    CanonicalFilePath canonPath = CanonPathCache->getCanonicalPath(filePath);
+    if (canonPath.empty())
+      continue;
+    IDCode pathCode = reader.getFilePathCode(canonPath);
+    OutUnitFiles.erase(pathCode);
+  }
+  UnitVisibilityCache.clear();
+}
+
 bool FileVisibilityChecker::isUnitVisible(const db::UnitInfo &unitInfo, db::ReadTransaction &reader) {
   if (unitInfo.isInvalid())
     return false;
 
   sys::ScopedLock L(VisibleCacheMtx);
-  if (VisibleMainFiles.empty())
+
+  auto visibleCheck = [&](const db::UnitInfo &unitInfo) -> bool {
+    if (UseExplicitOutputUnits) {
+      return OutUnitFiles.count(unitInfo.OutFileCode);
+    } else {
+      return VisibleMainFiles.count(unitInfo.MainFileCode);
+    }
+  };
+
+  if (!UseExplicitOutputUnits && VisibleMainFiles.empty())
     return true; // If not using main file 'visibility' feature, then assume all files visible.
 
   if (unitInfo.HasMainFile) {
-    return VisibleMainFiles.count(unitInfo.MainFileCode);
+    return visibleCheck(unitInfo);
   }
 
   auto pair = UnitVisibilityCache.insert(std::make_pair(unitInfo.UnitCode, false));
@@ -80,7 +118,7 @@ bool FileVisibilityChecker::isUnitVisible(const db::UnitInfo &unitInfo, db::Read
   }
 
   reader.foreachRootUnitOfUnit(unitInfo.UnitCode, [&](const UnitInfo &unitInfo) -> bool {
-    if (VisibleMainFiles.count(unitInfo.MainFileCode)) {
+    if (visibleCheck(unitInfo)) {
       isVisible = true;
       return false;
     }
