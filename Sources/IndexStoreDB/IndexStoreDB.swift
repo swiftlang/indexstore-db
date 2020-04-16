@@ -11,7 +11,15 @@
 //===----------------------------------------------------------------------===//
 
 import CIndexStoreDB
+
+// For `strdup`
+#if canImport(Glibc)
+import Glibc
+#elseif os(Windows)
+import MSVCRT
+#else
 import Darwin.POSIX
+#endif
 
 /// IndexStoreDB index.
 public final class IndexStoreDB {
