@@ -132,9 +132,9 @@ extension TibsToolchain {
 
     let fm = FileManager.default
 
-    let envVar = "INDEXSTOREDB_TOOLCHAIN_PATH"
+    let envVar = "INDEXSTOREDB_TOOLCHAIN_BIN_PATH"
     if let path = ProcessInfo.processInfo.environment[envVar] {
-      let bin = URL(fileURLWithPath: "\(path)/usr/bin", isDirectory: true)
+      let bin = URL(fileURLWithPath: "\(path)/bin", isDirectory: true)
       swiftc = bin.appendingPathComponent("swiftc", isDirectory: false)
       clang = bin.appendingPathComponent("clang", isDirectory: false)
 
