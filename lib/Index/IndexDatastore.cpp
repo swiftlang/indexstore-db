@@ -116,7 +116,7 @@ class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
   mutable llvm::sys::Mutex StateMtx;
   std::unordered_map<IDCode, std::shared_ptr<UnitMonitor>> UnitMonitorsByCode;
 
-  llvm::StringSet<> ExplicitOutputUnitsSet;
+  std::unordered_set<db::IDCode> ExplicitOutputUnitsSet;
 
 public:
   StoreUnitRepo(IndexStoreRef IdxStore, SymbolIndexRef SymIndex,
@@ -151,6 +151,7 @@ public:
 
   void addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
   void removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
+  bool isUnitNameInKnownOutFilePaths(StringRef unitName) const;
 
   void purgeStaleData();
 
@@ -426,7 +427,7 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
       return false;
     if (evt.isDependency)
       return false;
-    return !ExplicitOutputUnitsSet.count(evt.name);
+    return !isUnitNameInKnownOutFilePaths(evt.name);
   };
 
   for (const auto &evt : evts) {
@@ -716,7 +717,7 @@ void StoreUnitRepo::addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool wait
       nameBuf.clear();
       IdxStore->getUnitNameFromOutputPath(filePath, nameBuf);
       StringRef unitName = nameBuf.str();
-      ExplicitOutputUnitsSet.insert(unitName);
+      ExplicitOutputUnitsSet.insert(makeIDCodeFromString(unitName));
       // It makes no difference for unit registration whether the kind is `Added` or `Modified`.
       unitEvts.push_back(UnitEventInfo(IndexStore::UnitEvent::Kind::Added, unitName));
     }
@@ -735,12 +736,17 @@ void StoreUnitRepo::removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool w
       nameBuf.clear();
       IdxStore->getUnitNameFromOutputPath(filePath, nameBuf);
       StringRef unitName = nameBuf.str();
-      ExplicitOutputUnitsSet.erase(unitName);
+      ExplicitOutputUnitsSet.erase(makeIDCodeFromString(unitName));
       unitEvts.push_back(UnitEventInfo(IndexStore::UnitEvent::Kind::Removed, unitName));
     }
   }
   auto session = makeUnitProcessingSession();
   session->process(std::move(unitEvts), waitForProcessing);
+}
+
+bool StoreUnitRepo::isUnitNameInKnownOutFilePaths(StringRef unitName) const {
+  sys::ScopedLock L(StateMtx);
+  return ExplicitOutputUnitsSet.count(makeIDCodeFromString(unitName));
 }
 
 void StoreUnitRepo::purgeStaleData() {
