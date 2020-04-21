@@ -628,7 +628,7 @@ void StoreUnitRepo::onFSEvent(std::vector<std::string> changedParentPaths) {
     parentPathStrRefs.push_back(CanonicalFilePathRef::getAsCanonicalPath(path));
 
   struct OutOfDateCheck {
-    CanonicalFilePath FilePath;
+    std::string FilePath;
     sys::TimePoint<> ModTime;
     SmallVector<IDCode, 2> UnitCodes;
   };
@@ -638,7 +638,7 @@ void StoreUnitRepo::onFSEvent(std::vector<std::string> changedParentPaths) {
     ReadTransaction reader(SymIndex->getDBase());
     reader.findFilePathsWithParentPaths(parentPathStrRefs, [&](IDCode pathCode, CanonicalFilePathRef filePath) -> bool {
       auto modTime = UnitMonitor::getModTimeForOutOfDateCheck(filePath.getPath());
-      outOfDateChecks.push_back(OutOfDateCheck{filePath, modTime, {}});
+      outOfDateChecks.push_back(OutOfDateCheck{filePath.getPath().str(), modTime, {}});
       reader.foreachUnitContainingFile(pathCode, [&](ArrayRef<IDCode> unitCodes) -> bool {
         outOfDateChecks.back().UnitCodes.append(unitCodes.begin(), unitCodes.end());
         return true;
@@ -650,7 +650,7 @@ void StoreUnitRepo::onFSEvent(std::vector<std::string> changedParentPaths) {
   for (auto &check : outOfDateChecks) {
     for (IDCode unitCode : check.UnitCodes) {
       if (auto monitor = getUnitMonitor(unitCode)) {
-        monitor->checkForOutOfDate(check.ModTime, check.FilePath.getPath());
+        monitor->checkForOutOfDate(check.ModTime, check.FilePath);
       }
     }
   }
