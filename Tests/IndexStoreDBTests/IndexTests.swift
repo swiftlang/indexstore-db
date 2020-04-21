@@ -289,4 +289,39 @@ final class IndexTests: XCTestCase {
 
     XCTAssertEqual(index.allSymbolNames(), expectedSymbolNames)
   }
+
+  func testExplicitOutputUnits() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "MixedLangTarget", useExplicitOutputUnits: true) else { return }
+    try ws.buildAndIndex()
+    let index = ws.index
+
+    let ddecl = Symbol(usr: "c:@S@D", name: "D", kind: .class)
+    let getOccs = { index.occurrences(ofUSR: ddecl.usr, roles: .all) }
+
+    // Output units are not set yet.
+    XCTAssertEqual(0, getOccs().count)
+
+    let indexOutputPaths = ws.builder.indexOutputPaths.map{$0.path}
+    index.addUnitOutFilePaths(indexOutputPaths, waitForProcessing: true)
+    checkOccurrences(getOccs(), expected: [
+      ddecl.at(ws.testLoc("D:def"), roles: .definition),
+      ddecl.at(ws.testLoc("D:ref"), roles: .reference),
+      ddecl.at(ws.testLoc("D:ref:e.mm"), roles: .reference),
+    ])
+
+    let outUnitEMM = try XCTUnwrap(indexOutputPaths.first{ $0.hasSuffix("-e.mm.o") })
+    index.removeUnitOutFilePaths([outUnitEMM], waitForProcessing: true)
+    checkOccurrences(getOccs(), expected: [
+      ddecl.at(ws.testLoc("D:def"), roles: .definition),
+      ddecl.at(ws.testLoc("D:ref"), roles: .reference),
+    ])
+
+    // The bridging header is referenced as a PCH unit dependency, make sure we can see the data.
+    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function)
+    let bridgingHeaderOccs = index.occurrences(ofUSR: bhdecl.usr, roles: .all)
+    checkOccurrences(bridgingHeaderOccs, expected: [
+      bhdecl.at(ws.testLoc("bridgingHeader:decl"), roles: .declaration),
+      bhdecl.with(name: "bridgingHeader()").at(ws.testLoc("bridgingHeader:call"), roles: .call),
+    ])
+  }
 }

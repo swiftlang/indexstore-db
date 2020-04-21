@@ -23,6 +23,10 @@ public final class TibsBuilder {
 
   public var indexstore: URL { buildRoot.appendingPathComponent("index", isDirectory: true) }
 
+  public var indexOutputPaths: [URL] {
+    return targets.flatMap{ $0.indexOutputPaths }.map{ buildRoot.appendingPathComponent($0, isDirectory: false) }
+  }
+
   public enum Error: Swift.Error {
     case duplicateTarget(String)
     case unknownDependency(String, declaredIn: String)
