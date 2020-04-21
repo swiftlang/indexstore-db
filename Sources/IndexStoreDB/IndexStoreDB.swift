@@ -12,6 +12,15 @@
 
 import CIndexStoreDB
 
+// For `strdup`
+#if canImport(Glibc)
+import Glibc
+#elseif os(Windows)
+import MSVCRT
+#else
+import Darwin.POSIX
+#endif
+
 /// IndexStoreDB index.
 public final class IndexStoreDB {
 
@@ -35,6 +44,7 @@ public final class IndexStoreDB {
     databasePath: String,
     library: IndexStoreLibrary?,
     delegate: IndexDelegate? = nil,
+    useExplicitOutputUnits: Bool = false,
     waitUntilDoneInitializing wait: Bool = false,
     readonly: Bool = false,
     listenToUnitEvents: Bool = true
@@ -61,7 +71,7 @@ public final class IndexStoreDB {
     }
 
     var error: indexstoredb_error_t? = nil
-    guard let index = indexstoredb_index_create(storePath, databasePath, libProviderFunc, delegateFunc, wait, readonly, listenToUnitEvents, &error) else {
+    guard let index = indexstoredb_index_create(storePath, databasePath, libProviderFunc, delegateFunc, useExplicitOutputUnits, wait, readonly, listenToUnitEvents, &error) else {
       defer { indexstoredb_error_dispose(error) }
       throw IndexStoreDBError.create(error?.description ?? "unknown")
     }
@@ -76,6 +86,22 @@ public final class IndexStoreDB {
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   public func pollForUnitChangesAndWait() {
     indexstoredb_index_poll_for_unit_changes_and_wait(impl)
+  }
+
+  /// Add output filepaths for the set of unit files that index data should be loaded from.
+  /// Only has an effect if `useExplicitOutputUnits` was set to true at initialization.
+  public func addUnitOutFilePaths(_ paths: [String], waitForProcessing: Bool) {
+    let cPaths: [UnsafePointer<CChar>] = paths.map { UnsafePointer($0.withCString(strdup)!) }
+    defer { for cPath in cPaths { free(UnsafeMutablePointer(mutating: cPath)) } }
+    return indexstoredb_index_add_unit_out_file_paths(impl, cPaths, cPaths.count, waitForProcessing)
+  }
+
+  /// Remove output filepaths for the set of unit files that index data should be loaded from.
+  /// Only has an effect if `useExplicitOutputUnits` was set to true at initialization.
+  public func removeUnitOutFilePaths(_ paths: [String], waitForProcessing: Bool) {
+    let cPaths: [UnsafePointer<CChar>] = paths.map { UnsafePointer($0.withCString(strdup)!) }
+    defer { for cPath in cPaths { free(UnsafeMutablePointer(mutating: cPath)) } }
+    return indexstoredb_index_remove_unit_out_file_paths(impl, cPaths, cPaths.count, waitForProcessing)
   }
 
   @discardableResult

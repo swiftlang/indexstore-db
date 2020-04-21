@@ -146,6 +146,7 @@ indexstoredb_index_create(const char * _Nonnull storePath,
                   const char * _Nonnull databasePath,
                   _Nonnull indexstore_library_provider_t libProvider,
                   _Nonnull indexstoredb_delegate_event_receiver_t delegate,
+                  bool useExplicitOutputUnits,
                   bool wait,
                   bool readonly,
                   bool listenToUnitEvents,
@@ -162,6 +163,22 @@ indexstoredb_load_indexstore_library(const char * _Nonnull dylibPath,
 /// *For Testing* Poll for any changes to index units and wait until they have been registered.
 INDEXSTOREDB_PUBLIC void
 indexstoredb_index_poll_for_unit_changes_and_wait(_Nonnull indexstoredb_index_t index);
+
+/// Add output filepaths for the set of unit files that index data should be loaded from.
+/// Only has an effect if `useExplicitOutputUnits` was set to true for `indexstoredb_index_create`.
+INDEXSTOREDB_PUBLIC void
+indexstoredb_index_add_unit_out_file_paths(_Nonnull indexstoredb_index_t index,
+                                           const char *_Nonnull const *_Nonnull paths,
+                                           size_t count,
+                                           bool waitForProcessing);
+
+/// Remove output filepaths from the set of unit files that index data should be loaded from.
+/// Only has an effect if `useExplicitOutputUnits` was set to true for `indexstoredb_index_create`.
+INDEXSTOREDB_PUBLIC void
+indexstoredb_index_remove_unit_out_file_paths(_Nonnull indexstoredb_index_t index,
+                                              const char *_Nonnull const *_Nonnull paths,
+                                              size_t count,
+                                              bool waitForProcessing);
 
 INDEXSTOREDB_PUBLIC
 indexstoredb_delegate_event_kind_t
