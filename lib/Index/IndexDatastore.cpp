@@ -628,9 +628,9 @@ void StoreUnitRepo::onFSEvent(std::vector<std::string> changedParentPaths) {
     parentPathStrRefs.push_back(CanonicalFilePathRef::getAsCanonicalPath(path));
 
   struct OutOfDateCheck {
-    std::shared_ptr<UnitMonitor> Monitor;
+    std::string FilePath;
     sys::TimePoint<> ModTime;
-    CanonicalFilePath FilePath;
+    SmallVector<IDCode, 2> UnitCodes;
   };
 
   std::vector<OutOfDateCheck> outOfDateChecks;
@@ -638,12 +638,9 @@ void StoreUnitRepo::onFSEvent(std::vector<std::string> changedParentPaths) {
     ReadTransaction reader(SymIndex->getDBase());
     reader.findFilePathsWithParentPaths(parentPathStrRefs, [&](IDCode pathCode, CanonicalFilePathRef filePath) -> bool {
       auto modTime = UnitMonitor::getModTimeForOutOfDateCheck(filePath.getPath());
+      outOfDateChecks.push_back(OutOfDateCheck{filePath.getPath().str(), modTime, {}});
       reader.foreachUnitContainingFile(pathCode, [&](ArrayRef<IDCode> unitCodes) -> bool {
-        for (IDCode unitCode : unitCodes) {
-          if (auto monitor = getUnitMonitor(unitCode)) {
-            outOfDateChecks.push_back(OutOfDateCheck{monitor, modTime, filePath});
-          }
-        }
+        outOfDateChecks.back().UnitCodes.append(unitCodes.begin(), unitCodes.end());
         return true;
       });
       return true;
@@ -651,7 +648,11 @@ void StoreUnitRepo::onFSEvent(std::vector<std::string> changedParentPaths) {
   }
   // We collect and call later to avoid nested read transactions.
   for (auto &check : outOfDateChecks) {
-    check.Monitor->checkForOutOfDate(check.ModTime, check.FilePath.getPath());
+    for (IDCode unitCode : check.UnitCodes) {
+      if (auto monitor = getUnitMonitor(unitCode)) {
+        monitor->checkForOutOfDate(check.ModTime, check.FilePath);
+      }
+    }
   }
 }
 
