@@ -117,8 +117,8 @@ public:
             StringRef dbasePath,
             std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
             std::shared_ptr<IndexSystemDelegate> Delegate,
-            bool useExplicitOutputUnits,
-            bool readonly, bool listenToUnitEvents,
+            bool useExplicitOutputUnits, bool readonly,
+            bool enableOutOfDateFileWatching, bool listenToUnitEvents,
             Optional<size_t> initialDBSize,
             std::string &Error);
 
@@ -205,8 +205,8 @@ bool IndexSystemImpl::init(StringRef StorePath,
                            StringRef dbasePath,
                            std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                            std::shared_ptr<IndexSystemDelegate> Delegate,
-                           bool useExplicitOutputUnits,
-                           bool readonly, bool listenToUnitEvents,
+                           bool useExplicitOutputUnits, bool readonly,
+                           bool enableOutOfDateFileWatching, bool listenToUnitEvents,
                            Optional<size_t> initialDBSize,
                            std::string &Error) {
   this->StorePath = StorePath;
@@ -247,6 +247,7 @@ bool IndexSystemImpl::init(StringRef StorePath,
                                             canonPathCache,
                                             useExplicitOutputUnits,
                                             readonly,
+                                            enableOutOfDateFileWatching,
                                             listenToUnitEvents,
                                             Error);
 
@@ -600,13 +601,15 @@ IndexSystem::create(StringRef StorePath,
                     StringRef dbasePath,
                     std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                     std::shared_ptr<IndexSystemDelegate> Delegate,
-                    bool useExplicitOutputUnits,
-                    bool readonly, bool listenToUnitEvents,
+                    bool useExplicitOutputUnits, bool readonly,
+                    bool enableOutOfDateFileWatching, bool listenToUnitEvents,
                     Optional<size_t> initialDBSize,
                     std::string &Error) {
   std::unique_ptr<IndexSystemImpl> Impl(new IndexSystemImpl());
   bool Err = Impl->init(StorePath, dbasePath, std::move(storeLibProvider), std::move(Delegate),
-                        useExplicitOutputUnits, readonly, listenToUnitEvents, initialDBSize, Error);
+                        useExplicitOutputUnits, readonly,
+                        enableOutOfDateFileWatching, listenToUnitEvents,
+                        initialDBSize, Error);
   if (Err)
     return nullptr;
 

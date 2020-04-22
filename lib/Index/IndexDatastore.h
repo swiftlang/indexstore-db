@@ -42,6 +42,7 @@ public:
                                                 std::shared_ptr<CanonicalPathCache> CanonPathCache,
                                                 bool useExplicitOutputUnits,
                                                 bool readonly,
+                                                bool enableOutOfDateFileWatching,
                                                 bool listenToUnitEvents,
                                                 std::string &Error);
 

@@ -48,6 +48,7 @@ public:
                                              std::shared_ptr<IndexSystemDelegate> Delegate,
                                              bool useExplicitOutputUnits,
                                              bool readonly,
+                                             bool enableOutOfDateFileWatching,
                                              bool listenToUnitEvents,
                                              Optional<size_t> initialDBSize,
                                              std::string &Error);

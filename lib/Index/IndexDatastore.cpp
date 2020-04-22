@@ -29,7 +29,6 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/StringSet.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/FileSystem.h"
@@ -103,6 +102,7 @@ class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
   IndexStoreRef IdxStore;
   SymbolIndexRef SymIndex;
   const bool UseExplicitOutputUnits;
+  const bool EnableOutOfDateFileWatching;
   std::shared_ptr<IndexSystemDelegate> Delegate;
   std::shared_ptr<CanonicalPathCache> CanonPathCache;
 
@@ -120,12 +120,13 @@ class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
 
 public:
   StoreUnitRepo(IndexStoreRef IdxStore, SymbolIndexRef SymIndex,
-                bool useExplicitOutputUnits,
+                bool useExplicitOutputUnits, bool enableOutOfDateFileWatching,
                 std::shared_ptr<IndexSystemDelegate> Delegate,
                 std::shared_ptr<CanonicalPathCache> canonPathCache)
   : IdxStore(IdxStore),
     SymIndex(std::move(SymIndex)),
     UseExplicitOutputUnits(useExplicitOutputUnits),
+    EnableOutOfDateFileWatching(enableOutOfDateFileWatching),
     Delegate(std::move(Delegate)),
     CanonPathCache(std::move(canonPathCache)) {
     InitSemaphore = dispatch_semaphore_create(0);
@@ -182,6 +183,7 @@ public:
             std::shared_ptr<CanonicalPathCache> CanonPathCache,
             bool useExplicitOutputUnits,
             bool readonly,
+            bool enableOutOfDateFileWatching,
             bool listenToUnitEvents,
             std::string &Error);
 
@@ -453,7 +455,7 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
 
   // Can't just initialize this in the constructor because 'shared_from_this()'
   // cannot be called from a constructor.
-  if (!PathWatcher) {
+  if (EnableOutOfDateFileWatching && !PathWatcher) {
     std::weak_ptr<StoreUnitRepo> weakUnitRepo = shared_from_this();
     auto pathEventsReceiver = [weakUnitRepo](std::vector<std::string> paths) {
       if (auto unitRepo = weakUnitRepo.lock()) {
@@ -662,7 +664,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName, std::shared_ptr<UnitProcess
   }
 
 
-  if (*optIsSystem)
+  if (*optIsSystem || !EnableOutOfDateFileWatching)
     return;
 
   // Monitor user files of the unit.
@@ -1072,6 +1074,7 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
                               std::shared_ptr<CanonicalPathCache> CanonPathCache,
                               bool useExplicitOutputUnits,
                               bool readonly,
+                              bool enableOutOfDateFileWatching,
                               bool listenToUnitEvents,
                               std::string &Error) {
   this->IdxStore = std::move(idxStore);
@@ -1081,7 +1084,7 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
   if (readonly)
     return false;
 
-  auto UnitRepo = std::make_shared<StoreUnitRepo>(this->IdxStore, SymIndex, useExplicitOutputUnits, Delegate, CanonPathCache);
+  auto UnitRepo = std::make_shared<StoreUnitRepo>(this->IdxStore, SymIndex, useExplicitOutputUnits, enableOutOfDateFileWatching, Delegate, CanonPathCache);
   std::weak_ptr<StoreUnitRepo> WeakUnitRepo = UnitRepo;
   auto eventsDeque = std::make_shared<UnitEventInfoDeque>();
   auto OnUnitsChange = [WeakUnitRepo, Delegate, eventsDeque](IndexStore::UnitEventNotification EventNote) {
@@ -1172,11 +1175,12 @@ IndexDatastore::create(IndexStoreRef idxStore,
                        std::shared_ptr<CanonicalPathCache> CanonPathCache,
                        bool useExplicitOutputUnits,
                        bool readonly,
+                       bool enableOutOfDateFileWatching,
                        bool listenToUnitEvents,
                        std::string &Error) {
   std::unique_ptr<IndexDatastoreImpl> Impl(new IndexDatastoreImpl());
   bool Err = Impl->init(std::move(idxStore), std::move(SymIndex), std::move(Delegate), std::move(CanonPathCache),
-                        useExplicitOutputUnits, readonly, listenToUnitEvents, Error);
+                        useExplicitOutputUnits, readonly, enableOutOfDateFileWatching, listenToUnitEvents, Error);
   if (Err)
     return nullptr;
 
