@@ -108,10 +108,14 @@ indexstoredb_index_create(const char *storePath, const char *databasePath,
   auto libProviderObj = std::make_shared<BlockIndexStoreLibraryProvider>(libProvider);
 
   std::string errMsg;
+  // `enableOutOfDateFileWatching` is set to `false` by default because the
+  // out-of-date notifications are not exposed at all, so this notification
+  // mechanism is taking CPU & memory unnecessarily.
   if (auto index =
           IndexSystem::create(storePath, databasePath, libProviderObj, delegate,
                               useExplicitOutputUnits, readonly,
-                              listenToUnitEvents, llvm::None, errMsg)) {
+                              /*enableOutOfDateFileWatching=*/false, listenToUnitEvents,
+                              llvm::None, errMsg)) {
 
     if (wait)
       index->waitUntilDoneInitializing();
