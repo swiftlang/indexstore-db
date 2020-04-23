@@ -14,6 +14,7 @@
 #define INDEXSTOREDB_SKDATABASE_IDCODE_H
 
 #include <functional>
+#include <cstdint>
 
 namespace IndexStoreDB {
 namespace db {
