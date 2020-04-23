@@ -474,7 +474,12 @@ void StoreUnitRepo::registerUnit(StringRef unitName, std::shared_ptr<UnitProcess
   std::string Error;
   auto optModTime = IdxStore->getUnitModificationTime(unitName, Error);
   if (!optModTime) {
-    LOG_WARN_FUNC("error getting mod time for unit '" << unitName << "':" << Error);
+    if (UseExplicitOutputUnits) {
+      // It is normal to setup the list of units before the data is generated.
+      LOG_INFO_FUNC(Low, "(explicit-units mode) error getting mod time for unit '" << unitName << "':" << Error);
+    } else {
+      LOG_WARN_FUNC("error getting mod time for unit '" << unitName << "':" << Error);
+    }
     return;
   }
   auto unitModTime = toTimePoint(optModTime.getValue());
