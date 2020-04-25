@@ -100,16 +100,22 @@ indexstoredb_index_t
 indexstoredb_index_create(const char *storePath, const char *databasePath,
                           indexstore_library_provider_t libProvider,
                           indexstoredb_delegate_event_receiver_t delegateCallback,
-                          bool wait, bool readonly, bool listenToUnitEvents,
+                          bool useExplicitOutputUnits, bool wait, bool readonly,
+                          bool listenToUnitEvents,
                           indexstoredb_error_t *error) {
 
   auto delegate = std::make_shared<BlockIndexSystemDelegate>(delegateCallback);
   auto libProviderObj = std::make_shared<BlockIndexStoreLibraryProvider>(libProvider);
 
   std::string errMsg;
+  // `enableOutOfDateFileWatching` is set to `false` by default because the
+  // out-of-date notifications are not exposed at all, so this notification
+  // mechanism is taking CPU & memory unnecessarily.
   if (auto index =
           IndexSystem::create(storePath, databasePath, libProviderObj, delegate,
-                              readonly, listenToUnitEvents, llvm::None, errMsg)) {
+                              useExplicitOutputUnits, readonly,
+                              /*enableOutOfDateFileWatching=*/false, listenToUnitEvents,
+                              llvm::None, errMsg)) {
 
     if (wait)
       index->waitUntilDoneInitializing();
@@ -137,6 +143,28 @@ indexstoredb_load_indexstore_library(const char *dylibPath,
 void indexstoredb_index_poll_for_unit_changes_and_wait(indexstoredb_index_t index) {
   auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
   obj->value->pollForUnitChangesAndWait();
+}
+
+void indexstoredb_index_add_unit_out_file_paths(indexstoredb_index_t index,
+                                                const char *const *paths, size_t count,
+                                                bool waitForProcessing) {
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  SmallVector<StringRef, 32> strVec;
+  strVec.reserve(count);
+  for (unsigned i = 0; i != count; ++i)
+    strVec.push_back(paths[i]);
+  return obj->value->addUnitOutFilePaths(strVec, waitForProcessing);
+}
+
+void indexstoredb_index_remove_unit_out_file_paths(indexstoredb_index_t index,
+                                                   const char *const *paths, size_t count,
+                                                   bool waitForProcessing) {
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  SmallVector<StringRef, 32> strVec;
+  strVec.reserve(count);
+  for (unsigned i = 0; i != count; ++i)
+    strVec.push_back(paths[i]);
+  return obj->value->removeUnitOutFilePaths(strVec, waitForProcessing);
 }
 
 indexstoredb_delegate_event_kind_t

@@ -46,7 +46,9 @@ public:
                                              StringRef dbasePath,
                                              std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                                              std::shared_ptr<IndexSystemDelegate> Delegate,
+                                             bool useExplicitOutputUnits,
                                              bool readonly,
+                                             bool enableOutOfDateFileWatching,
                                              bool listenToUnitEvents,
                                              Optional<size_t> initialDBSize,
                                              std::string &Error);
@@ -62,6 +64,14 @@ public:
 
   void registerMainFiles(ArrayRef<StringRef> filePaths, StringRef productName);
   void unregisterMainFiles(ArrayRef<StringRef> filePaths, StringRef productName);
+
+  /// Add output filepaths for the set of unit files that index data should be loaded from.
+  /// Only has an effect if `useExplicitOutputUnits` was set to true at initialization.
+  void addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing = false);
+
+  /// Remove output filepaths from the set of unit files that index data should be loaded from.
+  /// Only has an effect if `useExplicitOutputUnits` was set to true at initialization.
+  void removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing = false);
 
   // FIXME: Accept a list of active main files so that it can remove stale unit
   // files.

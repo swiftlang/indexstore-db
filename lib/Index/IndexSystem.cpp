@@ -117,7 +117,8 @@ public:
             StringRef dbasePath,
             std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
             std::shared_ptr<IndexSystemDelegate> Delegate,
-            bool readonly, bool listenToUnitEvents,
+            bool useExplicitOutputUnits, bool readonly,
+            bool enableOutOfDateFileWatching, bool listenToUnitEvents,
             Optional<size_t> initialDBSize,
             std::string &Error);
 
@@ -129,6 +130,9 @@ public:
 
   void registerMainFiles(ArrayRef<StringRef> filePaths, StringRef productName);
   void unregisterMainFiles(ArrayRef<StringRef> filePaths, StringRef productName);
+
+  void addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
+  void removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
 
   void purgeStaleData();
 
@@ -201,7 +205,8 @@ bool IndexSystemImpl::init(StringRef StorePath,
                            StringRef dbasePath,
                            std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                            std::shared_ptr<IndexSystemDelegate> Delegate,
-                           bool readonly, bool listenToUnitEvents,
+                           bool useExplicitOutputUnits, bool readonly,
+                           bool enableOutOfDateFileWatching, bool listenToUnitEvents,
                            Optional<size_t> initialDBSize,
                            std::string &Error) {
   this->StorePath = StorePath;
@@ -232,7 +237,7 @@ bool IndexSystemImpl::init(StringRef StorePath,
 
   auto canonPathCache = std::make_shared<CanonicalPathCache>();
 
-  this->VisibilityChecker = std::make_shared<FileVisibilityChecker>(dbase, canonPathCache);
+  this->VisibilityChecker = std::make_shared<FileVisibilityChecker>(dbase, canonPathCache, useExplicitOutputUnits);
   this->SymIndex = std::make_shared<SymbolIndex>(dbase, idxStore, this->VisibilityChecker);
   this->PathIndex = std::make_shared<FilePathIndex>(dbase, idxStore, this->VisibilityChecker,
                                                     canonPathCache);
@@ -240,7 +245,9 @@ bool IndexSystemImpl::init(StringRef StorePath,
                                             this->SymIndex,
                                             this->DelegateWrap,
                                             canonPathCache,
+                                            useExplicitOutputUnits,
                                             readonly,
+                                            enableOutOfDateFileWatching,
                                             listenToUnitEvents,
                                             Error);
 
@@ -271,6 +278,16 @@ void IndexSystemImpl::registerMainFiles(ArrayRef<StringRef> filePaths, StringRef
 
 void IndexSystemImpl::unregisterMainFiles(ArrayRef<StringRef> filePaths, StringRef productName) {
   return VisibilityChecker->unregisterMainFiles(filePaths, productName);
+}
+
+void IndexSystemImpl::addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing) {
+  VisibilityChecker->addUnitOutFilePaths(filePaths);
+  IndexStore->addUnitOutFilePaths(filePaths, waitForProcessing);
+}
+
+void IndexSystemImpl::removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing) {
+  VisibilityChecker->removeUnitOutFilePaths(filePaths);
+  IndexStore->removeUnitOutFilePaths(filePaths, waitForProcessing);
 }
 
 void IndexSystemImpl::purgeStaleData() {
@@ -584,11 +601,15 @@ IndexSystem::create(StringRef StorePath,
                     StringRef dbasePath,
                     std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                     std::shared_ptr<IndexSystemDelegate> Delegate,
-                    bool readonly, bool listenToUnitEvents,
+                    bool useExplicitOutputUnits, bool readonly,
+                    bool enableOutOfDateFileWatching, bool listenToUnitEvents,
                     Optional<size_t> initialDBSize,
                     std::string &Error) {
   std::unique_ptr<IndexSystemImpl> Impl(new IndexSystemImpl());
-  bool Err = Impl->init(StorePath, dbasePath, std::move(storeLibProvider), std::move(Delegate), readonly, listenToUnitEvents, initialDBSize, Error);
+  bool Err = Impl->init(StorePath, dbasePath, std::move(storeLibProvider), std::move(Delegate),
+                        useExplicitOutputUnits, readonly,
+                        enableOutOfDateFileWatching, listenToUnitEvents,
+                        initialDBSize, Error);
   if (Err)
     return nullptr;
 
@@ -625,6 +646,14 @@ void IndexSystem::registerMainFiles(ArrayRef<StringRef> filePaths, StringRef pro
 
 void IndexSystem::unregisterMainFiles(ArrayRef<StringRef> filePaths, StringRef productName) {
   return IMPL->unregisterMainFiles(filePaths, productName);
+}
+
+void IndexSystem::addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing) {
+  return IMPL->addUnitOutFilePaths(filePaths, waitForProcessing);
+}
+
+void IndexSystem::removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing) {
+  return IMPL->removeUnitOutFilePaths(filePaths, waitForProcessing);
 }
 
 void IndexSystem::purgeStaleData() {

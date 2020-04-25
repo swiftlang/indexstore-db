@@ -76,10 +76,16 @@ static dispatch_queue_t getGlobalQueueForUnitChanges() {
 namespace {
 
   class UnitMonitor;
+  class UnitProcessingSession;
 
 struct UnitEventInfo {
   IndexStore::UnitEvent::Kind kind;
   std::string name;
+  /// Whether this is an explicit enqueue of a dependency unit for processing, while `UseExplicitOutputUnits` is enabled.
+  bool isDependency;
+
+  UnitEventInfo(IndexStore::UnitEvent::Kind kind, std::string name, bool isDependency = false)
+  : kind(kind), name(std::move(name)), isDependency(isDependency) {}
 };
 
 struct DoneInitState {
@@ -95,6 +101,8 @@ struct PollUnitsState {
 class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
   IndexStoreRef IdxStore;
   SymbolIndexRef SymIndex;
+  const bool UseExplicitOutputUnits;
+  const bool EnableOutOfDateFileWatching;
   std::shared_ptr<IndexSystemDelegate> Delegate;
   std::shared_ptr<CanonicalPathCache> CanonPathCache;
 
@@ -108,12 +116,17 @@ class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
   mutable llvm::sys::Mutex StateMtx;
   std::unordered_map<IDCode, std::shared_ptr<UnitMonitor>> UnitMonitorsByCode;
 
+  std::unordered_set<db::IDCode> ExplicitOutputUnitsSet;
+
 public:
   StoreUnitRepo(IndexStoreRef IdxStore, SymbolIndexRef SymIndex,
+                bool useExplicitOutputUnits, bool enableOutOfDateFileWatching,
                 std::shared_ptr<IndexSystemDelegate> Delegate,
                 std::shared_ptr<CanonicalPathCache> canonPathCache)
   : IdxStore(IdxStore),
     SymIndex(std::move(SymIndex)),
+    UseExplicitOutputUnits(useExplicitOutputUnits),
+    EnableOutOfDateFileWatching(enableOutOfDateFileWatching),
     Delegate(std::move(Delegate)),
     CanonPathCache(std::move(canonPathCache)) {
     InitSemaphore = dispatch_semaphore_create(0);
@@ -123,6 +136,7 @@ public:
   }
 
   void onFilesChange(std::vector<UnitEventInfo> evts,
+                     std::shared_ptr<UnitProcessingSession> processSession,
                      function_ref<void(unsigned)> ReportCompleted,
                      function_ref<void()> DirectoryDeleted);
 
@@ -133,6 +147,12 @@ public:
 
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait();
+
+  std::shared_ptr<UnitProcessingSession> makeUnitProcessingSession();
+
+  void addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
+  void removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
+  bool isUnitNameInKnownOutFilePaths(StringRef unitName) const;
 
   void purgeStaleData();
 
@@ -148,7 +168,7 @@ public:
   void checkUnitContainingFileIsOutOfDate(StringRef file);
 
 private:
-  void registerUnit(StringRef UnitName);
+  void registerUnit(StringRef UnitName, std::shared_ptr<UnitProcessingSession> processSession);
   void removeUnit(StringRef UnitName);
 };
 
@@ -161,7 +181,9 @@ public:
             SymbolIndexRef SymIndex,
             std::shared_ptr<IndexSystemDelegate> Delegate,
             std::shared_ptr<CanonicalPathCache> CanonPathCache,
+            bool useExplicitOutputUnits,
             bool readonly,
+            bool enableOutOfDateFileWatching,
             bool listenToUnitEvents,
             std::string &Error);
 
@@ -169,6 +191,10 @@ public:
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
   bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);
   void checkUnitContainingFileIsOutOfDate(StringRef file);
+
+  void addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
+  void removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
+
   void purgeStaleData();
 
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
@@ -223,7 +249,157 @@ public:
 // StoreUnitRepo
 //===----------------------------------------------------------------------===//
 
+namespace {
+
+/// A thread-safe deque object for UnitEventInfo objects.
+class UnitEventInfoDeque {
+  std::deque<UnitEventInfo> EventsDequeue;
+  mutable llvm::sys::Mutex StateMtx;
+
+public:
+  void addEvents(ArrayRef<UnitEventInfo> evts) {
+    sys::ScopedLock L(StateMtx);
+    EventsDequeue.insert(EventsDequeue.end(), evts.begin(), evts.end());
+  }
+
+  std::vector<UnitEventInfo> popFront(unsigned N) {
+    sys::ScopedLock L(StateMtx);
+    std::vector<UnitEventInfo> evts;
+    for (unsigned i = 0; i < N; ++i) {
+      if (EventsDequeue.empty())
+        break;
+      UnitEventInfo evt = EventsDequeue.front();
+      EventsDequeue.pop_front();
+      evts.push_back(std::move(evt));
+    }
+    return evts;
+  }
+
+  bool hasEnqueuedUnitDependency(StringRef unitName) const {
+    sys::ScopedLock L(StateMtx);
+    for (const auto &evt : EventsDequeue) {
+      if (evt.isDependency && evt.name == unitName)
+        return true;
+    }
+    return false;
+  }
+};
+
+/// Encapsulates state for processing a number of units and handles asynchronous (or synchronous for testing) scheduling.
+class UnitProcessingSession : public std::enable_shared_from_this<UnitProcessingSession> {
+  std::shared_ptr<UnitEventInfoDeque> Deque;
+  std::weak_ptr<StoreUnitRepo> WeakUnitRepo;
+  std::shared_ptr<IndexSystemDelegate> Delegate;
+
+  static const unsigned MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT = 10;
+
+public:
+  UnitProcessingSession(std::shared_ptr<UnitEventInfoDeque> eventsDeque,
+                        std::weak_ptr<StoreUnitRepo> unitRepo,
+                        std::shared_ptr<IndexSystemDelegate> delegate)
+  : Deque(std::move(eventsDeque)), WeakUnitRepo(std::move(unitRepo)),
+    Delegate(std::move(delegate)) {
+  }
+
+  void process(std::vector<UnitEventInfo> evts, bool waitForProcessing) {
+    if (evts.empty()) {
+      return; // bail out early if there's no work.
+    }
+
+    enqueue(std::move(evts));
+
+    if (waitForProcessing) {
+      processUnitsAndWait();
+    } else {
+      processUnitsAsync();
+    }
+  }
+
+  /// Enqueue units for processing and return.
+  /// This should be used when `process()` has already be called on this session object.
+  void enqueue(std::vector<UnitEventInfo> evts) {
+    if (evts.empty())
+      return;
+    Delegate->processingAddedPending(evts.size());
+    Deque->addEvents(std::move(evts));
+  }
+
+  bool hasEnqueuedUnitDependency(StringRef unitName) const {
+    return Deque->hasEnqueuedUnitDependency(unitName);
+  }
+
+private:
+  void processUnitsAsync() {
+    auto session = shared_from_this();
+    auto onUnitChangeBlockImpl = ^{
+      // Pass registration events to be processed incrementally by the global serial queue.
+      // This allows intermixing processing of registration events from multiple workspaces.
+      session->processUnitEventsIncrementally(getGlobalQueueForUnitChanges());
+    };
+
+#if defined(__APPLE__)
+    // Create the block with QoS explicitly to ensure that the QoS from the indexstore callback can't affect the onFilesChange priority. This call may do a lot of I/O and we don't want to wedge the system by running at elevated priority.
+    dispatch_block_t onUnitChangeBlock = dispatch_block_create_with_qos_class(DISPATCH_BLOCK_INHERIT_QOS_CLASS, unitChangesQOS, 0, onUnitChangeBlockImpl);
+#else
+    // FIXME: https://bugs.swift.org/browse/SR-10319
+    auto onUnitChangeBlock = Block_copy(onUnitChangeBlockImpl);
+#endif
+    dispatch_async(getGlobalQueueForUnitChanges(), onUnitChangeBlock);
+    Block_release(onUnitChangeBlock);
+  }
+
+  /// Primarily used for testing.
+  void processUnitsAndWait() {
+    auto unitRepo = WeakUnitRepo.lock();
+    if (!unitRepo)
+      return;
+
+    while (true) {
+      std::vector<UnitEventInfo> evts = Deque->popFront(MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT);
+      if (evts.empty()) {
+        break;
+      }
+
+      dispatch_sync(getGlobalQueueForUnitChanges(), ^{
+        unitRepo->onFilesChange(std::move(evts), shared_from_this(), [&](unsigned numCompleted){
+          Delegate->processingCompleted(numCompleted);
+        }, []{
+          // FIXME: the database should recover.
+        });
+      });
+    }
+  }
+
+  /// Enqueues asynchronous processing of the unit events in an incremental fashion.
+  /// Events are queued-up individually and the next event is enqueued only after
+  /// the current one has been processed.
+  void processUnitEventsIncrementally(dispatch_queue_t queue) {
+    std::vector<UnitEventInfo> poppedEvts = Deque->popFront(MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT);
+    if (poppedEvts.empty())
+      return;
+    auto unitRepo = WeakUnitRepo.lock();
+    if (!unitRepo)
+      return;
+
+    auto session = shared_from_this();
+
+    unitRepo->onFilesChange(poppedEvts, session, [&](unsigned NumCompleted){
+      Delegate->processingCompleted(NumCompleted);
+    }, [&](){
+      // FIXME: the database should recover.
+    });
+
+    // Enqueue processing the rest of the events.
+    dispatch_async(queue, ^{
+      session->processUnitEventsIncrementally(queue);
+    });
+  }
+};
+
+} // end anonymous namespace
+
 void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
+                                  std::shared_ptr<UnitProcessingSession> processSession,
                                   function_ref<void(unsigned)> ReportCompleted,
                                   function_ref<void()> DirectoryDeleted) {
 
@@ -248,17 +424,25 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
     }
   };
 
+  auto shouldIgnore = [&](const UnitEventInfo &evt) -> bool {
+    if (!UseExplicitOutputUnits)
+      return false;
+    if (evt.isDependency)
+      return false;
+    return !isUnitNameInKnownOutFilePaths(evt.name);
+  };
+
   for (const auto &evt : evts) {
     guardForMapFullError([&]{
       switch (evt.kind) {
       case IndexStore::UnitEvent::Kind::Added:
-        registerUnit(evt.name);
+      case IndexStore::UnitEvent::Kind::Modified:
+        if (!shouldIgnore(evt)) {
+          registerUnit(evt.name, processSession);
+        }
         break;
       case IndexStore::UnitEvent::Kind::Removed:
         removeUnit(evt.name);
-        break;
-      case IndexStore::UnitEvent::Kind::Modified:
-        registerUnit(evt.name);
         break;
       case IndexStore::UnitEvent::Kind::DirectoryDeleted:
         DirectoryDeleted();
@@ -271,7 +455,7 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
 
   // Can't just initialize this in the constructor because 'shared_from_this()'
   // cannot be called from a constructor.
-  if (!PathWatcher) {
+  if (EnableOutOfDateFileWatching && !PathWatcher) {
     std::weak_ptr<StoreUnitRepo> weakUnitRepo = shared_from_this();
     auto pathEventsReceiver = [weakUnitRepo](std::vector<std::string> paths) {
       if (auto unitRepo = weakUnitRepo.lock()) {
@@ -286,11 +470,16 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
   }
 }
 
-void StoreUnitRepo::registerUnit(StringRef unitName) {
+void StoreUnitRepo::registerUnit(StringRef unitName, std::shared_ptr<UnitProcessingSession> processSession) {
   std::string Error;
   auto optModTime = IdxStore->getUnitModificationTime(unitName, Error);
   if (!optModTime) {
-    LOG_WARN_FUNC("error getting mod time for unit '" << unitName << "':" << Error);
+    if (UseExplicitOutputUnits) {
+      // It is normal to setup the list of units before the data is generated.
+      LOG_INFO_FUNC(Low, "(explicit-units mode) error getting mod time for unit '" << unitName << "':" << Error);
+    } else {
+      LOG_WARN_FUNC("error getting mod time for unit '" << unitName << "':" << Error);
+    }
     return;
   }
   auto unitModTime = toTimePoint(optModTime.getValue());
@@ -315,6 +504,8 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
   Optional<StoreUnitInfo> StoreUnitInfoOpt;
   std::vector<CanonicalFilePath> UserFileDepends;
   std::vector<IDCode> UserUnitDepends;
+
+  SmallVector<std::string, 16> unitDependencies;
 
   // Returns true if an error occurred.
   auto importUnit = [&]() -> bool {
@@ -403,6 +594,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
         }
 
         case IndexUnitDependency::DependencyKind::Unit: {
+          unitDependencies.push_back(dep.Name);
           IDCode unitDepCode = unitImport.addUnitDependency(dep.Name);
           if (!dep.IsSystem)
             UserUnitDepends.push_back(unitDepCode);
@@ -440,7 +632,44 @@ void StoreUnitRepo::registerUnit(StringRef unitName) {
     Delegate->processedStoreUnit(StoreUnitInfoOpt.getValue());
   }
 
-  if (*optIsSystem)
+  if (UseExplicitOutputUnits) {
+    // Unit dependencies, like PCH/modules, are not included in the explicit list,
+    // make sure to process them as we find them.
+    // We do this after finishing processing the dependent unit to avoid nested write transactions.
+    std::vector<UnitEventInfo> unitsNeedingUpdate;
+    {
+      ReadTransaction reader(SymIndex->getDBase());
+
+      auto needsUpdate = [&](StringRef unitName) -> bool {
+        if (processSession->hasEnqueuedUnitDependency(unitName)) {
+          // Avoid enqueuing the same dependency from multiple dependents.
+          return false;
+        }
+        UnitInfo info = reader.getUnitInfo(unitName);
+        if (info.isInvalid()) {
+          return true; // not registered yet.
+        }
+        std::string error;
+        auto optModTime = IdxStore->getUnitModificationTime(unitName, error);
+        if (!optModTime) {
+          LOG_WARN_FUNC("error getting mod time for unit '" << unitName << "':" << error);
+          return false;
+        }
+        auto unitModTime = toTimePoint(optModTime.getValue());
+        return info.ModTime != unitModTime;
+      };
+
+      for (const auto &unitName : unitDependencies) {
+        if (needsUpdate(unitName)) {
+          unitsNeedingUpdate.push_back(UnitEventInfo(IndexStore::UnitEvent::Kind::Added, unitName, /*isDependency=*/true));
+        }
+      }
+    }
+    processSession->enqueue(std::move(unitsNeedingUpdate));
+  }
+
+
+  if (*optIsSystem || !EnableOutOfDateFileWatching)
     return;
 
   // Monitor user files of the unit.
@@ -484,6 +713,47 @@ void StoreUnitRepo::removeUnit(StringRef unitName) {
   ImportTransaction import(SymIndex->getDBase());
   import.removeUnitData(unitName);
   import.commit();
+}
+
+void StoreUnitRepo::addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing) {
+  std::vector<UnitEventInfo> unitEvts;
+  {
+    sys::ScopedLock L(StateMtx);
+    SmallString<128> nameBuf;
+    for (StringRef filePath : filePaths) {
+      nameBuf.clear();
+      IdxStore->getUnitNameFromOutputPath(filePath, nameBuf);
+      StringRef unitName = nameBuf.str();
+      ExplicitOutputUnitsSet.insert(makeIDCodeFromString(unitName));
+      // It makes no difference for unit registration whether the kind is `Added` or `Modified`.
+      unitEvts.push_back(UnitEventInfo(IndexStore::UnitEvent::Kind::Added, unitName));
+    }
+  }
+  auto session = makeUnitProcessingSession();
+  session->process(std::move(unitEvts), waitForProcessing);
+}
+
+void StoreUnitRepo::removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing) {
+  // FIXME: This doesn't remove unit dependencies. Probably a task for `purgeStaleData`.
+  std::vector<UnitEventInfo> unitEvts;
+  {
+    sys::ScopedLock L(StateMtx);
+    SmallString<128> nameBuf;
+    for (StringRef filePath : filePaths) {
+      nameBuf.clear();
+      IdxStore->getUnitNameFromOutputPath(filePath, nameBuf);
+      StringRef unitName = nameBuf.str();
+      ExplicitOutputUnitsSet.erase(makeIDCodeFromString(unitName));
+      unitEvts.push_back(UnitEventInfo(IndexStore::UnitEvent::Kind::Removed, unitName));
+    }
+  }
+  auto session = makeUnitProcessingSession();
+  session->process(std::move(unitEvts), waitForProcessing);
+}
+
+bool StoreUnitRepo::isUnitNameInKnownOutFilePaths(StringRef unitName) const {
+  sys::ScopedLock L(StateMtx);
+  return ExplicitOutputUnitsSet.count(makeIDCodeFromString(unitName));
 }
 
 void StoreUnitRepo::purgeStaleData() {
@@ -554,15 +824,14 @@ void StoreUnitRepo::pollForUnitChangesAndWait() {
     pollUnitsState.knownUnits = std::move(foundUnits);
   }
 
-  Delegate->processingAddedPending(events.size());
+  auto session = makeUnitProcessingSession();
+  session->process(std::move(events), /*waitForProcessing=*/true);
+}
 
-  dispatch_sync(getGlobalQueueForUnitChanges(), ^{
-    onFilesChange(std::move(events), [&](unsigned numCompleted){
-      Delegate->processingCompleted(numCompleted);
-    }, []{
-      // FIXME: the database should recover.
-    });
-  });
+std::shared_ptr<UnitProcessingSession> StoreUnitRepo::makeUnitProcessingSession() {
+  return std::make_shared<UnitProcessingSession>(std::make_shared<UnitEventInfoDeque>(),
+                                                 shared_from_this(),
+                                                 Delegate);
 }
 
 std::shared_ptr<UnitMonitor> StoreUnitRepo::getUnitMonitor(IDCode unitCode) const {
@@ -804,66 +1073,13 @@ sys::TimePoint<> UnitMonitor::getModTimeForOutOfDateCheck(StringRef filePath) {
 // IndexDatastoreImpl
 //===----------------------------------------------------------------------===//
 
-static const unsigned MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT = 10;
-
-namespace {
-/// A thread-safe deque object for UnitEventInfo objects.
-class UnitEventInfoDeque {
-  std::deque<UnitEventInfo> EventsDequeue;
-  mutable llvm::sys::Mutex StateMtx;
-
-public:
-  void addEvents(ArrayRef<UnitEventInfo> evts) {
-    sys::ScopedLock L(StateMtx);
-    EventsDequeue.insert(EventsDequeue.end(), evts.begin(), evts.end());
-  }
-
-  std::vector<UnitEventInfo> popFront(unsigned N) {
-    sys::ScopedLock L(StateMtx);
-    std::vector<UnitEventInfo> evts;
-    for (unsigned i = 0; i < N; ++i) {
-      if (EventsDequeue.empty())
-        break;
-      UnitEventInfo evt = EventsDequeue.front();
-      EventsDequeue.pop_front();
-      evts.push_back(std::move(evt));
-    }
-    return evts;
-  }
-};
-}
-
-/// Enqueues asynchronous processing of the unit events in an incremental fashion.
-/// Events are queued-up individually and the next event is enqueued only after
-/// the current one has been processed.
-static void processUnitEventsIncrementally(std::shared_ptr<UnitEventInfoDeque> evts,
-                                           std::weak_ptr<StoreUnitRepo> weakUnitRepo,
-                                           std::shared_ptr<IndexSystemDelegate> delegate,
-                                           dispatch_queue_t queue) {
-  std::vector<UnitEventInfo> poppedEvts = evts->popFront(MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT);
-  if (poppedEvts.empty())
-    return;
-  auto UnitRepo = weakUnitRepo.lock();
-  if (!UnitRepo)
-    return;
-
-  UnitRepo->onFilesChange(poppedEvts, [&](unsigned NumCompleted){
-    delegate->processingCompleted(NumCompleted);
-  }, [&](){
-    // FIXME: the database should recover.
-  });
-
-  // Enqueue processing the rest of the events.
-  dispatch_async(queue, ^{
-    processUnitEventsIncrementally(evts, weakUnitRepo, delegate, queue);
-  });
-}
-
 bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
                               SymbolIndexRef SymIndex,
                               std::shared_ptr<IndexSystemDelegate> Delegate,
                               std::shared_ptr<CanonicalPathCache> CanonPathCache,
+                              bool useExplicitOutputUnits,
                               bool readonly,
+                              bool enableOutOfDateFileWatching,
                               bool listenToUnitEvents,
                               std::string &Error) {
   this->IdxStore = std::move(idxStore);
@@ -873,7 +1089,7 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
   if (readonly)
     return false;
 
-  auto UnitRepo = std::make_shared<StoreUnitRepo>(this->IdxStore, SymIndex, Delegate, CanonPathCache);
+  auto UnitRepo = std::make_shared<StoreUnitRepo>(this->IdxStore, SymIndex, useExplicitOutputUnits, enableOutOfDateFileWatching, Delegate, CanonPathCache);
   std::weak_ptr<StoreUnitRepo> WeakUnitRepo = UnitRepo;
   auto eventsDeque = std::make_shared<UnitEventInfoDeque>();
   auto OnUnitsChange = [WeakUnitRepo, Delegate, eventsDeque](IndexStore::UnitEventNotification EventNote) {
@@ -895,24 +1111,8 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
       evts.push_back(UnitEventInfo{evt.getKind(), evt.getUnitName()});
     }
 
-    Delegate->processingAddedPending(evts.size());
-    eventsDeque->addEvents(evts);
-
-    auto onUnitChangeBlockImpl = ^{
-      // Pass registration events to be processed incrementally by the global serial queue.
-      // This allows intermixing processing of registration events from multiple workspaces.
-      processUnitEventsIncrementally(eventsDeque, WeakUnitRepo, Delegate, getGlobalQueueForUnitChanges());
-    };
-
-#if defined(__APPLE__)
-    // Create the block with QoS explicitly to ensure that the QoS from the indexstore callback can't affect the onFilesChange priority. This call may do a lot of I/O and we don't want to wedge the system by running at elevated priority.
-    dispatch_block_t onUnitChangeBlock = dispatch_block_create_with_qos_class(DISPATCH_BLOCK_INHERIT_QOS_CLASS, unitChangesQOS, 0, onUnitChangeBlockImpl);
-#else
-    // FIXME: https://bugs.swift.org/browse/SR-10319
-    auto onUnitChangeBlock = Block_copy(onUnitChangeBlockImpl);
-#endif
-    dispatch_async(getGlobalQueueForUnitChanges(), onUnitChangeBlock);
-    Block_release(onUnitChangeBlock);
+    auto session = std::make_shared<UnitProcessingSession>(eventsDeque, WeakUnitRepo, Delegate);
+    session->process(std::move(evts), /*waitForProcessing=*/false);
   };
 
   if (listenToUnitEvents) {
@@ -953,6 +1153,14 @@ void IndexDatastoreImpl::checkUnitContainingFileIsOutOfDate(StringRef file) {
   UnitRepo->checkUnitContainingFileIsOutOfDate(file);
 }
 
+void IndexDatastoreImpl::addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing) {
+  return UnitRepo->addUnitOutFilePaths(filePaths, waitForProcessing);
+}
+
+void IndexDatastoreImpl::removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing) {
+  return UnitRepo->removeUnitOutFilePaths(filePaths, waitForProcessing);
+}
+
 void IndexDatastoreImpl::purgeStaleData() {
   UnitRepo->purgeStaleData();
 }
@@ -970,11 +1178,14 @@ IndexDatastore::create(IndexStoreRef idxStore,
                        SymbolIndexRef SymIndex,
                        std::shared_ptr<IndexSystemDelegate> Delegate,
                        std::shared_ptr<CanonicalPathCache> CanonPathCache,
+                       bool useExplicitOutputUnits,
                        bool readonly,
+                       bool enableOutOfDateFileWatching,
                        bool listenToUnitEvents,
                        std::string &Error) {
   std::unique_ptr<IndexDatastoreImpl> Impl(new IndexDatastoreImpl());
-  bool Err = Impl->init(std::move(idxStore), std::move(SymIndex), std::move(Delegate), std::move(CanonPathCache), readonly, listenToUnitEvents, Error);
+  bool Err = Impl->init(std::move(idxStore), std::move(SymIndex), std::move(Delegate), std::move(CanonPathCache),
+                        useExplicitOutputUnits, readonly, enableOutOfDateFileWatching, listenToUnitEvents, Error);
   if (Err)
     return nullptr;
 
@@ -1003,6 +1214,14 @@ bool IndexDatastore::isUnitOutOfDate(StringRef unitOutputPath, sys::TimePoint<> 
 
 void IndexDatastore::checkUnitContainingFileIsOutOfDate(StringRef file) {
   return IMPL->checkUnitContainingFileIsOutOfDate(file);
+}
+
+void IndexDatastore::addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing) {
+  return IMPL->addUnitOutFilePaths(filePaths, waitForProcessing);
+}
+
+void IndexDatastore::removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing) {
+  return IMPL->removeUnitOutFilePaths(filePaths, waitForProcessing);
 }
 
 void IndexDatastore::purgeStaleData() {
