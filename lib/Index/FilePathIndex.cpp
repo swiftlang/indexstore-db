@@ -76,6 +76,9 @@ public:
   bool foreachFileIncludedByFile(CanonicalFilePathRef sourcePath,
                                  function_ref<bool(CanonicalFilePathRef targetPath, unsigned line)> Receiver);
 
+  bool foreachIncludeOfUnit(StringRef unitName,
+                            function_ref<bool(CanonicalFilePathRef sourcePath, CanonicalFilePathRef targetPath, unsigned line)> receiver);
+
   bool foreachIncludeOfStoreUnitContainingFile(CanonicalFilePathRef filePath,
                function_ref<bool(CanonicalFilePathRef sourcePath, CanonicalFilePathRef targetPath, unsigned line)> receiver);
 };
@@ -223,6 +226,23 @@ bool FileIndexImpl::foreachFileIncludedByFile(CanonicalFilePathRef inputSourcePa
   });
 }
 
+bool FileIndexImpl::foreachIncludeOfUnit(StringRef unitName,
+        function_ref<bool(CanonicalFilePathRef sourcePath, CanonicalFilePathRef targetPath, unsigned line)> receiver) {
+  std::string error;
+  IndexUnitReader storeUnit(*IdxStore, unitName, error);
+  if (!storeUnit.isValid())
+    return true;
+  StringRef workDir = storeUnit.getWorkingDirectory();
+  return storeUnit.foreachInclude([&](IndexUnitInclude inc) -> bool {
+    StringRef sourcePath = inc.getSourcePath();
+    StringRef targetPath = inc.getTargetPath();
+    unsigned line = inc.getSourceLine();
+    CanonicalFilePath fullSourcePath = getCanonicalPath(sourcePath, workDir);
+    CanonicalFilePath fullTargetPath = getCanonicalPath(targetPath, workDir);
+    return receiver(fullSourcePath, fullTargetPath, line);
+  });
+}
+
 bool FileIndexImpl::foreachIncludeOfStoreUnitContainingFile(CanonicalFilePathRef filePath,
                    function_ref<bool(CanonicalFilePathRef sourcePath, CanonicalFilePathRef targetPath, unsigned line)> receiver) {
   SmallVector<std::string, 32> allUnitNames;
@@ -241,19 +261,7 @@ bool FileIndexImpl::foreachIncludeOfStoreUnitContainingFile(CanonicalFilePathRef
   }
 
   for (auto &unitName: allUnitNames) {
-    std::string error;
-    IndexUnitReader storeUnit(*IdxStore, unitName, error);
-    if (!storeUnit.isValid())
-      continue;
-    StringRef workDir = storeUnit.getWorkingDirectory();
-    bool cont = storeUnit.foreachInclude([&](IndexUnitInclude inc) -> bool {
-      StringRef sourcePath = inc.getSourcePath();
-      StringRef targetPath = inc.getTargetPath();
-      unsigned line = inc.getSourceLine();
-      CanonicalFilePath fullSourcePath = getCanonicalPath(sourcePath, workDir);
-      CanonicalFilePath fullTargetPath = getCanonicalPath(targetPath, workDir);
-      return receiver(fullSourcePath, fullTargetPath, line);
-    });
+    bool cont = foreachIncludeOfUnit(unitName, receiver);
     if (!cont)
       return false;
   }
@@ -313,4 +321,8 @@ bool FilePathIndex::foreachFileIncludingFile(CanonicalFilePathRef TargetPath, fu
 
 bool FilePathIndex::foreachFileIncludedByFile(CanonicalFilePathRef SourcePath, function_ref<bool (CanonicalFilePathRef, unsigned int)> Receiver) {
   return IMPL->foreachFileIncludedByFile(SourcePath, Receiver);
+}
+
+bool FilePathIndex::foreachIncludeOfUnit(StringRef unitName, function_ref<bool(CanonicalFilePathRef sourcePath, CanonicalFilePathRef targetPath, unsigned line)> receiver) {
+  return IMPL->foreachIncludeOfUnit(unitName, receiver);
 }
