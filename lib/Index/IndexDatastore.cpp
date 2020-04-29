@@ -573,7 +573,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName, std::shared_ptr<UnitProcess
           if (moduleName.empty()) {
             // Workaround for swift compiler not associating the module name with records of swift files.
             // FIXME: Fix this on swift compiler and remove this.
-            if (StringRef(CanonPath.getPath()).endswith(".swift")) {
+            if (CanonPath.getPath().endswith(".swift")) {
               moduleName = Reader.getModuleName();
             }
           }

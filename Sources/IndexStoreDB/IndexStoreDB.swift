@@ -195,8 +195,8 @@ public final class IndexStoreDB {
   @discardableResult
   public func forEachMainFileContainingFile(path: String, crossLanguage: Bool, body: @escaping (String) -> Bool) -> Bool {
     let fromSwift = path.hasSuffix(".swift")
-    return indexstoredb_index_units_containing_file(impl, path) { unit in
-      let mainFileStr = String(cString: indexstoredb_unit_info_main_file_path(unit))
+    return indexstoredb_index_main_files_containing_file(impl, path) { mainFile in
+      let mainFileStr = String(cString: mainFile)
       let toSwift = mainFileStr.hasSuffix(".swift")
       if !crossLanguage && fromSwift != toSwift {
         return true // continue
@@ -209,59 +209,6 @@ public final class IndexStoreDB {
     var result: [String] = []
     forEachMainFileContainingFile(path: path, crossLanguage: crossLanguage) { mainFile in
       result.append(mainFile)
-      return true
-    }
-    return result
-  }
-
-  @discardableResult
-  public func forEachUnitNameContainingFile(path: String, body: @escaping (String) -> Bool) -> Bool {
-    return indexstoredb_index_units_containing_file(impl, path) { unit in
-      let unitName = String(cString: indexstoredb_unit_info_unit_name(unit))
-      return body(unitName)
-    }
-  }
-
-  public func unitNamesContainingFile(path: String) -> [String] {
-    var result: [String] = []
-    forEachUnitNameContainingFile(path: path) { unitName in
-      result.append(unitName)
-      return true
-    }
-    return result
-  }
-
-  /// A recorded header `#include` from a unit file.
-  public struct UnitIncludeEntry: Equatable {
-    /// The path where the `#include` was added.
-    public let sourcePath: String
-    /// The path that the `#include` resolved to.
-    public let targetPath: String
-    /// the line where the `#include` was added.
-    public let line: Int
-
-    public init(sourcePath: String, targetPath: String, line: Int) {
-      self.sourcePath = sourcePath
-      self.targetPath = targetPath
-      self.line = line
-    }
-  }
-
-  /// Iterates over recorded `#include`s of a unit.
-  @discardableResult
-  public func forEachIncludeOfUnit(unitName: String, body: @escaping (UnitIncludeEntry) -> Bool) -> Bool {
-    return indexstoredb_index_includes_of_unit(impl, unitName) { sourcePath, targetPath, line in
-      let sourcePathStr = String(cString: sourcePath)
-      let targetPathStr = String(cString: targetPath)
-      return body(UnitIncludeEntry(sourcePath: sourcePathStr, targetPath: targetPathStr, line: line))
-    }
-  }
-
-  /// Returns the recorded `#include`s of a unit.
-  public func includesOfUnit(unitName: String) -> [UnitIncludeEntry] {
-    var result: [UnitIncludeEntry] = []
-    forEachIncludeOfUnit(unitName: unitName) { entry in
-      result.append(entry)
       return true
     }
     return result

@@ -57,7 +57,6 @@ typedef void *indexstoredb_symbol_occurrence_t;
 typedef void *indexstoredb_error_t;
 typedef void *indexstoredb_symbol_location_t;
 typedef void *indexstoredb_symbol_relation_t;
-typedef void *indexstoredb_unit_info_t;
 
 typedef enum {
   INDEXSTOREDB_SYMBOL_ROLE_DECLARATION = 1 << 0,
@@ -136,10 +135,7 @@ typedef bool(^indexstoredb_symbol_name_receiver)(const char *_Nonnull);
 typedef void(^indexstoredb_delegate_event_receiver_t)(_Nonnull indexstoredb_delegate_event_t);
 
 /// Returns true to continue.
-typedef bool(^indexstoredb_unit_info_receiver)(_Nonnull indexstoredb_unit_info_t);
-
-/// Returns true to continue.
-typedef bool(^indexstoredb_unit_includes_receiver)(const char *_Nonnull sourcePath, const char *_Nonnull targetPath, size_t line);
+typedef bool(^indexstoredb_path_receiver)(const char *_Nonnull);
 
 /// Creates an index for the given raw index data in \p storePath.
 ///
@@ -356,41 +352,20 @@ indexstoredb_symbol_occurrence_relations(_Nonnull indexstoredb_symbol_occurrence
 INDEXSTOREDB_PUBLIC indexstoredb_symbol_kind_t
 indexstoredb_symbol_kind(_Nonnull indexstoredb_symbol_t);
 
-/// Returns the main file path of a unit info object.
+/// Iterates over the compilation units that contain \p path and return their main file.
 ///
-/// The main file is typically the one that e.g. a build system would have explicit knowledge of.
-INDEXSTOREDB_PUBLIC const char *_Nonnull
-indexstoredb_unit_info_main_file_path(_Nonnull indexstoredb_unit_info_t);
-
-/// Returns the unit name of a unit info object.
-INDEXSTOREDB_PUBLIC const char *_Nonnull
-indexstoredb_unit_info_unit_name(_Nonnull indexstoredb_unit_info_t);
-
-/// Iterates over the compilation units that contain \p path and return their units.
-///
-/// This can be used to find information for units that include a given header.
+/// This can be used to find the main files that include a given header. The main file is typically
+/// the one that e.g. a build system would have explicit knowledge of.
 ///
 /// \param index An IndexStoreDB object which contains the symbols.
 /// \param path The source file to search for.
-/// \param receiver A function to be called for each unit. The pointer is only valid for
+/// \param receiver A function to be called for each main file path. The string pointer is only valid for
 /// the duration of the call. The function should return a true to continue iterating.
 INDEXSTOREDB_PUBLIC bool
-indexstoredb_index_units_containing_file(
+indexstoredb_index_main_files_containing_file(
   _Nonnull indexstoredb_index_t index,
   const char *_Nonnull path,
-  _Nonnull indexstoredb_unit_info_receiver receiver);
-
-/// Iterates over recorded `#include`s of a unit.
-///
-/// \param index An IndexStoreDB object which contains the symbols.
-/// \param unitName The unit name to search for.
-/// \param receiver A function to be called for each include entry. The pointers are only valid for
-/// the duration of the call. The function should return a true to continue iterating.
-INDEXSTOREDB_PUBLIC bool
-indexstoredb_index_includes_of_unit(
-  _Nonnull indexstoredb_index_t index,
-  const char *_Nonnull unitName,
-  _Nonnull indexstoredb_unit_includes_receiver receiver);
+  _Nonnull indexstoredb_path_receiver receiver);
 
 INDEXSTOREDB_END_DECLS
 

@@ -22,13 +22,13 @@ namespace IndexStoreDB {
   class CanonicalFilePathRef;
 
 class CanonicalFilePath {
-  std::string Path;
+  SmallString<128> Path;
 
 public:
   CanonicalFilePath() = default;
   inline CanonicalFilePath(CanonicalFilePathRef CanonPath);
 
-  const std::string &getPath() const { return Path; }
+  StringRef getPath() const { return Path; }
   bool empty() const { return Path.empty(); }
 
   friend bool operator==(CanonicalFilePath LHS, CanonicalFilePath RHS) {

@@ -280,26 +280,6 @@ final class IndexTests: XCTestCase {
     XCTAssertEqual(mainFiles(unknown, false), [])
   }
 
-  func testUnitIncludes() throws {
-    guard let ws = try staticTibsTestWorkspace(name: "MainFiles") else { return }
-    try ws.buildAndIndex()
-    let index = ws.index
-
-    let main1 = ws.testLoc("main1").url.path
-    let uniq1 = ws.testLoc("uniq1").url.path
-    let shared = ws.testLoc("shared").url.path
-
-    let units = index.unitNamesContainingFile(path: main1)
-    XCTAssertEqual(units.count, 1)
-    let main1Unit = try XCTUnwrap(units.first)
-
-    let includes = index.includesOfUnit(unitName: main1Unit)
-    XCTAssertEqual(includes, [
-      IndexStoreDB.UnitIncludeEntry(sourcePath: main1, targetPath: shared, line: ws.testLoc("include_main1_shared").line),
-      IndexStoreDB.UnitIncludeEntry(sourcePath: main1, targetPath: uniq1, line: ws.testLoc("include_main1_uniq1").line),
-    ])
-  }
-
   func testAllSymbolNames() throws {
     guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
     try ws.buildAndIndex()

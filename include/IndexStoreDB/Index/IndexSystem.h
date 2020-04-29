@@ -139,9 +139,6 @@ public:
   bool foreachFileIncludedByFile(StringRef SourcePath,
                                               function_ref<bool(CanonicalFilePathRef TargetPath, unsigned Line)> Receiver);
 
-  bool foreachIncludeOfUnit(StringRef unitName,
-                            function_ref<bool(CanonicalFilePathRef sourcePath, CanonicalFilePathRef targetPath, unsigned line)> receiver);
-
   /// Returns unit test class/method occurrences that are referenced from units associated with the provided output file paths.
   /// \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
   bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,

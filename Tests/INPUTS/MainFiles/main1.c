@@ -1,5 +1,5 @@
-#include "shared.h" /*include_main1_shared*/
-#include "uniq1.h" /*include_main1_uniq1*/
+#include "shared.h"
+#include "uniq1.h"
 
 void main1(void) {
   /*main1*/

@@ -72,9 +72,6 @@ public:
   bool foreachFileIncludedByFile(CanonicalFilePathRef sourcePath,
                             function_ref<bool(CanonicalFilePathRef TargetPath, unsigned Line)> Receiver);
 
-  bool foreachIncludeOfUnit(StringRef unitName,
-                            function_ref<bool(CanonicalFilePathRef sourcePath, CanonicalFilePathRef targetPath, unsigned line)> receiver);
-
 private:
   void *Impl; // A FileIndexImpl.
 };

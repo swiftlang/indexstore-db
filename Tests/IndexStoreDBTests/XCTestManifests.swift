@@ -24,7 +24,6 @@ extension IndexTests {
         ("testMainFilesContainingFile", testMainFilesContainingFile),
         ("testMixedLangTarget", testMixedLangTarget),
         ("testSwiftModules", testSwiftModules),
-        ("testUnitIncludes", testUnitIncludes),
         ("testWaitUntilDoneInitializing", testWaitUntilDoneInitializing),
     ]
 }
