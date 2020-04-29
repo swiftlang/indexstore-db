@@ -422,14 +422,38 @@ static indexstoredb_symbol_kind_t toCSymbolKind(SymbolKind K) {
   }
 }
 
+const char *
+indexstoredb_unit_info_main_file_path(indexstoredb_unit_info_t info) {
+  auto obj = (const StoreUnitInfo *)info;
+  return obj->MainFilePath.getPath().c_str();
+}
+
+const char *
+indexstoredb_unit_info_unit_name(indexstoredb_unit_info_t info) {
+  auto obj = (const StoreUnitInfo *)info;
+  return obj->UnitName.c_str();
+}
+
 bool
-indexstoredb_index_main_files_containing_file(
+indexstoredb_index_units_containing_file(
   indexstoredb_index_t index,
   const char *path,
-  indexstoredb_path_receiver receiver)
+  indexstoredb_unit_info_receiver receiver)
 {
   auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachMainUnitContainingFile(path, [&](const StoreUnitInfo &unitInfo) -> bool {
-    return receiver(unitInfo.MainFilePath.getPath().str().c_str());
+    return receiver((indexstoredb_unit_info_receiver)&unitInfo);
+  });
+}
+
+bool
+indexstoredb_index_includes_of_unit(
+  indexstoredb_index_t index,
+  const char *unitName,
+  indexstoredb_unit_includes_receiver receiver)
+{
+  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachIncludeOfUnit(unitName, [&](CanonicalFilePathRef sourcePath, CanonicalFilePathRef targetPath, unsigned line)->bool {
+    return receiver(sourcePath.getPath().str().c_str(), targetPath.getPath().str().c_str(), line);
   });
 }
