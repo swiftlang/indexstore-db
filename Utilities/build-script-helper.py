@@ -63,6 +63,10 @@ def handle_invocation(swift_exec, args):
     supp = os.path.join(args.package_path, 'Utilities', 'ubsan_supressions.supp')
     env['UBSAN_OPTIONS'] = 'halt_on_error=true,suppressions=%s' % supp
 
+  # Workaround for incremental build bug in swiftpm.
+  print('Cleaning ' + args.build_path)
+  shutil.rmtree(args.build_path, ignore_errors=True)
+
   if args.action == 'build':
     swiftpm('build', swift_exec, swiftpm_args, env)
   elif args.action == 'test':
