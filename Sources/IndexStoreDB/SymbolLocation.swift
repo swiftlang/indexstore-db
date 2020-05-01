@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@_implementationOnly
 import CIndexStoreDB
 
 public struct SymbolLocation: Equatable {
@@ -44,7 +45,7 @@ extension SymbolLocation: CustomStringConvertible {
 // MARK: CIndexStoreDB conversions
 
 extension SymbolLocation {
-  public init(_ loc: indexstoredb_symbol_location_t) {
+  internal init(_ loc: indexstoredb_symbol_location_t) {
     path = String(cString: indexstoredb_symbol_location_path(loc))
     moduleName = String(cString: indexstoredb_symbol_location_module_name(loc))
     isSystem = indexstoredb_symbol_location_is_system(loc)

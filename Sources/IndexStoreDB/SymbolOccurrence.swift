@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@_implementationOnly
 import CIndexStoreDB
 
 public struct SymbolOccurrence: Equatable {
@@ -60,7 +61,7 @@ public struct SymbolRelation: Equatable {
 extension SymbolOccurrence {
 
   /// Note: `value` is expected to be passed +1.
-  init(_ value: indexstoredb_symbol_occurrence_t) {
+  internal init(_ value: indexstoredb_symbol_occurrence_t) {
     var relations: [SymbolRelation] = []
     indexstoredb_symbol_occurrence_relations(value) { relation in
       relations.append(SymbolRelation(relation))
@@ -76,7 +77,7 @@ extension SymbolOccurrence {
 }
 
 extension SymbolRelation {
-  public init(_ value: indexstoredb_symbol_relation_t) {
+  internal init(_ value: indexstoredb_symbol_relation_t) {
     self.init(
       symbol: Symbol(indexstoredb_symbol_relation_get_symbol(value)),
       roles: SymbolRole(rawValue: indexstoredb_symbol_relation_get_roles(value)))

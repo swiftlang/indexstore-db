@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@_implementationOnly
 import CIndexStoreDB
 
 public struct SymbolRole: OptionSet, Hashable {
@@ -51,7 +52,7 @@ public struct SymbolRole: OptionSet, Hashable {
     self.rawValue = rawValue
   }
 
-  public init(rawValue: indexstoredb_symbol_role_t) {
+  internal init(rawValue: indexstoredb_symbol_role_t) {
     self.rawValue = UInt64(rawValue.rawValue)
   }
 }

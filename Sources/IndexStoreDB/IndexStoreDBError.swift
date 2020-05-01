@@ -10,7 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+@_implementationOnly
 import CIndexStoreDB
+
 import protocol Foundation.LocalizedError
 
 public enum IndexStoreDBError: Error {

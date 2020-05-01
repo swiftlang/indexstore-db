@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@_implementationOnly
 import CIndexStoreDB
 
 // For `strdup`
@@ -25,7 +26,7 @@ import Darwin.POSIX
 public final class IndexStoreDB {
 
   let delegate: IndexDelegate?
-  let impl: indexstoredb_index_t
+  let impl: UnsafeMutableRawPointer // indexstoredb_index_t
 
   /// Create or open an IndexStoreDB at the givin `databasePath`.
   ///
@@ -51,7 +52,7 @@ public final class IndexStoreDB {
   ) throws {
     self.delegate = delegate
 
-    let libProviderFunc = { (cpath: UnsafePointer<Int8>) -> indexstoredb_indexstore_library_t? in
+    let libProviderFunc: indexstore_library_provider_t = { (cpath: UnsafePointer<Int8>) -> indexstoredb_indexstore_library_t? in
       return library?.library
     }
 
@@ -294,7 +295,7 @@ public protocol IndexStoreLibraryProvider {
 }
 
 public class IndexStoreLibrary {
-  let library: indexstoredb_indexstore_library_t
+  let library: UnsafeMutableRawPointer // indexstoredb_indexstore_library_t
 
   public init(dylibPath: String) throws {
     var error: indexstoredb_error_t? = nil
