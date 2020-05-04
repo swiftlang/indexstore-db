@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+@_implementationOnly
 import CIndexStoreDB
 
 public enum IndexSymbolKind: Hashable {

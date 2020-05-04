@@ -15,7 +15,7 @@ add_library(IndexStoreDB
   Symbol.swift)
 set_target_properties(IndexStoreDB PROPERTIES
   Swift_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/swift
-  INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_BINARY_DIR}/swift)
+  INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/swift")
 target_link_libraries(IndexStoreDB PRIVATE
   Foundation
   CIndexStoreDB)
