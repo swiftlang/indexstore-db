@@ -50,13 +50,27 @@ public final class TibsToolchain {
   public static let dylibExt = "so"
 #endif
 
-  public private(set) lazy var clangVersionOutput: String = {
-    return try! Process.tibs_checkNonZeroExit(arguments: [clang.path, "--version"])
-  }()
-
   public private(set) lazy var clangHasIndexSupport: Bool = {
-    clangVersionOutput.starts(with: "Apple") || clangVersionOutput.contains("swift-clang") ||
-    clangVersionOutput.contains("apple/llvm-project")
+    // Check clang -help for index store support. It would be better to check
+    // that `clang -index-store-path /dev/null --version` does not produce an
+    // error, but unfortunately older versions of clang accepted
+    // `-index-store-path` due to the existince of a `-i` option that has since
+    // been removed. While we could check a full compile command, I have not
+    // found a robust command that detects index support without also doing I/O
+    // in the index directory when it succeeds. To avoid I/O, we check -help.
+
+    let cmd = [clang.path, "-help"]
+    do {
+      let output = try Process.tibs_checkNonZeroExit(arguments: cmd)
+      if output.contains("-index-store-path") {
+        return true
+      } else {
+        return false
+      }
+    } catch {
+      assertionFailure("unexpected error executing \(cmd.joined(separator: " ")): \(error)")
+      return false
+    }
   }()
 
   public private(set) lazy var ninjaVersion: (Int, Int, Int) = {
