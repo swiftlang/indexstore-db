@@ -88,11 +88,6 @@ struct UnitEventInfo {
   : kind(kind), name(std::move(name)), isDependency(isDependency) {}
 };
 
-struct DoneInitState {
-  std::atomic<bool> DoneInit{false};
-  unsigned RemainingInitUnits = 0; // this is not accessed concurrently.
-};
-
 struct PollUnitsState {
   llvm::sys::Mutex pollMtx;
   llvm::StringMap<sys::TimePoint<>> knownUnits;
@@ -107,9 +102,6 @@ class StoreUnitRepo : public std::enable_shared_from_this<StoreUnitRepo> {
   std::shared_ptr<CanonicalPathCache> CanonPathCache;
 
   std::shared_ptr<FilePathWatcher> PathWatcher;
-
-  DoneInitState InitializingState;
-  dispatch_semaphore_t InitSemaphore;
 
   PollUnitsState pollUnitsState;
 
@@ -129,21 +121,12 @@ public:
     EnableOutOfDateFileWatching(enableOutOfDateFileWatching),
     Delegate(std::move(Delegate)),
     CanonPathCache(std::move(canonPathCache)) {
-    InitSemaphore = dispatch_semaphore_create(0);
-  }
-  ~StoreUnitRepo() {
-    dispatch_release(InitSemaphore);
   }
 
   void onFilesChange(std::vector<UnitEventInfo> evts,
                      std::shared_ptr<UnitProcessingSession> processSession,
                      function_ref<void(unsigned)> ReportCompleted,
                      function_ref<void()> DirectoryDeleted);
-
-  void setInitialUnitCount(unsigned count);
-  void processedInitialUnitCount(unsigned count);
-  void finishedUnitInitialization();
-  void waitUntilDoneInitializing();
 
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait();
@@ -185,9 +168,9 @@ public:
             bool readonly,
             bool enableOutOfDateFileWatching,
             bool listenToUnitEvents,
+            bool waitUntilDoneInitializing,
             std::string &Error);
 
-  void waitUntilDoneInitializing();
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
   bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);
   void checkUnitContainingFileIsOutOfDate(StringRef file);
@@ -463,10 +446,6 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
       }
     };
     PathWatcher = std::make_shared<FilePathWatcher>(std::move(pathEventsReceiver));
-  }
-
-  if (!InitializingState.DoneInit) {
-    processedInitialUnitCount(evts.size());
   }
 }
 
@@ -759,30 +738,6 @@ bool StoreUnitRepo::isUnitNameInKnownOutFilePaths(StringRef unitName) const {
 void StoreUnitRepo::purgeStaleData() {
   // FIXME: Get referenced records from the database.
   // IdxStore->purgeStaleRecords(ActiveRecNames);
-}
-
-void StoreUnitRepo::setInitialUnitCount(unsigned count) {
-  InitializingState.RemainingInitUnits = count;
-}
-
-void StoreUnitRepo::processedInitialUnitCount(unsigned count) {
-  assert(!InitializingState.DoneInit);
-  InitializingState.RemainingInitUnits -= std::min(count, InitializingState.RemainingInitUnits);
-  if (InitializingState.RemainingInitUnits == 0) {
-    finishedUnitInitialization();
-  }
-}
-
-void StoreUnitRepo::finishedUnitInitialization() {
-  assert(!InitializingState.DoneInit);
-  dispatch_semaphore_signal(InitSemaphore);
-  InitializingState.DoneInit = true;
-}
-
-void StoreUnitRepo::waitUntilDoneInitializing() {
-  if (InitializingState.DoneInit)
-    return;
-  dispatch_semaphore_wait(InitSemaphore, DISPATCH_TIME_FOREVER);
 }
 
 void StoreUnitRepo::pollForUnitChangesAndWait() {
@@ -1081,6 +1036,7 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
                               bool readonly,
                               bool enableOutOfDateFileWatching,
                               bool listenToUnitEvents,
+                              bool waitUntilDoneInitializing,
                               std::string &Error) {
   this->IdxStore = std::move(idxStore);
   if (!this->IdxStore)
@@ -1092,18 +1048,8 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
   auto UnitRepo = std::make_shared<StoreUnitRepo>(this->IdxStore, SymIndex, useExplicitOutputUnits, enableOutOfDateFileWatching, Delegate, CanonPathCache);
   std::weak_ptr<StoreUnitRepo> WeakUnitRepo = UnitRepo;
   auto eventsDeque = std::make_shared<UnitEventInfoDeque>();
-  auto OnUnitsChange = [WeakUnitRepo, Delegate, eventsDeque](IndexStore::UnitEventNotification EventNote) {
-    if (EventNote.isInitial()) {
-      auto UnitRepo = WeakUnitRepo.lock();
-      if (!UnitRepo)
-        return;
-      size_t evtCount = EventNote.getEventsCount();
-      if (evtCount == 0) {
-        UnitRepo->finishedUnitInitialization();
-      } else {
-        UnitRepo->setInitialUnitCount(evtCount);
-      }
-    }
+  auto OnUnitsChange = [WeakUnitRepo, Delegate, eventsDeque, waitUntilDoneInitializing](IndexStore::UnitEventNotification EventNote) {
+    bool shouldWait = waitUntilDoneInitializing && EventNote.isInitial();
 
     std::vector<UnitEventInfo> evts;
     for (size_t i = 0, e = EventNote.getEventsCount(); i != e; ++i) {
@@ -1112,23 +1058,21 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
     }
 
     auto session = std::make_shared<UnitProcessingSession>(eventsDeque, WeakUnitRepo, Delegate);
-    session->process(std::move(evts), /*waitForProcessing=*/false);
+    session->process(std::move(evts), shouldWait);
   };
+
+  this->UnitRepo = std::move(UnitRepo);
 
   if (listenToUnitEvents) {
     this->IdxStore->setUnitEventHandler(OnUnitsChange);
-    bool err = this->IdxStore->startEventListening(/*waitInitialSync=*/false, Error);
+    bool err = this->IdxStore->startEventListening(waitUntilDoneInitializing, Error);
     if (err)
       return true;
+  } else if (waitUntilDoneInitializing) {
+    pollForUnitChangesAndWait();
   }
 
-  this->UnitRepo = std::move(UnitRepo);
   return false;
-}
-
-void IndexDatastoreImpl::waitUntilDoneInitializing() {
-  if (UnitRepo)
-    UnitRepo->waitUntilDoneInitializing();
 }
 
 bool IndexDatastoreImpl::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles) {
@@ -1182,10 +1126,12 @@ IndexDatastore::create(IndexStoreRef idxStore,
                        bool readonly,
                        bool enableOutOfDateFileWatching,
                        bool listenToUnitEvents,
+                       bool waitUntilDoneInitializing,
                        std::string &Error) {
   std::unique_ptr<IndexDatastoreImpl> Impl(new IndexDatastoreImpl());
   bool Err = Impl->init(std::move(idxStore), std::move(SymIndex), std::move(Delegate), std::move(CanonPathCache),
-                        useExplicitOutputUnits, readonly, enableOutOfDateFileWatching, listenToUnitEvents, Error);
+                        useExplicitOutputUnits, readonly, enableOutOfDateFileWatching,
+                        listenToUnitEvents, waitUntilDoneInitializing, Error);
   if (Err)
     return nullptr;
 
@@ -1198,10 +1144,6 @@ IndexDatastore::create(IndexStoreRef idxStore,
 
 IndexDatastore::~IndexDatastore() {
   delete IMPL;
-}
-
-void IndexDatastore::waitUntilDoneInitializing() {
-  return IMPL->waitUntilDoneInitializing();
 }
 
 bool IndexDatastore::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles) {
