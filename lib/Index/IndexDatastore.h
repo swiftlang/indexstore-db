@@ -44,9 +44,8 @@ public:
                                                 bool readonly,
                                                 bool enableOutOfDateFileWatching,
                                                 bool listenToUnitEvents,
+                                                bool waitUntilDoneInitializing,
                                                 std::string &Error);
-
-  void waitUntilDoneInitializing();
 
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
   bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);

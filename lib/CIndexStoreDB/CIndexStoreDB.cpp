@@ -114,11 +114,8 @@ indexstoredb_index_create(const char *storePath, const char *databasePath,
   if (auto index =
           IndexSystem::create(storePath, databasePath, libProviderObj, delegate,
                               useExplicitOutputUnits, readonly,
-                              /*enableOutOfDateFileWatching=*/false, listenToUnitEvents,
+                              /*enableOutOfDateFileWatching=*/false, listenToUnitEvents, wait,
                               llvm::None, errMsg)) {
-
-    if (wait)
-      index->waitUntilDoneInitializing();
 
     return make_object(index);
 

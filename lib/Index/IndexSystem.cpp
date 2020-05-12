@@ -119,10 +119,9 @@ public:
             std::shared_ptr<IndexSystemDelegate> Delegate,
             bool useExplicitOutputUnits, bool readonly,
             bool enableOutOfDateFileWatching, bool listenToUnitEvents,
+            bool waitUntilDoneInitializing,
             Optional<size_t> initialDBSize,
             std::string &Error);
-
-  void waitUntilDoneInitializing();
 
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
   bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);
@@ -210,6 +209,7 @@ bool IndexSystemImpl::init(StringRef StorePath,
                            std::shared_ptr<IndexSystemDelegate> Delegate,
                            bool useExplicitOutputUnits, bool readonly,
                            bool enableOutOfDateFileWatching, bool listenToUnitEvents,
+                           bool waitUntilDoneInitializing,
                            Optional<size_t> initialDBSize,
                            std::string &Error) {
   this->StorePath = StorePath;
@@ -252,15 +252,12 @@ bool IndexSystemImpl::init(StringRef StorePath,
                                             readonly,
                                             enableOutOfDateFileWatching,
                                             listenToUnitEvents,
+                                            waitUntilDoneInitializing,
                                             Error);
 
   if (!this->IndexStore)
     return true;
   return false;
-}
-
-void IndexSystemImpl::waitUntilDoneInitializing() {
-  IndexStore->waitUntilDoneInitializing();
 }
 
 bool IndexSystemImpl::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles) {
@@ -611,12 +608,13 @@ IndexSystem::create(StringRef StorePath,
                     std::shared_ptr<IndexSystemDelegate> Delegate,
                     bool useExplicitOutputUnits, bool readonly,
                     bool enableOutOfDateFileWatching, bool listenToUnitEvents,
+                    bool waitUntilDoneInitializing,
                     Optional<size_t> initialDBSize,
                     std::string &Error) {
   std::unique_ptr<IndexSystemImpl> Impl(new IndexSystemImpl());
   bool Err = Impl->init(StorePath, dbasePath, std::move(storeLibProvider), std::move(Delegate),
                         useExplicitOutputUnits, readonly,
-                        enableOutOfDateFileWatching, listenToUnitEvents,
+                        enableOutOfDateFileWatching, listenToUnitEvents, waitUntilDoneInitializing,
                         initialDBSize, Error);
   if (Err)
     return nullptr;
@@ -630,10 +628,6 @@ IndexSystem::create(StringRef StorePath,
 
 IndexSystem::~IndexSystem() {
   delete IMPL;
-}
-
-void IndexSystem::waitUntilDoneInitializing() {
-  return IMPL->waitUntilDoneInitializing();
 }
 
 bool IndexSystem::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles) {

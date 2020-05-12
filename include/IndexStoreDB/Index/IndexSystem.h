@@ -50,10 +50,9 @@ public:
                                              bool readonly,
                                              bool enableOutOfDateFileWatching,
                                              bool listenToUnitEvents,
+                                             bool waitUntilDoneInitializing,
                                              Optional<size_t> initialDBSize,
                                              std::string &Error);
-
-  void waitUntilDoneInitializing();
 
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
   bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);
