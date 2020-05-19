@@ -45,13 +45,13 @@ extension Process {
       p.launch()
     }
 
+    let data = out.fileHandleForReading.readDataToEndOfFile()
     p.waitUntilExit()
 
     if p.terminationReason != .exit || p.terminationStatus != 0 {
       throw TibsProcessError.nonZeroExit(p.terminationReason, p.terminationStatus)
     }
 
-    let data = out.fileHandleForReading.readDataToEndOfFile()
     guard let str = String(data: data, encoding: .utf8) else {
       throw TibsProcessError.invalidUTF8Output(data)
     }
