@@ -11,8 +11,11 @@ target_compile_options(Support PRIVATE
 target_include_directories(Support PRIVATE
   include)
 target_link_libraries(Support PRIVATE
-  dispatch
   LLVMSupport)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  target_link_libraries(Support PRIVATE
+    dispatch)
+endif()
 
 if(NOT BUILD_SHARED_LIBS)
   set_property(GLOBAL APPEND PROPERTY IndexStoreDB_EXPORTS Support)

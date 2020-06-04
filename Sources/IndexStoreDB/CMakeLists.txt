@@ -17,8 +17,11 @@ set_target_properties(IndexStoreDB PROPERTIES
   Swift_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/swift
   INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_BINARY_DIR}/swift")
 target_link_libraries(IndexStoreDB PRIVATE
-  Foundation
   CIndexStoreDB)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  target_link_libraries(IndexStoreDB PRIVATE
+    Foundation)
+endif()
 
 get_swift_host_arch(swift_arch)
 install(TARGETS IndexStoreDB

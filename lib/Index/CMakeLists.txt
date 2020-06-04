@@ -12,9 +12,12 @@ target_compile_options(Index PRIVATE
 target_include_directories(Index PUBLIC
   ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(Index PRIVATE
-  dispatch
   Database
   LLVMSupport)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  target_link_libraries(Index PRIVATE
+    dispatch)
+endif()
 
 if(NOT BUILD_SHARED_LIBS)
   set_property(GLOBAL APPEND PROPERTY IndexStoreDB_EXPORTS Index)
