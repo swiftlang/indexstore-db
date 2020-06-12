@@ -34,6 +34,7 @@ public final class IndexStoreDB {
   ///   * storePath: Path to the index store.
   ///   * databasePath: Path to the index database (or where it will be created).
   ///   * library: The index store library to use.
+  ///   * delegate: The delegate to receive index events.
   ///   * wait: If `true`, wait for the database to be populated from the
   ///     (current) contents of the index store at `storePath` before returning.
   ///   * readonly: If `true`, read an existing database, but do not create or modify.
@@ -56,19 +57,8 @@ public final class IndexStoreDB {
       return library?.library
     }
 
-    let delegateFunc = { [weak delegate] (event: indexstoredb_delegate_event_t) in
-      guard let delegate = delegate else { return }
-      let kind = indexstoredb_delegate_event_get_kind(event)
-      switch kind {
-      case INDEXSTOREDB_EVENT_PROCESSING_ADDED_PENDING:
-        let count = indexstoredb_delegate_event_get_count(event)
-        delegate.processingAddedPending(Int(count))
-      case INDEXSTOREDB_EVENT_PROCESSING_COMPLETED:
-        let count = indexstoredb_delegate_event_get_count(event)
-        delegate.processingCompleted(Int(count))
-      default:
-        return
-      }
+    let delegateFunc = { [weak delegate] (event: indexstoredb_delegate_event_t) -> () in
+      delegate?.handleEvent(event)
     }
 
     var error: indexstoredb_error_t? = nil
@@ -78,6 +68,23 @@ public final class IndexStoreDB {
     }
 
     impl = index
+  }
+
+  /// Wraps an existing `indexstoredb_index_t`.
+  ///
+  /// * Parameters:
+  ///   * cIndex: An existing `indexstoredb_index_t` object.
+  ///   * delegate: The delegate to receive index events.
+  public init(
+    cIndex: UnsafeMutableRawPointer/*indexstoredb_index_t*/,
+    delegate: IndexDelegate? = nil)
+  {
+    self.delegate = delegate
+    self.impl = cIndex
+
+    indexstoredb_index_add_delegate(cIndex) { [weak delegate] event in
+      delegate?.handleEvent(event)
+    }
   }
 
   deinit {
