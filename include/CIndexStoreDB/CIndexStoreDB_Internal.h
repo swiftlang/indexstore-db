@@ -14,6 +14,7 @@
 #define INDEXSTOREDB_INTERNAL_H
 
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include <utility>
 
 namespace IndexStoreDB {
 namespace internal {
