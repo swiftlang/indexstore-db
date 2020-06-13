@@ -156,6 +156,11 @@ indexstoredb_index_create(const char * _Nonnull storePath,
                   bool listenToUnitEvents,
                   indexstoredb_error_t _Nullable * _Nullable);
 
+/// Add an additional delegate to the given index.
+INDEXSTOREDB_PUBLIC void
+indexstoredb_index_add_delegate(_Nonnull indexstoredb_index_t index,
+                                _Nonnull indexstoredb_delegate_event_receiver_t delegate);
+
 /// Creates an indexstore library for the given library.
 ///
 /// The resulting object must be released using \c indexstoredb_release.

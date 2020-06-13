@@ -84,6 +84,8 @@ public:
   void dumpProviderFileAssociations(raw_ostream &OS);
   void dumpProviderFileAssociations();
 
+  void addDelegate(std::shared_ptr<IndexSystemDelegate> Delegate);
+
   //===--------------------------------------------------------------------===//
   // Queries
   //===--------------------------------------------------------------------===//

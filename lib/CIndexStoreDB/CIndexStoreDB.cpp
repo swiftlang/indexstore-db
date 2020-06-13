@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CIndexStoreDB/CIndexStoreDB.h"
+#include "CIndexStoreDB/CIndexStoreDB_Internal.h"
 #include "IndexStoreDB/Index/IndexStoreLibraryProvider.h"
 #include "IndexStoreDB/Index/IndexSystem.h"
 #include "IndexStoreDB/Index/IndexSystemDelegate.h"
@@ -21,31 +22,11 @@
 
 using namespace IndexStoreDB;
 using namespace index;
+using namespace IndexStoreDB::internal;
 
 static indexstoredb_symbol_kind_t toCSymbolKind(SymbolKind K);
 
 namespace {
-
-class IndexStoreDBObjectBase
-    : public llvm::ThreadSafeRefCountedBase<IndexStoreDBObjectBase> {
-public:
-  virtual ~IndexStoreDBObjectBase() {}
-};
-
-template <typename T>
-class IndexStoreDBObject: public IndexStoreDBObjectBase {
-public:
-  T value;
-
-  IndexStoreDBObject(T value) : value(std::move(value)) {}
-};
-
-template <typename T>
-static IndexStoreDBObject<T> *make_object(const T &value) {
-  auto obj = new IndexStoreDBObject<T>(value);
-  obj->Retain();
-  return obj;
-}
 
 struct IndexStoreDBError {
   std::string message;
@@ -65,7 +46,7 @@ public:
   IndexStoreLibraryRef getLibraryForStorePath(StringRef storePath) override {
     indexstore_functions_t api;
     if (auto lib = callback(storePath.str().c_str())) {
-      auto *obj = (IndexStoreDBObject<IndexStoreLibraryRef> *)lib;
+      auto *obj = (Object<IndexStoreLibraryRef> *)lib;
       return obj->value;
     } else {
       return nullptr;
@@ -125,6 +106,13 @@ indexstoredb_index_create(const char *storePath, const char *databasePath,
   return nullptr;
 }
 
+void indexstoredb_index_add_delegate(indexstoredb_index_t index,
+                                     indexstoredb_delegate_event_receiver_t delegateCallback) {
+  auto delegate = std::make_shared<BlockIndexSystemDelegate>(delegateCallback);
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
+  obj->value->addDelegate(std::move(delegate));
+}
+
 indexstoredb_indexstore_library_t
 indexstoredb_load_indexstore_library(const char *dylibPath,
                                      indexstoredb_error_t *error) {
@@ -138,14 +126,14 @@ indexstoredb_load_indexstore_library(const char *dylibPath,
 }
 
 void indexstoredb_index_poll_for_unit_changes_and_wait(indexstoredb_index_t index) {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   obj->value->pollForUnitChangesAndWait();
 }
 
 void indexstoredb_index_add_unit_out_file_paths(indexstoredb_index_t index,
                                                 const char *const *paths, size_t count,
                                                 bool waitForProcessing) {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   SmallVector<StringRef, 32> strVec;
   strVec.reserve(count);
   for (unsigned i = 0; i != count; ++i)
@@ -156,7 +144,7 @@ void indexstoredb_index_add_unit_out_file_paths(indexstoredb_index_t index,
 void indexstoredb_index_remove_unit_out_file_paths(indexstoredb_index_t index,
                                                    const char *const *paths, size_t count,
                                                    bool waitForProcessing) {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   SmallVector<StringRef, 32> strVec;
   strVec.reserve(count);
   for (unsigned i = 0; i != count; ++i)
@@ -180,7 +168,7 @@ indexstoredb_index_symbol_occurrences_by_usr(
     uint64_t roles,
     indexstoredb_symbol_occurrence_receiver_t receiver)
 {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachSymbolOccurrenceByUSR(usr, (SymbolRoleSet)roles,
     [&](SymbolOccurrenceRef Occur) -> bool {
       return receiver((indexstoredb_symbol_occurrence_t)Occur.get());
@@ -194,7 +182,7 @@ indexstoredb_index_related_symbol_occurrences_by_usr(
     uint64_t roles,
     indexstoredb_symbol_occurrence_receiver_t receiver)
 {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachRelatedSymbolOccurrenceByUSR(usr, (SymbolRoleSet)roles,
     [&](SymbolOccurrenceRef Occur) -> bool {
       return receiver((indexstoredb_symbol_occurrence_t)Occur.get());
@@ -221,7 +209,7 @@ indexstoredb_symbol_kind(indexstoredb_symbol_t symbol) {
 
 bool
 indexstoredb_index_symbol_names(indexstoredb_index_t index, indexstoredb_symbol_name_receiver receiver) {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachSymbolName([&](StringRef ref) -> bool {
     return receiver(ref.str().c_str());
   });
@@ -233,7 +221,7 @@ indexstoredb_index_canonical_symbol_occurences_by_name(
   const char *_Nonnull symbolName,
   indexstoredb_symbol_occurrence_receiver_t receiver)
 {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachCanonicalSymbolOccurrenceByName(symbolName, [&](SymbolOccurrenceRef occur) -> bool {
     return receiver((indexstoredb_symbol_occurrence_t)occur.get());
   });
@@ -249,7 +237,7 @@ indexstoredb_index_canonical_symbol_occurences_containing_pattern(
   bool ignoreCase,
   indexstoredb_symbol_occurrence_receiver_t receiver)
 {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachCanonicalSymbolOccurrenceContainingPattern(
     pattern,
     anchorStart,
@@ -337,14 +325,14 @@ indexstoredb_symbol_location_column_utf8(indexstoredb_symbol_location_t loc) {
 
 indexstoredb_object_t indexstoredb_retain(indexstoredb_object_t obj) {
   if (obj)
-    ((IndexStoreDBObjectBase *)obj)->Retain();
+    ((ObjectBase *)obj)->Retain();
   return obj;
 }
 
 void
 indexstoredb_release(indexstoredb_object_t obj) {
   if (obj)
-    ((IndexStoreDBObjectBase *)obj)->Release();
+    ((ObjectBase *)obj)->Release();
 }
 
 const char *
@@ -437,7 +425,7 @@ indexstoredb_index_units_containing_file(
   const char *path,
   indexstoredb_unit_info_receiver receiver)
 {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachMainUnitContainingFile(path, [&](const StoreUnitInfo &unitInfo) -> bool {
     return receiver((indexstoredb_unit_info_receiver)&unitInfo);
   });
@@ -449,8 +437,10 @@ indexstoredb_index_includes_of_unit(
   const char *unitName,
   indexstoredb_unit_includes_receiver receiver)
 {
-  auto obj = (IndexStoreDBObject<std::shared_ptr<IndexSystem>> *)index;
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachIncludeOfUnit(unitName, [&](CanonicalFilePathRef sourcePath, CanonicalFilePathRef targetPath, unsigned line)->bool {
     return receiver(sourcePath.getPath().str().c_str(), targetPath.getPath().str().c_str(), line);
   });
 }
+
+ObjectBase::~ObjectBase() {}

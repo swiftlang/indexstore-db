@@ -10,6 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+@_implementationOnly import CIndexStoreDB
+
 /// Delegate for index events.
 public protocol IndexDelegate: AnyObject {
 
@@ -18,4 +20,20 @@ public protocol IndexDelegate: AnyObject {
 
   /// The index finished processing `count` unit files.
   func processingCompleted(_ count: Int)
+}
+
+extension IndexDelegate {
+  internal func handleEvent(_ event: indexstoredb_delegate_event_t) {
+    let kind = indexstoredb_delegate_event_get_kind(event)
+    switch kind {
+    case INDEXSTOREDB_EVENT_PROCESSING_ADDED_PENDING:
+      let count = indexstoredb_delegate_event_get_count(event)
+      self.processingAddedPending(Int(count))
+    case INDEXSTOREDB_EVENT_PROCESSING_COMPLETED:
+      let count = indexstoredb_delegate_event_get_count(event)
+      self.processingCompleted(Int(count))
+    default:
+      return
+    }
+  }
 }

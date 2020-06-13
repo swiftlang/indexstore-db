@@ -42,38 +42,55 @@ namespace {
 /// This allows the index system to invoke \c IndexSystemDelegate methods
 /// without blocking on their implementations.
 class AsyncIndexDelegate : public IndexSystemDelegate {
-  std::shared_ptr<IndexSystemDelegate> Other;
+  std::vector<std::shared_ptr<IndexSystemDelegate>> Others;
+  unsigned PendingActions = 0;
   WorkQueue Queue{WorkQueue::Dequeuing::Serial, "indexstoredb.AsyncIndexDelegate"};
 
 public:
   AsyncIndexDelegate(std::shared_ptr<IndexSystemDelegate> Other)
-    : Other(std::move(Other)) {}
+    : Others(1, std::move(Other)) {}
+
+  void addDelegate(std::shared_ptr<IndexSystemDelegate> Other) {
+    Queue.dispatchSync([&] {
+      if (PendingActions)
+        Other->processingAddedPending(PendingActions);
+      Others.push_back(std::move(Other));
+    });
+  }
 
 private:
   virtual void processingAddedPending(unsigned NumActions) override {
-    if (!Other)
+    PendingActions += NumActions;
+
+    if (Others.empty())
       return;
-    auto LocalOther = this->Other;
-    Queue.dispatch([LocalOther, NumActions]{
-      LocalOther->processingAddedPending(NumActions);
+    auto LocalOthers = this->Others;
+    Queue.dispatch([LocalOthers, NumActions]{
+      for (auto &other : LocalOthers)
+        other->processingAddedPending(NumActions);
     });
   }
 
   virtual void processingCompleted(unsigned NumActions) override {
-    if (!Other)
+    assert(NumActions <= PendingActions);
+    PendingActions -= NumActions;
+
+    if (Others.empty())
       return;
-    auto LocalOther = this->Other;
-    Queue.dispatch([LocalOther, NumActions]{
-      LocalOther->processingCompleted(NumActions);
+    auto LocalOthers = this->Others;
+    Queue.dispatch([LocalOthers, NumActions]{
+      for (auto &other : LocalOthers)
+        other->processingCompleted(NumActions);
     });
   }
 
   virtual void processedStoreUnit(StoreUnitInfo unitInfo) override {
-    if (!Other)
+    if (Others.empty())
       return;
-    auto LocalOther = this->Other;
-    Queue.dispatch([LocalOther, unitInfo]{
-      LocalOther->processedStoreUnit(unitInfo);
+    auto LocalOthers = this->Others;
+    Queue.dispatch([LocalOthers, unitInfo]{
+      for (auto &other : LocalOthers)
+        other->processedStoreUnit(unitInfo);
     });
   }
 
@@ -81,17 +98,19 @@ private:
                                llvm::sys::TimePoint<> outOfDateModTime,
                                OutOfDateTriggerHintRef hint,
                                bool synchronous) override {
-    if (!Other)
+    if (Others.empty())
       return;
 
     if (synchronous) {
-      Other->unitIsOutOfDate(std::move(unitInfo), outOfDateModTime, hint, true);
+      for (auto &other : Others)
+        other->unitIsOutOfDate(std::move(unitInfo), outOfDateModTime, hint, true);
       return;
     }
 
-    auto LocalOther = this->Other;
+    auto LocalOthers = this->Others;
     Queue.dispatch([=]{
-      LocalOther->unitIsOutOfDate(std::move(unitInfo), outOfDateModTime, hint, false);
+      for (auto &other : LocalOthers)
+        other->unitIsOutOfDate(std::move(unitInfo), outOfDateModTime, hint, false);
     });
   }
 
@@ -141,6 +160,8 @@ public:
   void printStats(raw_ostream &OS);
 
   void dumpProviderFileAssociations(raw_ostream &OS);
+
+  void addDelegate(std::shared_ptr<IndexSystemDelegate> Delegate);
 
   bool foreachSymbolOccurrenceByUSR(StringRef USR, SymbolRoleSet RoleSet,
                         function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
@@ -305,6 +326,10 @@ void IndexSystemImpl::printStats(raw_ostream &OS) {
 
 void IndexSystemImpl::dumpProviderFileAssociations(raw_ostream &OS) {
   return SymIndex->dumpProviderFileAssociations(OS);
+}
+
+void IndexSystemImpl::addDelegate(std::shared_ptr<IndexSystemDelegate> Delegate) {
+  DelegateWrap->addDelegate(std::move(Delegate));
 }
 
 bool IndexSystemImpl::foreachSymbolOccurrenceByUSR(StringRef USR,
@@ -676,6 +701,10 @@ void IndexSystem::dumpProviderFileAssociations(raw_ostream &OS) {
 
 void IndexSystem::dumpProviderFileAssociations() {
   return dumpProviderFileAssociations(llvm::errs());
+}
+
+void IndexSystem::addDelegate(std::shared_ptr<IndexSystemDelegate> Delegate) {
+  IMPL->addDelegate(std::move(Delegate));
 }
 
 bool IndexSystem::foreachSymbolOccurrenceByUSR(StringRef USR,
