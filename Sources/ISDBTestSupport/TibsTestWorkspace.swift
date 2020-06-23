@@ -84,7 +84,7 @@ public final class TibsTestWorkspace {
     let fm = FileManager.default
     _ = try? fm.removeItem(at: tmpDir)
 
-    try fm.tibs_createDirectoryWithIntermediates(at: persistentBuildDir)
+    try fm.createDirectory(at: persistentBuildDir, withIntermediateDirectories: true, attributes: nil)
     let databaseDir = tmpDir
 
     self.sources = try TestSources(rootDirectory: projectDir)
@@ -136,7 +136,7 @@ public final class TibsTestWorkspace {
     _ = try? fm.removeItem(at: tmpDir)
 
     let buildDir = tmpDir.appendingPathComponent("build", isDirectory: true)
-    try fm.tibs_createDirectoryWithIntermediates(at: buildDir)
+    try fm.createDirectory(at: buildDir, withIntermediateDirectories: true, attributes: nil)
     let sourceDir = tmpDir.appendingPathComponent("src", isDirectory: true)
     try fm.copyItem(at: projectDir, to: sourceDir)
     let databaseDir = tmpDir.appendingPathComponent("db", isDirectory: true)
@@ -296,35 +296,5 @@ extension XCTestCase {
     let className = name.dropFirst(2).prefix(while: { $0 != " " })
     let methodName = name[className.endIndex...].dropFirst().prefix(while: { $0 != "]"})
     return "\(className).\(methodName)"
-  }
-}
-
-extension FileManager {
-
-  /// Wrapper for Foundation.createDirectory that works around a spurious EEXIST
-  /// if we race to create.
-  public func tibs_createDirectoryWithIntermediates(at url: URL) throws
-  {
-#if os(macOS)
-    try self.createDirectory(at: url, withIntermediateDirectories: true, attributes: nil)
-#else
-    var i = 0
-    let maxRetries = 3
-
-    while true {
-      do {
-        try self.createDirectory(at: url, withIntermediateDirectories: true, attributes: nil)
-        return
-      } catch let error as NSError where error.code == CocoaError.fileWriteFileExists.rawValue {
-        // May be spurious if we raced.
-        i += 1
-        if i < maxRetries {
-          continue
-        } else {
-          throw error
-        }
-      }
-    }
-#endif
   }
 }
