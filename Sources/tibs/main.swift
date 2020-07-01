@@ -70,7 +70,7 @@ extension Tibs {
     var output: String
 
     @Argument()
-    var files: [String]
+    var files: [String] = []
 
     mutating func validate() throws {
       if files.isEmpty {

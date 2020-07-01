@@ -19,7 +19,7 @@ let package = Package(
       targets: ["tibs"])
   ],
   dependencies: [
-    .package(url: "https://github.com/apple/swift-argument-parser", from: "0.0.1"),
+    .package(url: "https://github.com/apple/swift-argument-parser", from: "0.2.0"),
   ],
   targets: [
 
