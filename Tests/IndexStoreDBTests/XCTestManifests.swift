@@ -8,6 +8,7 @@ extension IndexStoreDBTests {
     static let __allTests__IndexStoreDBTests = [
         ("testCreateIndexStoreAndDBDirs", testCreateIndexStoreAndDBDirs),
         ("testErrors", testErrors),
+        ("testSymlinkedDBPaths", testSymlinkedDBPaths),
     ]
 }
 
