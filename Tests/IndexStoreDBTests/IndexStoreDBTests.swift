@@ -15,6 +15,13 @@ import ISDBTibs
 import XCTest
 import Foundation
 
+let isTSanEnabled: Bool = {
+  if let value = ProcessInfo.processInfo.environment["INDEXSTOREDB_ENABLED_THREAD_SANITIZER"] {
+    return value == "1" || value == "YES"
+  }
+  return false
+}()
+
 func checkThrows(_ expected: IndexStoreDBError, file: StaticString = #file, line: UInt = #line, _ body: () throws -> ()) {
   do {
     try body()
@@ -73,6 +80,9 @@ final class IndexStoreDBTests: XCTestCase {
   }
 
   func testSymlinkedDBPaths() throws {
+    // FIXME: This test seems to trigger a false-positive in TSan.
+    try XCTSkipIf(isTSanEnabled, "skipping because TSan is enabled")
+
     let toolchain = TibsToolchain.testDefault
     let libIndexStore = try! IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
 

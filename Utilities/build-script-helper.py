@@ -62,6 +62,8 @@ def handle_invocation(swift_exec, args):
   if args.sanitize and 'undefined' in args.sanitize:
     supp = os.path.join(args.package_path, 'Utilities', 'ubsan_supressions.supp')
     env['UBSAN_OPTIONS'] = 'halt_on_error=true,suppressions=%s' % supp
+  if args.sanitize and 'thread' in args.sanitize:
+    env['INDEXSTOREDB_ENABLED_THREAD_SANITIZER'] = '1'
 
   # Workaround for incremental build bug in swiftpm.
   print('Cleaning ' + args.build_path)
