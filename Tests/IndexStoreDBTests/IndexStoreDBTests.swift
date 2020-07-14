@@ -15,6 +15,13 @@ import ISDBTibs
 import XCTest
 import Foundation
 
+let isTSanEnabled: Bool = {
+  if let value = ProcessInfo.processInfo.environment["INDEXSTOREDB_ENABLED_THREAD_SANITIZER"] {
+    return value == "1" || value == "YES"
+  }
+  return false
+}()
+
 func checkThrows(_ expected: IndexStoreDBError, file: StaticString = #file, line: UInt = #line, _ body: () throws -> ()) {
   do {
     try body()
@@ -72,7 +79,40 @@ final class IndexStoreDBTests: XCTestCase {
     }
   }
 
-  static var allTests = [
-    ("testErrors", testErrors),
-    ]
+  func testSymlinkedDBPaths() throws {
+    // FIXME: This test seems to trigger a false-positive in TSan.
+    try XCTSkipIf(isTSanEnabled, "skipping because TSan is enabled")
+
+    let toolchain = TibsToolchain.testDefault
+    let libIndexStore = try! IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
+
+    // This tests against a crash that was manifesting when creating separate `IndexStoreDB` instances against 2 DB paths
+    // that resolve to the same underlying directory (e.g. they were symlinked).
+    // It runs a number of iterations though it was not guaranteed that the issue would hit within a specific number
+    // of iterations, only that at *some* point, if you let it run indefinitely, it could trigger.
+    let iterations = 100
+
+    let indexStorePath: String
+    do {
+      // Don't care about specific index data, just want an index store directory containing *something*.
+      guard let ws = try staticTibsTestWorkspace(name: "SingleUnit") else { return }
+      try ws.buildAndIndex()
+      indexStorePath =  ws.builder.indexstore.path
+    }
+
+    let fileMgr = FileManager.default
+    let mainDBPath = tmp + "/db"
+    let symlinkDBPath1 = tmp + "/db-link1"
+    let symlinkDBPath2 = tmp + "/db-link2"
+    try fileMgr.createDirectory(atPath: mainDBPath, withIntermediateDirectories: true, attributes: nil)
+    try fileMgr.createSymbolicLink(atPath: symlinkDBPath1, withDestinationPath: mainDBPath)
+    try fileMgr.createSymbolicLink(atPath: symlinkDBPath2, withDestinationPath: mainDBPath)
+
+    for _ in 0..<iterations {
+      DispatchQueue.concurrentPerform(iterations: 2) { idx in
+        let dbPath = idx == 0 ? symlinkDBPath1 : symlinkDBPath2
+        let idxDB = try! IndexStoreDB(storePath: indexStorePath, databasePath: dbPath, library: libIndexStore, waitUntilDoneInitializing: true)
+      }
+    }
+  }
 }

@@ -71,29 +71,38 @@ static int filesForProvider_compare(const MDB_val *a, const MDB_val *b) {
   return IDCode::compare(lhs->UnitCode, rhs->UnitCode);
 }
 
+/// Returns a global serial queue for stale database removal.
+static dispatch_queue_t getDiscardedDBsCleanupQueue() {
+  static dispatch_queue_t queue;
+  static dispatch_once_t onceToken = 0;
+  dispatch_once(&onceToken, ^{
+    dispatch_queue_attr_t qosAttribute = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_BACKGROUND, 0);
+    queue = dispatch_queue_create("indexstoredb.db.discarded_dbs_cleanup", qosAttribute);
+  });
+  return queue;
+}
+
 Database::Implementation::Implementation() {
   ReadTxnGroup = dispatch_group_create();
   TxnSyncQueue = dispatch_queue_create("indexstoredb.db.txn_sync", DISPATCH_QUEUE_CONCURRENT);
-  dispatch_queue_attr_t qosAttribute = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_BACKGROUND, 0);
-  DiscardedDBsCleanupQueue = dispatch_queue_create("indexstoredb.db.discarded_dbs_cleanup", qosAttribute);
 }
 Database::Implementation::~Implementation() {
   if (!IsReadOnly) {
     DBEnv.close();
+    assert(!SavedPath.empty() && !UniquePath.empty());
     // In case some other process already created the 'saved' path, override it so
     // that the 'last one wins'.
-    llvm::sys::fs::rename(SavedPath, llvm::Twine(ProcessPath)+"saved"+DeadProcessDBSuffix);
-    if (std::error_code ec = llvm::sys::fs::rename(ProcessPath, SavedPath)) {
+    llvm::sys::fs::rename(SavedPath, llvm::Twine(UniquePath)+"-saved"+DeadProcessDBSuffix);
+    if (std::error_code ec = llvm::sys::fs::rename(UniquePath, SavedPath)) {
       // If the database directory already got removed or some other process beat
       // us during the tiny window between the above 2 renames, then give-up,
       // and let the database to be discarded.
-      LOG_WARN_FUNC("failed moving process directory to 'saved': " << ec.message());
+      LOG_WARN_FUNC("failed moving " << llvm::sys::path::filename(UniquePath) << " directory to 'saved': " << ec.message());
     }
   }
 
   dispatch_release(ReadTxnGroup);
   dispatch_release(TxnSyncQueue);
-  dispatch_release(DiscardedDBsCleanupQueue);
 }
 
 std::shared_ptr<Database::Implementation>
@@ -105,12 +114,14 @@ Database::Implementation::create(StringRef path, bool readonly, Optional<size_t>
 
   SmallString<128> savedPathBuf = versionPath;
   llvm::sys::path::append(savedPathBuf, "saved");
-  SmallString<128> processPathBuf = versionPath;
+  SmallString<128> prefixPathBuf = versionPath;
 #if defined(WIN32)
-  llvm::raw_svector_ostream(processPathBuf) << "/p" << GetCurrentProcess();
+  llvm::raw_svector_ostream(prefixPathBuf) << "/p" << GetCurrentProcess();
 #else
-  llvm::raw_svector_ostream(processPathBuf) << "/p" << getpid();
+  llvm::raw_svector_ostream(prefixPathBuf) << "/p" << getpid();
 #endif
+  llvm::raw_svector_ostream(prefixPathBuf) << "-";
+  SmallString<128> uniqueDirPath;
 
   bool existingDB = true;
 
@@ -121,30 +132,33 @@ Database::Implementation::create(StringRef path, bool readonly, Optional<size_t>
     }
     return false;
   };
+  auto createUniqueDirOrError = [&error, &prefixPathBuf, &uniqueDirPath]() {
+    uniqueDirPath.clear();
+    if (std::error_code ec = llvm::sys::fs::createUniqueDirectory(prefixPathBuf, uniqueDirPath)) {
+      llvm::raw_string_ostream(error) << "failed creating directory '" << uniqueDirPath << "': " << ec.message();
+      return true;
+    }
+    return false;
+  };
 
   StringRef dbPath;
   if (!readonly) {
     if (createDirectoriesOrError(versionPath))
       return nullptr;
 
-    // Move the currently stored database to a process-specific directory.
-    // When the database closes it moves the process-specific directory back to
+    // Move the currently stored database to a unique directory to isolate it.
+    // When the database closes it moves the unique directory back to
     // the '/saved' one. If we crash before closing, then we'll discard the database
-    // that is left in the process-specific one.
+    // that is left in the unique directory that includes the process pid number.
+    if (createUniqueDirOrError())
+      return nullptr;
 
-    // In case some other process that had the same pid crashed and left the database
-    // directory, move it aside and we'll clear it later.
-    // We are already protected from opening the same database twice from the same
-    // process via getLMDBDatabaseRefForPath().
-    llvm::sys::fs::rename(processPathBuf, llvm::Twine(processPathBuf)+DeadProcessDBSuffix);
-
-    if (llvm::sys::fs::rename(savedPathBuf, processPathBuf)) {
-      // No existing database, create a new directory.
+    // This succeeds for moving to an empty directory, like the newly constructed `uniqueDirPath`.
+    if (llvm::sys::fs::rename(savedPathBuf, uniqueDirPath)) {
+      // No existing database, just use the new directory.
       existingDB = false;
-      if (createDirectoriesOrError(processPathBuf))
-        return nullptr;
     }
-    dbPath = processPathBuf;
+    dbPath = uniqueDirPath;
   } else {
     dbPath = savedPathBuf;
   }
@@ -155,7 +169,7 @@ retry:
     db->IsReadOnly = readonly;
     db->VersionedPath = versionPath.str();
     db->SavedPath = savedPathBuf.str();
-    db->ProcessPath = processPathBuf.str();
+    db->UniquePath = uniqueDirPath.str();
     db->DBEnv = lmdb::env::create();
     db->DBEnv.set_max_dbs(14);
 
@@ -215,8 +229,8 @@ retry:
                     "corrupted database saved at '" << corruptedPathBuf << "'\n"
                     "creating new database...");
 
-      // Recreate the process path for the next attempt.
-      if (createDirectoriesOrError(processPathBuf))
+      // Recreate the unique database path for the next attempt.
+      if (!readonly && createUniqueDirOrError())
         return nullptr;
       existingDB = false;
       goto retry;
@@ -300,7 +314,7 @@ static void cleanupDiscardedDBsImpl(StringRef versionedPath) {
 
   // Finds database subdirectories that are considered dead and removes them.
   // A directory is dead if it has been marked with the suffix "-dead" or if it
-  // has the name "p<PID>" where process PID is no longer running.
+  // has the name "p<PID>-*" where process PID is no longer running.
 
 #if defined(WIN32)
   indexstorePid_t currPID = GetCurrentProcess();
@@ -321,8 +335,13 @@ static void cleanupDiscardedDBsImpl(StringRef versionedPath) {
         return true;
       if (!path.startswith("p"))
         return false;
+      StringRef pidStr = path.substr(1);
+      size_t dashIdx = pidStr.find('-');
+      if (dashIdx == StringRef::npos)
+        return false;
+      pidStr = pidStr.substr(0, dashIdx);
       size_t pathPID;
-      if (path.substr(1).getAsInteger(10, pathPID))
+      if (pidStr.getAsInteger(10, pathPID))
         return false;
       if ((indexstorePid_t)pathPID == currPID)
         return false;
@@ -330,7 +349,8 @@ static void cleanupDiscardedDBsImpl(StringRef versionedPath) {
     };
 
     if (shouldRemove(currPath, currPID)) {
-      remove_directories(currPath);
+      // FIXME: With `IgnoreErrors` set to true it can hit an assertion if an error occurs.
+      remove_directories(currPath, /*IgnoreErrors=*/false);
     }
 
     Begin.increment(EC);
@@ -339,7 +359,7 @@ static void cleanupDiscardedDBsImpl(StringRef versionedPath) {
 
 void Database::Implementation::cleanupDiscardedDBs() {
   std::string localVersionedPath = VersionedPath;
-  dispatch_async(DiscardedDBsCleanupQueue, ^{
+  dispatch_async(getDiscardedDBsCleanupQueue(), ^{
     cleanupDiscardedDBsImpl(localVersionedPath);
   });
 }
