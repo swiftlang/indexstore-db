@@ -44,12 +44,11 @@ class Database::Implementation {
 
   dispatch_group_t ReadTxnGroup;
   dispatch_queue_t TxnSyncQueue;
-  dispatch_queue_t DiscardedDBsCleanupQueue;
 
   bool IsReadOnly;
   std::string VersionedPath;
   std::string SavedPath;
-  std::string ProcessPath;
+  std::string UniquePath;
 
 public:
   static std::shared_ptr<Implementation> create(StringRef dbPath, bool readonly, Optional<size_t> initialDBSize, std::string &error);
