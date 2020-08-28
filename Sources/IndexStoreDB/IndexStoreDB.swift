@@ -239,13 +239,13 @@ public final class IndexStoreDB {
     return result
   }
     
-   @discardableResult
+  @discardableResult
   public func foreachFileIncludedByFile(path: String, body: @escaping (String) -> Bool) -> Bool {
-     return indexstoredb_index_files_included_by_file(impl, path) { targetPath, line in
+    return indexstoredb_index_files_included_by_file(impl, path) { targetPath, line in
         let targetPathStr = String(cString: targetPath)
         return body(targetPathStr)
-       }
-   }
+    }
+  }
     
   public func filesIncludedByFile(path: String) -> [String] {
     var result: [String] = []
@@ -255,6 +255,23 @@ public final class IndexStoreDB {
     }
     return result
   }
+    
+  @discardableResult
+  public func foreachFileIncludingFile(path: String, body: @escaping (String) -> Bool) -> Bool {
+    return indexstoredb_index_files_including_file(impl, path) { sourcePath, line in
+        let sourcePathStr = String(cString: sourcePath)
+        return body(sourcePathStr)
+    }
+  }
+      
+  public func filesIncludingFile(path: String) -> [String] {
+    var result: [String] = []
+    foreachFileIncludingFile(path: path) { targetPath in
+        result.append(targetPath)
+        return true
+      }
+      return result
+    }
 
   /// A recorded header `#include` from a unit file.
   public struct UnitIncludeEntry: Equatable {
