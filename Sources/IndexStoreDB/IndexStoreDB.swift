@@ -238,6 +238,23 @@ public final class IndexStoreDB {
     }
     return result
   }
+    
+   @discardableResult
+  public func foreachFileIncludedByFile(path: String, body: @escaping (String) -> Bool) -> Bool {
+     return indexstoredb_index_files_included_by_file(impl, path) { targetPath, line in
+        let targetPathStr = String(cString: targetPath)
+        return body(targetPathStr)
+       }
+   }
+    
+  public func filesIncludedByFile(path: String) -> [String] {
+    var result: [String] = []
+    foreachFileIncludedByFile(path: path) { targetPath in
+        result.append(targetPath)
+        return true
+    }
+    return result
+  }
 
   /// A recorded header `#include` from a unit file.
   public struct UnitIncludeEntry: Equatable {

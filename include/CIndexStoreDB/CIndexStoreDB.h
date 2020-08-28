@@ -139,6 +139,9 @@ typedef void(^indexstoredb_delegate_event_receiver_t)(_Nonnull indexstoredb_dele
 typedef bool(^indexstoredb_unit_info_receiver)(_Nonnull indexstoredb_unit_info_t);
 
 /// Returns true to continue.
+typedef bool(^indexstoredb_files_included_receiver)(const char *_Nonnull targetPath, size_t line);
+
+/// Returns true to continue.
 typedef bool(^indexstoredb_unit_includes_receiver)(const char *_Nonnull sourcePath, const char *_Nonnull targetPath, size_t line);
 
 /// Creates an index for the given raw index data in \p storePath.
@@ -384,6 +387,18 @@ indexstoredb_index_units_containing_file(
   _Nonnull indexstoredb_index_t index,
   const char *_Nonnull path,
   _Nonnull indexstoredb_unit_info_receiver receiver);
+
+/// Return the file path which included by a given file path..
+///
+/// \param index An IndexStoreDB object which contains the symbols.
+/// \param path The source file to search for.
+/// \param receiver A function to be called for each include file path. The pointers are only valid for
+/// the duration of the call. The function should return a true to continue iterating.
+INDEXSTOREDB_PUBLIC bool
+indexstoredb_index_files_included_by_file(
+  _Nonnull indexstoredb_index_t index,
+  const char *_Nonnull path,
+  _Nonnull indexstoredb_files_included_receiver receiver);
 
 /// Iterates over recorded `#include`s of a unit.
 ///

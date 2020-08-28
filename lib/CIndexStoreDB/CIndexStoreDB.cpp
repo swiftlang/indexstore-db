@@ -432,6 +432,18 @@ indexstoredb_index_units_containing_file(
 }
 
 bool
+indexstoredb_index_files_included_by_file(
+  indexstoredb_index_t index,
+  const char *path,
+  indexstoredb_files_included_receiver receiver)
+{
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachFileIncludedByFile(path, [&](const CanonicalFilePathRef &targetPath, unsigned line) -> bool {
+    return receiver(targetPath.getPath().str().c_str(), line);
+  });
+}
+
+bool
 indexstoredb_index_includes_of_unit(
   indexstoredb_index_t index,
   const char *unitName,
