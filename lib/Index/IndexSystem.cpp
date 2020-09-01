@@ -50,6 +50,10 @@ public:
   AsyncIndexDelegate(std::shared_ptr<IndexSystemDelegate> Other)
     : Others(1, std::move(Other)) {}
 
+  ~AsyncIndexDelegate() {
+    _wait(); // Ensure the queue is drained, since we capture `this`.
+  }
+
   void addDelegate(std::shared_ptr<IndexSystemDelegate> Other) {
     Queue.dispatchSync([&] {
       if (PendingActions)
@@ -60,36 +64,25 @@ public:
 
 private:
   virtual void processingAddedPending(unsigned NumActions) override {
-    PendingActions += NumActions;
-
-    if (Others.empty())
-      return;
-    auto LocalOthers = this->Others;
-    Queue.dispatch([LocalOthers, NumActions]{
-      for (auto &other : LocalOthers)
+    Queue.dispatch([this, NumActions]{
+      PendingActions += NumActions;
+      for (auto &other : Others)
         other->processingAddedPending(NumActions);
     });
   }
 
   virtual void processingCompleted(unsigned NumActions) override {
-    assert(NumActions <= PendingActions);
-    PendingActions -= NumActions;
-
-    if (Others.empty())
-      return;
-    auto LocalOthers = this->Others;
-    Queue.dispatch([LocalOthers, NumActions]{
-      for (auto &other : LocalOthers)
+    Queue.dispatch([this, NumActions]{
+      assert(NumActions <= PendingActions);
+      PendingActions -= NumActions;
+      for (auto &other : Others)
         other->processingCompleted(NumActions);
     });
   }
 
   virtual void processedStoreUnit(StoreUnitInfo unitInfo) override {
-    if (Others.empty())
-      return;
-    auto LocalOthers = this->Others;
-    Queue.dispatch([LocalOthers, unitInfo]{
-      for (auto &other : LocalOthers)
+    Queue.dispatch([this, unitInfo]{
+      for (auto &other : Others)
         other->processedStoreUnit(unitInfo);
     });
   }
@@ -98,24 +91,22 @@ private:
                                llvm::sys::TimePoint<> outOfDateModTime,
                                OutOfDateTriggerHintRef hint,
                                bool synchronous) override {
-    if (Others.empty())
-      return;
-
     if (synchronous) {
-      for (auto &other : Others)
-        other->unitIsOutOfDate(std::move(unitInfo), outOfDateModTime, hint, true);
+      Queue.dispatchSync([&]{
+        for (auto &other : Others)
+          other->unitIsOutOfDate(std::move(unitInfo), outOfDateModTime, hint, true);
+      });
       return;
     }
 
-    auto LocalOthers = this->Others;
     Queue.dispatch([=]{
-      for (auto &other : LocalOthers)
+      for (auto &other : Others)
         other->unitIsOutOfDate(std::move(unitInfo), outOfDateModTime, hint, false);
     });
   }
 
 public:
-  /// For Testing. Wait for any outstanding async work to finish.
+  /// Public for Testing. Wait for any outstanding async work to finish.
   void _wait() {
     Queue.dispatchSync([]{});
   }
