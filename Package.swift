@@ -1,4 +1,4 @@
-// swift-tools-version:4.2
+// swift-tools-version:5.0
 
 import PackageDescription
 
@@ -70,7 +70,11 @@ let package = Package(
     .target(
       name: "IndexStoreDB_Database",
       dependencies: ["IndexStoreDB_Core"],
-      path: "lib/Database"),
+      path: "lib/Database",
+      cSettings: [
+        .define("MDB_USE_POSIX_MUTEX", to: "1"),
+        .define("MDB_USE_ROBUST", to: "0"),
+      ]),
 
     // Core index types.
     .target(
