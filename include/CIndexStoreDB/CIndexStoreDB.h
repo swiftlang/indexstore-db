@@ -139,10 +139,7 @@ typedef void(^indexstoredb_delegate_event_receiver_t)(_Nonnull indexstoredb_dele
 typedef bool(^indexstoredb_unit_info_receiver)(_Nonnull indexstoredb_unit_info_t);
 
 /// Returns true to continue.
-typedef bool(^indexstoredb_files_included_receiver)(const char *_Nonnull targetPath, size_t line);
-
-/// Returns true to continue.
-typedef bool(^indexstoredb_files_including_receiver)(const char *_Nonnull sourcePath, size_t line);
+typedef bool(^indexstoredb_file_includes_receiver)(const char *_Nonnull sourcePath, size_t line);
 
 /// Returns true to continue.
 typedef bool(^indexstoredb_unit_includes_receiver)(const char *_Nonnull sourcePath, const char *_Nonnull targetPath, size_t line);
@@ -401,7 +398,7 @@ INDEXSTOREDB_PUBLIC bool
 indexstoredb_index_files_included_by_file(
   _Nonnull indexstoredb_index_t index,
   const char *_Nonnull path,
-  _Nonnull indexstoredb_files_included_receiver receiver);
+  _Nonnull indexstoredb_file_includes_receiver receiver);
 
 /// Return the file path which including a given header.
 ///
@@ -413,7 +410,7 @@ INDEXSTOREDB_PUBLIC bool
 indexstoredb_index_files_including_file(
   _Nonnull indexstoredb_index_t index,
   const char *_Nonnull path,
-  _Nonnull indexstoredb_files_including_receiver receiver);
+  _Nonnull indexstoredb_file_includes_receiver receiver);
 
 /// Iterates over recorded `#include`s of a unit.
 ///
