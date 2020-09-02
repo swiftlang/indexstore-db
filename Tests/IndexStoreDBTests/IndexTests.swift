@@ -299,6 +299,23 @@ final class IndexTests: XCTestCase {
       IndexStoreDB.UnitIncludeEntry(sourcePath: main1, targetPath: uniq1, line: ws.testLoc("include_main1_uniq1").line),
     ])
   }
+    
+  func testFilesIncludes() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "MainFiles") else { return }
+    try ws.buildAndIndex()
+    let index = ws.index
+        
+    let main1 = ws.testLoc("main1").url.path
+    let main2 = ws.testLoc("main2").url.path
+    let uniq1 = ws.testLoc("uniq1").url.path
+    let shared = ws.testLoc("shared").url.path
+        
+    let includedFiles = index.filesIncludedByFile(path: main1).sorted()
+    XCTAssertEqual(includedFiles, [shared, uniq1])
+    
+    let includingFiles = index.filesIncludingFile(path: shared).sorted()
+    XCTAssertEqual(includingFiles, [main1, main2])
+  }
 
   func testAllSymbolNames() throws {
     guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
