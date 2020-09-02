@@ -310,10 +310,10 @@ final class IndexTests: XCTestCase {
     let uniq1 = ws.testLoc("uniq1").url.path
     let shared = ws.testLoc("shared").url.path
         
-    let includedFiles = index.filesIncludedByFile(path: main1)
+    let includedFiles = index.filesIncludedByFile(path: main1).sorted()
     XCTAssertEqual(includedFiles, [shared, uniq1])
     
-    let includingFiles = index.filesIncludingFile(path: shared)
+    let includingFiles = index.filesIncludingFile(path: shared).sorted()
     XCTAssertEqual(includingFiles, [main1, main2])
   }
 
