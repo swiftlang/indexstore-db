@@ -1,4 +1,4 @@
-// swift-tools-version:5.0
+// swift-tools-version:5.3
 
 import PackageDescription
 
@@ -72,7 +72,9 @@ let package = Package(
       dependencies: ["IndexStoreDB_Core"],
       path: "lib/Database",
       cSettings: [
-        .define("MDB_USE_POSIX_MUTEX", to: "1"),
+        .define("MDB_USE_POSIX_MUTEX", to: "1",
+                // Windows does not use POSIX mutex
+                .when(platforms: [.linux, .macOS])),
         .define("MDB_USE_ROBUST", to: "0"),
       ]),
 
