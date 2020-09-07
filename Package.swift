@@ -95,5 +95,5 @@ let package = Package(
       path: "lib/LLVMSupport"),
   ],
 
-  cxxLanguageStandard: .cxx11
+  cxxLanguageStandard: .cxx14
 )
