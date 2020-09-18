@@ -50,7 +50,7 @@ let package = Package(
     // Test support library, built on top of tibs.
     .target(
       name: "ISDBTestSupport",
-      dependencies: ["IndexStoreDB", "ISDBTibs"]),
+      dependencies: ["IndexStoreDB", "ISDBTibs", "tibs"]),
 
     // MARK: C++ interface
 
