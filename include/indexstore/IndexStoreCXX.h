@@ -19,6 +19,7 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/Mutex.h"
 #include <ctime>
 
 namespace indexstore {
@@ -203,6 +204,29 @@ public:
   typedef std::function<void(UnitEventNotification)> UnitEventHandler;
   typedef std::function<void(indexstore_unit_event_notification_t)> RawUnitEventHandler;
 
+private:
+  struct EventHandlerContext {
+    RawUnitEventHandler handler;
+    #if __has_feature(thread_sanitizer)
+    std::unique_ptr<llvm::sys::Mutex> eventHandlerMutex;
+    #endif
+
+    EventHandlerContext(RawUnitEventHandler handler) : handler(std::move(handler)) {
+      #if __has_feature(thread_sanitizer)
+      eventHandlerMutex = std::make_unique<llvm::sys::Mutex>();
+      #endif
+    }
+
+    ~EventHandlerContext() {
+      #if __has_feature(thread_sanitizer)
+      // See comment in event_handler_finalizer.
+      assert(!eventHandlerMutex);
+      #endif
+    }
+  };
+
+public:
+
   void setUnitEventHandler(UnitEventHandler handler) {
     auto localLib = std::weak_ptr<IndexStoreLibrary>(library);
     if (!handler) {
@@ -212,7 +236,7 @@ public:
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wc++14-extensions"
-    auto fnPtr = new RawUnitEventHandler([handler, localLib=std::move(localLib)](
+    auto fnPtr = new EventHandlerContext([handler, localLib=std::move(localLib)](
         indexstore_unit_event_notification_t evt_note) {
       if (auto lib = localLib.lock()) {
         handler(UnitEventNotification(evt_note, lib));
@@ -223,13 +247,29 @@ public:
   }
 
 private:
-  static void event_handler(void *ctx, indexstore_unit_event_notification_t evt) {
-    auto fnPtr = (RawUnitEventHandler*)ctx;
-    (*fnPtr)(evt);
+  static void event_handler(void *ctx_, indexstore_unit_event_notification_t evt) {
+    auto ctx = (EventHandlerContext*)ctx_;
+
+    #if __has_feature(thread_sanitizer)
+    // See comment in event_handler_finalizer.
+    llvm::sys::ScopedLock L(*ctx->eventHandlerMutex);
+    #endif
+
+    (ctx->handler)(evt);
   }
-  static void event_handler_finalizer(void *ctx) {
-    auto fnPtr = (RawUnitEventHandler*)ctx;
-    delete fnPtr;
+  static void event_handler_finalizer(void *ctx_) {
+    auto ctx = (EventHandlerContext*)ctx_;
+
+    #if __has_feature(thread_sanitizer)
+    // We need to convince TSan that the event handler callback never overlaps the
+    // destructor of the context. We use `eventHandlerMutex` to ensure TSan can
+    // see the synchronization, and we need to move the mutex out of the context
+    // so that it can be held during `delete` below.
+    auto mutexPtr = std::move(ctx->eventHandlerMutex);
+    llvm::sys::ScopedLock L(*mutexPtr);
+    #endif
+
+    delete ctx;
   }
 
 public:
