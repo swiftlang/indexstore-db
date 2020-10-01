@@ -4,7 +4,7 @@ Tibs ("Test Index Build System") is a simple and flexible build system designed 
 
 Tibs is implemented using [Ninja](https://ninja-build.org), which introduces a new dependency in IndexStoreDB when running tests.
 
-Tibs projects are described by a `project.json` file containing one or more targets. Typically, a test case will use a project fixture located in the `Tests/INPUTS` directory.
+Tibs projects are described by a `project.json` file containing one or more targets. Typically, a test case will use a project fixture located in the `INPUTS` directory.
 
 ## Project
 

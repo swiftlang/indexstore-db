@@ -207,15 +207,14 @@ extension XCTestCase {
   ///   support this test.
   public func staticTibsTestWorkspace(
     name: String,
-    useExplicitOutputUnits: Bool = false,
-    testFile: String = #file
+    useExplicitOutputUnits: Bool = false
   ) throws -> TibsTestWorkspace? {
     let testDirName = testDirectoryName
 
     let toolchain = TibsToolchain.testDefault
 
     let workspace = try TibsTestWorkspace(
-      immutableProjectDir: inputsDirectory(testFile: testFile)
+      immutableProjectDir: XCTestCase.isdbInputsDirectory
         .appendingPathComponent(name, isDirectory: true),
       persistentBuildDir: XCTestCase.productsDirectory
         .appendingPathComponent("isdb-tests/\(testDirName)", isDirectory: true),
@@ -242,16 +241,13 @@ extension XCTestCase {
   ///   * name: The name of the test, which is its path relative to INPUTS.
   /// * returns: An immutable TibsTestWorkspace, or nil and prints a warning if toolchain does not
   ///   support this test.
-  public func mutableTibsTestWorkspace(
-    name: String,
-    testFile: String = #file
-  ) throws -> TibsTestWorkspace? {
+  public func mutableTibsTestWorkspace(name: String) throws -> TibsTestWorkspace? {
     let testDirName = testDirectoryName
 
     let toolchain = TibsToolchain.testDefault
 
     let workspace = try TibsTestWorkspace(
-      projectDir: inputsDirectory(testFile: testFile)
+      projectDir: XCTestCase.isdbInputsDirectory
         .appendingPathComponent(name, isDirectory: true),
       tmpDir: URL(fileURLWithPath: NSTemporaryDirectory())
         .appendingPathComponent("isdb-test-data/\(testDirName)", isDirectory: true),
@@ -267,25 +263,49 @@ extension XCTestCase {
     return workspace
   }
 
-  /// The path the the test INPUTS directory.
-  public func inputsDirectory(testFile: String = #file) -> URL {
-    return URL(fileURLWithPath: testFile)
-      .deletingLastPathComponent()
-      .deletingLastPathComponent()
-      .appendingPathComponent("INPUTS", isDirectory: true)
-  }
+  /// The bundle of the currently executing test.
+  public static var testBundle: Bundle = {
+    #if os(macOS)
+      if let bundle =  Bundle.allBundles.first(where: { $0.bundlePath.hasSuffix(".xctest") }) {
+        return bundle
+      }
+      fatalError("couldn't find the test bundle")
+    #else
+      return Bundle.main
+    #endif
+  }()
 
   /// The path to the built products directory.
-  public static var productsDirectory: URL {
+  public static var productsDirectory: URL = {
     #if os(macOS)
-      for bundle in Bundle.allBundles where bundle.bundlePath.hasSuffix(".xctest") {
-          return bundle.bundleURL.deletingLastPathComponent()
-      }
-      fatalError("couldn't find the products directory")
+      return testBundle.bundleURL.deletingLastPathComponent()
     #else
-      return Bundle.main.bundleURL
+      return testBundle.bundleURL
     #endif
-  }
+  }()
+
+  /// The path to the INPUTS directory of shared test projects.
+  public static var isdbInputsDirectory: URL = {
+    // FIXME: Use Bundle.module.resourceURL once the fix for SR-12912 is released.
+    #if os(macOS)
+    var resources = XCTestCase.productsDirectory
+      .appendingPathComponent("IndexStoreDB_ISDBTestSupport.bundle")
+      .appendingPathComponent("Contents")
+      .appendingPathComponent("Resources")
+    if !FileManager.default.fileExists(atPath: resources.path) {
+      // Xcode and command-line swiftpm differ about the path.
+      resources.deleteLastPathComponent()
+      resources.deleteLastPathComponent()
+    }
+    #else
+    let resources = XCTestCase.productsDirectory
+      .appendingPathComponent("IndexStoreDB_ISDBTestSupport.resources")
+    #endif
+    guard FileManager.default.fileExists(atPath: resources.path) else {
+      fatalError("missing resources \(resources.path)")
+    }
+    return resources.appendingPathComponent("INPUTS", isDirectory: true).standardizedFileURL
+  }()
 
   /// The name of this test, mangled for use as a directory.
   public var testDirectoryName: String {

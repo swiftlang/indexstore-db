@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import ISDBTibs
+import ISDBTestSupport
 import Foundation
 import XCTest
 
@@ -115,19 +116,5 @@ final class TibsBuildTests: XCTestCase {
       class D {};
       """.write(to: dh, atomically: false, encoding: .utf8)
     XCTAssertEqual(try builder._buildTest(), [dcpp.path, emm.path])
-  }
-}
-
-extension XCTestCase {
-
-  /// The name of this test, mangled for use as a directory.
-  public var testDirectoryName: String {
-    guard name.starts(with: "-[") else {
-      return name
-    }
-
-    let className = name.dropFirst(2).prefix(while: { $0 != " " })
-    let methodName = name[className.endIndex...].dropFirst().prefix(while: { $0 != "]"})
-    return "\(className).\(methodName)"
   }
 }

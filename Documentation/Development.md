@@ -20,10 +20,10 @@ Most indexer tests follow a pattern:
 
 ### Test Projects (Fixtures)
 
-Index test projects should be put in the `Tests/INPUTS` directory, and use the [Tibs](Tibs.md) build system to define their sources and targets. An example test project might look like:
+Index test projects should be put in the `ISDBTestSupport/INPUTS` directory, and use the [Tibs](Tibs.md) build system to define their sources and targets. An example test project might look like:
 
 ```
-Tests/
+ISDBTestSupport/
   INPUTS/
     MyTestProj/
       a.swift

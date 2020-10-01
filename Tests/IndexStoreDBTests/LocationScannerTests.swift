@@ -155,10 +155,8 @@ final class LocationScannerTests: XCTestCase {
   }
 
   func testDirectory() throws {
-    let proj1 = URL(fileURLWithPath: #file)
-      .deletingLastPathComponent()
-      .deletingLastPathComponent()
-      .appendingPathComponent("INPUTS/proj1", isDirectory: true)
+    let proj1 = XCTestCase.isdbInputsDirectory
+      .appendingPathComponent("proj1", isDirectory: true)
     XCTAssertEqual(try scanDir(proj1), [
       Loc(url: proj1.appendingPathComponent("a.swift", isDirectory: false), "a:def", 1, 15),
       Loc(url: proj1.appendingPathComponent("a.swift", isDirectory: false), "b:call", 2, 13),
