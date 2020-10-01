@@ -287,6 +287,7 @@ extension XCTestCase {
   /// The path to the INPUTS directory of shared test projects.
   public static var isdbInputsDirectory: URL = {
     // FIXME: Use Bundle.module.resourceURL once the fix for SR-12912 is released.
+    #if os(macOS)
     var resources = XCTestCase.productsDirectory
       .appendingPathComponent("IndexStoreDB_ISDBTestSupport.bundle")
       .appendingPathComponent("Contents")
@@ -296,6 +297,10 @@ extension XCTestCase {
       resources.deleteLastPathComponent()
       resources.deleteLastPathComponent()
     }
+    #else
+    let resources = XCTestCase.productsDirectory
+      .appendingPathComponent("IndexStoreDB_ISDBTestSupport.resources")
+    #endif
     guard FileManager.default.fileExists(atPath: resources.path) else {
       fatalError("missing resources \(resources.path)")
     }
