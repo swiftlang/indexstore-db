@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import ISDBTibs
+import ISDBTestSupport
 import Foundation
 import XCTest
 
@@ -200,8 +201,5 @@ final class TibsResolutionTests: XCTestCase {
 }
 
 func projectDir(_ name: String) -> URL {
-  return URL(fileURLWithPath: #file)
-    .deletingLastPathComponent()
-    .deletingLastPathComponent()
-    .appendingPathComponent("INPUTS/\(name)", isDirectory: true)
+  XCTestCase.isdbInputsDirectory.appendingPathComponent(name, isDirectory: true)
 }

@@ -1,4 +1,4 @@
-// swift-tools-version:5.2
+// swift-tools-version:5.3
 
 import PackageDescription
 
@@ -40,7 +40,7 @@ let package = Package(
 
     .testTarget(
       name: "ISDBTibsTests",
-      dependencies: ["ISDBTibs"]),
+      dependencies: ["ISDBTibs", "ISDBTestSupport"]),
 
     // Commandline tool for working with tibs projects.
     .target(
@@ -50,7 +50,10 @@ let package = Package(
     // Test support library, built on top of tibs.
     .target(
       name: "ISDBTestSupport",
-      dependencies: ["IndexStoreDB", "ISDBTibs", "tibs"]),
+      dependencies: ["IndexStoreDB", "ISDBTibs", "tibs"],
+      resources: [
+        .copy("INPUTS")
+      ]),
 
     // MARK: C++ interface
 
