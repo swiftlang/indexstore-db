@@ -17,7 +17,7 @@ def swiftpm(action, swift_exec, swiftpm_args, env=None):
 def swiftpm_bin_path(swift_exec, swiftpm_args, env=None):
   cmd = [swift_exec, 'build', '--show-bin-path'] + swiftpm_args
   print(' '.join(cmd))
-  return subprocess.check_output(cmd, env=env).strip()
+  return subprocess.check_output(cmd, env=env, universal_newlines=True).strip()
 
 def get_swiftpm_options(args):
   swiftpm_args = [
