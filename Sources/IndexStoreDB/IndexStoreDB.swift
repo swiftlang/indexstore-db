@@ -17,7 +17,7 @@ import CIndexStoreDB
 #if canImport(Glibc)
 import Glibc
 #elseif os(Windows)
-import MSVCRT
+import ucrt
 #else
 import Darwin.POSIX
 #endif
