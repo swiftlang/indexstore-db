@@ -97,7 +97,7 @@ Database::Implementation::~Implementation() {
       // If the database directory already got removed or some other process beat
       // us during the tiny window between the above 2 renames, then give-up,
       // and let the database to be discarded.
-      LOG_WARN_FUNC("failed moving " << llvm::sys::path::filename(UniquePath) << " directory to 'saved': " << ec.message());
+      LOG_INFO_FUNC(High, "failed moving " << llvm::sys::path::filename(UniquePath) << " directory to 'saved': " << ec.message());
     }
   }
 
