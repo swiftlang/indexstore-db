@@ -44,10 +44,13 @@ public final class TibsToolchain {
 
 #if os(macOS)
   public static let dylibExt = ".dylib"
+  public static let execExt = ""
 #elseif os(Windows)
   public static let dylibExt = ".dll"
+  public static let execExt = ".exe"
 #else
   public static let dylibExt = ".so"
+  public static let execExt = ""
 #endif
 
   public private(set) lazy var clangHasIndexSupport: Bool = {
@@ -135,11 +138,11 @@ extension TibsToolchain {
     let envVar = "INDEXSTOREDB_TOOLCHAIN_BIN_PATH"
     if let path = ProcessInfo.processInfo.environment[envVar] {
       let bin = URL(fileURLWithPath: "\(path)/bin", isDirectory: true)
-      swiftc = bin.appendingPathComponent("swiftc", isDirectory: false)
-      clang = bin.appendingPathComponent("clang", isDirectory: false)
+      swiftc = bin.appendingPathComponent("swiftc\(TibsToolchain.execExt)", isDirectory: false)
+      clang = bin.appendingPathComponent("clang\(TibsToolchain.execExt)", isDirectory: false)
 
       if !fm.fileExists(atPath: swiftc!.path) {
-        fatalError("toolchain must contain 'swiftc' \(envVar)=\(path)")
+        fatalError("toolchain must contain 'swiftc\(TibsToolchain.execExt)' \(envVar)=\(path)")
       }
       if !fm.fileExists(atPath: clang!.path) {
         clang = nil // try to find by PATH
@@ -168,16 +171,16 @@ extension TibsToolchain {
     #endif
 
     if let buildURL = buildURL {
-      tibs = buildURL.appendingPathComponent("tibs", isDirectory: false)
+      tibs = buildURL.appendingPathComponent("tibs\(TibsToolchain.execExt)", isDirectory: false)
       if !fm.fileExists(atPath: tibs!.path) {
         tibs = nil // try to find by PATH
       }
     }
 
-    swiftc = swiftc ?? findTool(name: "swiftc")
-    clang = clang ?? findTool(name: "clang")
-    tibs = tibs ?? findTool(name: "tibs")
-    ninja = ninja ?? findTool(name: "ninja")
+    swiftc = swiftc ?? findTool(name: "swiftc\(TibsToolchain.execExt)")
+    clang = clang ?? findTool(name: "clang\(TibsToolchain.execExt)")
+    tibs = tibs ?? findTool(name: "tibs\(TibsToolchain.execExt)")
+    ninja = ninja ?? findTool(name: "ninja\(TibsToolchain.execExt)")
 
     guard swiftc != nil, clang != nil, tibs != nil, ninja != nil else {
       fatalError("""
