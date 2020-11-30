@@ -1057,6 +1057,10 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
       evts.push_back(UnitEventInfo{evt.getKind(), evt.getUnitName()});
     }
 
+    if (EventNote.isInitial()) {
+      Delegate->initialPendingUnits(evts.size());
+    }
+
     auto session = std::make_shared<UnitProcessingSession>(eventsDeque, WeakUnitRepo, Delegate);
     session->process(std::move(evts), shouldWait);
   };

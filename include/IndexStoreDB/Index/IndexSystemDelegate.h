@@ -69,6 +69,9 @@ class INDEXSTOREDB_EXPORT IndexSystemDelegate {
 public:
   virtual ~IndexSystemDelegate() {}
 
+  /// Called when the datastore gets initialized and receives the number of available units.
+  virtual void initialPendingUnits(unsigned numUnits) {}
+
   virtual void processingAddedPending(unsigned NumActions) {}
   virtual void processingCompleted(unsigned NumActions) {}
 
