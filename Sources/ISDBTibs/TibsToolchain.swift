@@ -36,18 +36,18 @@ public final class TibsToolchain {
     self.libIndexStore = libIndexStore ?? swiftc
       .deletingLastPathComponent()
       .deletingLastPathComponent()
-      .appendingPathComponent("\(dylibFolder)/libIndexStore.\(TibsToolchain.dylibExt)", isDirectory: false)
+      .appendingPathComponent("\(dylibFolder)/libIndexStore\(TibsToolchain.dylibExt)", isDirectory: false)
 
     self.tibs = tibs
     self.ninja = ninja
   }
 
 #if os(macOS)
-  public static let dylibExt = "dylib"
+  public static let dylibExt = ".dylib"
 #elseif os(Windows)
-  public static let dylibExt = "dll"
+  public static let dylibExt = ".dll"
 #else
-  public static let dylibExt = "so"
+  public static let dylibExt = ".so"
 #endif
 
   public private(set) lazy var clangHasIndexSupport: Bool = {
