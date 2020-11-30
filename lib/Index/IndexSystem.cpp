@@ -63,6 +63,13 @@ public:
   }
 
 private:
+  virtual void initialPendingUnits(unsigned numUnits) override {
+    Queue.dispatch([this, numUnits]{
+      for (auto &other : Others)
+        other->initialPendingUnits(numUnits);
+    });
+  }
+
   virtual void processingAddedPending(unsigned NumActions) override {
     Queue.dispatch([this, NumActions]{
       PendingActions += NumActions;
