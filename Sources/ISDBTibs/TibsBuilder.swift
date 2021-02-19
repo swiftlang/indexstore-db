@@ -116,13 +116,22 @@ extension TibsBuilder {
 
   // MARK: Building
 
-  public func build() throws {
-    try buildImpl()
+  /// Build, optionally specifying specific targets.
+  public func build(targets: [String] = []) throws {
+    try buildImpl(targets: targets)
+  }
+
+  /// Build the dependencies of the given targets without building these targets themselves.
+  public func build(dependenciesOfTargets targets: [String]) throws {
+    let deps = Array(Set(targets.flatMap { self.targetsByName[$0]!.dependencies }))
+    if !deps.isEmpty {
+      try build(targets: deps)
+    }
   }
 
   /// *For Testing* Build and collect a list of commands that were (re)built.
-  public func _buildTest() throws -> Set<String> {
-    let out = try buildImpl()
+  public func _buildTest(targets: [String] = []) throws -> Set<String> {
+    let out = try buildImpl(targets: targets)
     var rest = out.startIndex..<out.endIndex
 
     var result = Set<String>()
@@ -136,14 +145,23 @@ extension TibsBuilder {
     return result
   }
 
+  /// *For Testing* Build and collect a list of commands that were (re)built.
+  public func _buildTest(dependenciesOfTargets targets: [String]) throws -> Set<String> {
+    let deps = Array(Set(targets.flatMap { self.targetsByName[$0]!.dependencies }))
+    if !deps.isEmpty {
+      return try _buildTest(targets: deps)
+    }
+    return []
+  }
+
   @discardableResult
-  func buildImpl() throws -> String {
+  func buildImpl(targets: [String]) throws -> String {
     guard let ninja = toolchain.ninja?.path else {
       throw Error.noNinjaBinaryConfigured
     }
 
     do {
-      return try Process.tibs_checkNonZeroExit(arguments: [ninja, "-C", buildRoot.path])
+      return try Process.tibs_checkNonZeroExit(arguments: [ninja, "-C", buildRoot.path] + targets)
     } catch Process.TibsProcessError.nonZeroExit(let reason, let code) {
       throw Error.buildFailure(reason, exitCode: code)
     }
@@ -302,17 +320,26 @@ extension TibsBuilder {
   }
 
   public func writeNinjaSnippet<Output: TextOutputStream>(for target: TibsResolvedTarget, to stream: inout Output) {
+    var outputs: [String] = []
     if let module = target.swiftModule {
-      writeNinjaSnippet(for: module, to: &stream)
+      let out = writeNinjaSnippet(for: module, to: &stream)
+      outputs.append(contentsOf: out)
       stream.write("\n\n")
     }
     for tu in target.clangTUs {
-      writeNinjaSnippet(for: tu, to: &stream)
+      let out = writeNinjaSnippet(for: tu, to: &stream)
+      outputs.append(contentsOf: out)
       stream.write("\n\n")
     }
+    stream.write("""
+      build \(target.name): phony \(escapePath(path: outputs.joined(separator: " ")))
+
+
+      """)
   }
 
-  public func writeNinjaSnippet<Output: TextOutputStream>(for module: TibsResolvedTarget.SwiftModule, to stream: inout Output) {
+  /// - Returns: the list of outputs.
+  public func writeNinjaSnippet<Output: TextOutputStream>(for module: TibsResolvedTarget.SwiftModule, to stream: inout Output) -> [String] {
     // FIXME: the generated -Swift.h header should be considered an output, but ninja does not
     // support multiple outputs when using gcc-style .d files.
     let outputs = [module.emitModulePath, /*module.emitHeaderPath*/]
@@ -340,9 +367,12 @@ extension TibsBuilder {
         OUTPUT_FILE_MAP = \(module.outputFileMapPath)
         SDK = \(module.sdk.map { "-sdk \($0)" } ?? "")
       """)
+
+    return outputs
   }
 
-  public func writeNinjaSnippet<Output: TextOutputStream>(for tu: TibsResolvedTarget.ClangTU, to stream: inout Output) {
+  /// - Returns: the list of outputs.
+  public func writeNinjaSnippet<Output: TextOutputStream>(for tu: TibsResolvedTarget.ClangTU, to stream: inout Output) -> [String] {
 
     stream.write("""
       build \(escapePath(path: tu.outputPath)): \
@@ -351,6 +381,8 @@ extension TibsBuilder {
         OUTPUT_NAME = \(tu.outputPath)
         EXTRA_ARGS = \(tu.extraArgs.joined(separator: " "))
       """)
+
+    return [tu.outputPath]
   }
 }
 

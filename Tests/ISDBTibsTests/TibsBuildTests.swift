@@ -84,6 +84,22 @@ final class TibsBuildTests: XCTestCase {
     try "import B\nfunc test() { let _: Int = bbb() }".write(to: cswift, atomically: false, encoding: .utf8)
     XCTAssertEqual(try builder._buildTest(), ["Swift Module C"])
     XCTAssertEqual(try builder._buildTest(), [])
+
+    builder.toolchain.sleepForTimestamp()
+    try "public func bbb() -> Int { 0 }\npublic func otherB() {}".write(to: bswift, atomically: false, encoding: .utf8)
+    XCTAssertEqual(try builder._buildTest(targets: ["B"]), ["Swift Module B"])
+    XCTAssertEqual(try builder._buildTest(targets: ["B"]), [])
+    XCTAssertEqual(try builder._buildTest(targets: ["A"]), [])
+    XCTAssertEqual(try builder._buildTest(targets: ["C"]), ["Swift Module C"])
+    XCTAssertEqual(try builder._buildTest(targets: ["C"]), [])
+
+    builder.toolchain.sleepForTimestamp()
+    try "public func newB() {}".write(to: bswift, atomically: false, encoding: .utf8)
+    try "syntax/error".write(to: cswift, atomically: false, encoding: .utf8)
+    XCTAssertEqual(try builder._buildTest(dependenciesOfTargets: ["C"]), ["Swift Module B"])
+    XCTAssertEqual(try builder._buildTest(dependenciesOfTargets: ["C"]), [])
+    XCTAssertEqual(try builder._buildTest(dependenciesOfTargets: []), [])
+    XCTAssertThrowsError(try builder.build())
   }
 
   func testBuildMixedLang() throws {
