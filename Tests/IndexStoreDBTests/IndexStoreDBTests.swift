@@ -111,7 +111,7 @@ final class IndexStoreDBTests: XCTestCase {
     for _ in 0..<iterations {
       DispatchQueue.concurrentPerform(iterations: 2) { idx in
         let dbPath = idx == 0 ? symlinkDBPath1 : symlinkDBPath2
-        let idxDB = try! IndexStoreDB(storePath: indexStorePath, databasePath: dbPath, library: libIndexStore, waitUntilDoneInitializing: true)
+        _ = try! IndexStoreDB(storePath: indexStorePath, databasePath: dbPath, library: libIndexStore, waitUntilDoneInitializing: true)
       }
     }
   }
