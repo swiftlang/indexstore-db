@@ -64,6 +64,9 @@ public:
   bool foreachRelatedSymbolOccurrenceByUSR(StringRef USR, SymbolRoleSet RoleSet,
                         function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 
+  bool foreachSymbolInFilePath(CanonicalFilePathRef filePath,
+                               function_ref<bool(SymbolRef Occur)> Receiver);
+
   bool foreachCanonicalSymbolOccurrenceContainingPattern(StringRef Pattern,
                                                 bool AnchorStart,
                                                 bool AnchorEnd,

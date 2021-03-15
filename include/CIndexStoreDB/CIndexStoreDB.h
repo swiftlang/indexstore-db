@@ -128,6 +128,9 @@ typedef void *indexstoredb_delegate_event_t;
 typedef _Nullable indexstoredb_indexstore_library_t(^indexstore_library_provider_t)(const char * _Nonnull);
 
 /// Returns true to continue.
+typedef bool(^indexstoredb_symbol_receiver_t)(_Nonnull indexstoredb_symbol_t);
+
+/// Returns true to continue.
 typedef bool(^indexstoredb_symbol_occurrence_receiver_t)(_Nonnull indexstoredb_symbol_occurrence_t);
 
 /// Returns true to continue.
@@ -220,6 +223,15 @@ indexstoredb_index_related_symbol_occurrences_by_usr(
     const char *_Nonnull usr,
     uint64_t roles,
     _Nonnull indexstoredb_symbol_occurrence_receiver_t);
+
+/// Iterates over all the symbols contained in \p path
+/// 
+/// The symbol passed to the receiver is only valid for the duration of the
+/// receiver call.
+INDEXSTOREDB_PUBLIC bool
+indexstoredb_index_symbols_contained_in_file_path(_Nonnull indexstoredb_index_t index,
+                                                  const char *_Nonnull path,
+                                                  _Nonnull indexstoredb_symbol_receiver_t);
 
 /// Returns the USR of the given symbol.
 ///

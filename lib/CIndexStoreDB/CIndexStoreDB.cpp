@@ -189,6 +189,16 @@ indexstoredb_index_related_symbol_occurrences_by_usr(
     });
 }
 
+bool
+indexstoredb_index_symbols_contained_in_file_path(_Nonnull indexstoredb_index_t index,
+                                                   const char *_Nonnull path,
+                                                   _Nonnull indexstoredb_symbol_receiver_t receiver) {
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachSymbolInFilePath(path, [&](SymbolRef Symbol) -> bool {
+    return receiver((indexstoredb_symbol_receiver_t)Symbol.get());
+  });
+}
+
 const char *
 indexstoredb_symbol_usr(indexstoredb_symbol_t symbol) {
   auto value = (Symbol *)symbol;

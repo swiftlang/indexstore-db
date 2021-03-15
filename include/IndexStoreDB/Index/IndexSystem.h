@@ -25,9 +25,14 @@
 namespace IndexStoreDB {
   class CanonicalFilePathRef;
   class SymbolOccurrence;
+  class Symbol;
+
   enum class SymbolRole : uint64_t;
   enum class SymbolKind : uint8_t;
+
   typedef std::shared_ptr<SymbolOccurrence> SymbolOccurrenceRef;
+  typedef std::shared_ptr<Symbol> SymbolRef;
+
   typedef llvm::OptionSet<SymbolRole> SymbolRoleSet;
 
 namespace index {
@@ -89,6 +94,9 @@ public:
   //===--------------------------------------------------------------------===//
   // Queries
   //===--------------------------------------------------------------------===//
+
+  bool foreachSymbolInFilePath(StringRef FilePath,
+                               function_ref<bool(SymbolRef Symbol)> Receiver);
 
   bool foreachSymbolOccurrenceByUSR(StringRef USR, SymbolRoleSet RoleSet,
                         function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);

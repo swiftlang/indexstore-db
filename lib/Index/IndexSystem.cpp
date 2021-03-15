@@ -161,7 +161,10 @@ public:
 
   void addDelegate(std::shared_ptr<IndexSystemDelegate> Delegate);
 
-  bool foreachSymbolOccurrenceByUSR(StringRef USR, SymbolRoleSet RoleSet,
+    bool foreachSymbolInFilePath(StringRef filePath,
+                                 function_ref<bool(const SymbolRef &symbol)> receiver);
+    
+    bool foreachSymbolOccurrenceByUSR(StringRef USR, SymbolRoleSet RoleSet,
                         function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 
   bool foreachCanonicalSymbolOccurrenceContainingPattern(StringRef Pattern,
@@ -553,9 +556,15 @@ bool IndexSystemImpl::isKnownFile(StringRef filePath) {
 }
 
 bool IndexSystemImpl::foreachMainUnitContainingFile(StringRef filePath,
-                                                function_ref<bool(const StoreUnitInfo &unitInfo)> receiver) {
-  auto canonPath = PathIndex->getCanonicalPath(filePath);
-  return PathIndex->foreachMainUnitContainingFile(canonPath, std::move(receiver));
+                                                    function_ref<bool(const StoreUnitInfo &unitInfo)> receiver) {
+    auto canonPath = PathIndex->getCanonicalPath(filePath);
+    return PathIndex->foreachMainUnitContainingFile(canonPath, std::move(receiver));
+}
+
+bool IndexSystemImpl::foreachSymbolInFilePath(StringRef filePath,
+                                              function_ref<bool(const SymbolRef &symbol)> receiver) {
+    auto canonPath = PathIndex->getCanonicalPath(filePath);
+    return SymIndex->foreachSymbolInFilePath(canonPath, std::move(receiver));
 }
 
 bool IndexSystemImpl::foreachFileOfUnit(StringRef unitName,
@@ -755,6 +764,11 @@ size_t IndexSystem::countOfCanonicalSymbolsWithKind(SymbolKind symKind, bool wor
 bool IndexSystem::foreachCanonicalSymbolOccurrenceByKind(SymbolKind symKind, bool workspaceOnly,
                                                          function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
   return IMPL->foreachCanonicalSymbolOccurrenceByKind(symKind, workspaceOnly, std::move(Receiver));
+}
+
+bool IndexSystem::foreachSymbolInFilePath(StringRef FilePath,
+                                          function_ref<bool(SymbolRef Symbol)> Receiver) {
+    return IMPL->foreachSymbolInFilePath(FilePath, std::move(Receiver));
 }
 
 bool IndexSystem::isKnownFile(StringRef filePath) {

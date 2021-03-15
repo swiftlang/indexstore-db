@@ -12,6 +12,7 @@
 
 #include "IndexStoreDB/Core/Symbol.h"
 #include "IndexStoreDB/Index/SymbolIndex.h"
+#include "IndexStoreDB/Index/StoreUnitInfo.h"
 #include "IndexStoreDB/Index/SymbolDataProvider.h"
 #include "StoreSymbolRecord.h"
 #include "IndexStoreDB/Database/Database.h"
@@ -71,6 +72,10 @@ public:
                               function_ref<bool(SymbolOccurrenceRef)> Receiver);
   bool foreachCanonicalSymbolOccurrenceByName(StringRef name,
                         function_ref<bool(SymbolOccurrenceRef Occur)> receiver);
+
+  bool foreachSymbolInFilePath(CanonicalFilePathRef filePath,
+                               function_ref<bool(SymbolRef Symbol)> Receiver);
+
   bool foreachSymbolName(function_ref<bool(StringRef name)> receiver);
 
   bool foreachCanonicalSymbolOccurrenceByUSR(StringRef USR,
@@ -431,6 +436,44 @@ size_t SymbolIndexImpl::countOfCanonicalSymbolsWithKind(SymbolKind symKind, bool
   return totalCount;
 }
 
+bool SymbolIndexImpl::foreachSymbolInFilePath(CanonicalFilePathRef filePath,
+                                              function_ref<bool(SymbolRef Symbol)> Receiver) {
+    bool didFinish = true;
+    ReadTransaction reader(DBase);
+
+    IDCode filePathCode = reader.getFilePathCode(filePath);
+    reader.foreachUnitContainingFile(filePathCode, [&](ArrayRef<IDCode> idCodes) -> bool {
+        for (IDCode idCode : idCodes) {
+            UnitInfo unitInfo = reader.getUnitInfo(idCode);
+
+            for (UnitInfo::Provider provider : unitInfo.ProviderDepends) {
+                IDCode providerCode = provider.ProviderCode;
+                if (provider.FileCode == filePathCode) {
+                    auto record = createVisibleProviderForCode(providerCode, reader);
+                    didFinish = record->foreachCoreSymbolData([&](StringRef usr,
+                                                                  StringRef name,
+                                                                  SymbolInfo info,
+                                                                  SymbolRoleSet roles,
+                                                                  SymbolRoleSet relatedRoles) -> bool {
+                      
+                      if (roles.containsAny(SymbolRoleSet(SymbolRole::Definition) | SymbolRole::Declaration)) {
+                        return Receiver(std::make_shared<Symbol>(info, name, usr));
+                      } else {
+                        return true;
+                      }
+                    });
+
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    });
+
+    return didFinish;
+}
+
 bool SymbolIndexImpl::foreachCanonicalSymbolOccurrenceByKind(SymbolKind symKind, bool workspaceOnly,
                                                              function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
   return foreachCanonicalSymbolOccurrenceImpl(workspaceOnly,
@@ -583,6 +626,11 @@ size_t SymbolIndex::countOfCanonicalSymbolsWithKind(SymbolKind symKind, bool wor
 bool SymbolIndex::foreachCanonicalSymbolOccurrenceByKind(SymbolKind symKind, bool workspaceOnly,
                                                          function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
   return IMPL->foreachCanonicalSymbolOccurrenceByKind(symKind, workspaceOnly, std::move(Receiver));
+}
+
+bool SymbolIndex::foreachSymbolInFilePath(CanonicalFilePathRef filePath,
+                                          function_ref<bool(SymbolRef Occur)> Receiver) {
+  return IMPL->foreachSymbolInFilePath(filePath, std::move(Receiver));
 }
 
 bool SymbolIndex::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,
