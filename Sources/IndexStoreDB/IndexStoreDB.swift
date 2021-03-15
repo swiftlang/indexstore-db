@@ -329,6 +329,22 @@ public final class IndexStoreDB {
     }
     return result
   }
+
+  public func symbols(inFilePath path: String) -> [Symbol] {
+    var result: [Symbol] = []
+    forEachSymbol(inFilePath: path) { sym in
+      result.append(sym)
+      return true
+    }
+    return result
+  }
+
+  @discardableResult
+  func forEachSymbol(inFilePath filePath: String, body: @escaping (Symbol) -> Bool) -> Bool {
+    return indexstoredb_index_symbols_contained_in_file_path(impl, filePath) { symbol in
+      return body(Symbol(symbol))
+    }
+  }
 }
 
 public protocol IndexStoreLibraryProvider {

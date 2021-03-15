@@ -361,4 +361,55 @@ final class IndexTests: XCTestCase {
       bhdecl.with(name: "bridgingHeader()").at(ws.testLoc("bridgingHeader:call"), roles: .call),
     ])
   }
+
+  func testSymbolsInFileC() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "CProject") else { return }
+    try ws.buildAndIndex()
+
+    let inputs = [
+      (
+        path: ws.testLoc("a_function:def").url.path,
+        expectedSymbolNames: ["a_function"]
+      ),
+      (
+        path: ws.testLoc("a_function:decl").url.path,
+        expectedSymbolNames: ["a_function"]
+      ),
+      (
+        path: ws.testLoc("some_other_function:def").url.path,
+        expectedSymbolNames: ["some_other_function"]
+      ),
+    ]
+
+    testSymbolsInFilePath(with: inputs, usingIndex: ws.index)
+  }
+
+  func testSymbolsInFileSwift() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "SwiftModules") else { return }
+    try ws.buildAndIndex()
+
+    let inputs = [
+      (
+        path: ws.testLoc("aaa:def").url.path,
+        expectedSymbolNames: ["aaa()"]
+      ),
+      (
+        path: ws.testLoc("bbb:def").url.path,
+        expectedSymbolNames: ["bbb()"]
+      ),
+      (
+        path: ws.testLoc("DDD:testMethod:def").url.path,
+        expectedSymbolNames: ["DDD", "ccc()", "testMethod()", "init()"]
+      ),
+    ]
+
+    testSymbolsInFilePath(with: inputs, usingIndex: ws.index)
+  }
+
+  func testSymbolsInFilePath(with inputs: [(path: String, expectedSymbolNames: [String])], usingIndex subject: IndexStoreDB) {
+    for (path, expectedSymbolNames) in inputs {
+      let actualSymbolNames = subject.symbols(inFilePath: path).map(\.name)
+      XCTAssertEqual(actualSymbolNames.sorted(), expectedSymbolNames.sorted())
+    }
+  }
 }
