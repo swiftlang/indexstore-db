@@ -54,6 +54,9 @@ let package = Package(
       dependencies: ["IndexStoreDB", "ISDBTibs", "tibs"],
       resources: [
         .copy("INPUTS")
+      ],
+      linkerSettings: [
+        .linkedFramework("XCTest", .when(platforms: [.iOS, .macOS, .tvOS, .watchOS]))
       ]),
 
     // MARK: C++ interface
