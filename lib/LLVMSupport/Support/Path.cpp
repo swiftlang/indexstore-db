@@ -944,11 +944,13 @@ static std::error_code copy_file_internal(int ReadFD, int WriteFD) {
     BytesRead = read(ReadFD, Buf, BufSize);
     if (BytesRead <= 0)
       break;
+    char *BPtr = Buf;
     while (BytesRead) {
-      BytesWritten = write(WriteFD, Buf, BytesRead);
+      BytesWritten = write(WriteFD, BPtr, BytesRead);
       if (BytesWritten < 0)
         break;
       BytesRead -= BytesWritten;
+      BPtr += BytesWritten;
     }
     if (BytesWritten < 0)
       break;
