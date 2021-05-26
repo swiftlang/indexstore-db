@@ -28,7 +28,7 @@
 #endif
 
 #if defined(_WIN32)
-typedef HANDLE indexstorePid_t;
+typedef DWORD indexstorePid_t;
 #else
 typedef pid_t indexstorePid_t;
 #endif
@@ -116,7 +116,7 @@ Database::Implementation::create(StringRef path, bool readonly, Optional<size_t>
   llvm::sys::path::append(savedPathBuf, "saved");
   SmallString<128> prefixPathBuf = versionPath;
 #if defined(WIN32)
-  llvm::raw_svector_ostream(prefixPathBuf) << "/p" << GetCurrentProcess();
+  llvm::raw_svector_ostream(prefixPathBuf) << "/p" << GetCurrentProcessId();
 #else
   llvm::raw_svector_ostream(prefixPathBuf) << "/p" << getpid();
 #endif
@@ -298,8 +298,13 @@ void Database::Implementation::increaseMapSize() {
 
 static bool isProcessStillExecuting(indexstorePid_t PID) {
 #if defined(_WIN32)
+  HANDLE hProcess;
+  hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, PID);
+  if (hProcess == NULL)
+    return false;
+
   DWORD dwExitCode;
-  bool result = GetExitCodeProcess(PID, &dwExitCode);
+  bool result = GetExitCodeProcess(hProcess, &dwExitCode);
   return result && (dwExitCode == STILL_ACTIVE);
 #else
   if (getsid(PID) == -1 && errno == ESRCH)
@@ -317,7 +322,7 @@ static void cleanupDiscardedDBsImpl(StringRef versionedPath) {
   // has the name "p<PID>-*" where process PID is no longer running.
 
 #if defined(WIN32)
-  indexstorePid_t currPID = GetCurrentProcess();
+  indexstorePid_t currPID = GetCurrentProcessId();
 #else
   indexstorePid_t currPID = getpid();
 #endif
