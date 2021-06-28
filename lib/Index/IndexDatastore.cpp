@@ -395,9 +395,10 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
         break;
       } catch (db::MapFullError err) {
         // If we hit the map size limit try again but only for a limited number of times.
-        if (tries > 4) {
-          // If it still fails after doubling the map size 4 times then something is going
-          // wrong so give up.
+        if (tries > 6) {
+          // If it still fails after doubling the map size 6 times then something is going
+          // wrong so give up. The value 6 was obtained by taking the largest known single
+          // unit, which required 5 doublings, and adding 1 for margin of error.
           LOG_WARN("guardForMapFullError", "Still MDB_MAP_FULL error after increasing map size, tries: " << tries);
           throw;
         }
