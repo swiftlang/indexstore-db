@@ -15,7 +15,7 @@ import Foundation
 extension Process {
 
   enum TibsProcessError: Error {
-    case nonZeroExit(TerminationReason, Int32)
+    case nonZeroExit(TerminationReason, Int32, stdout: String?, stderr: String?)
     case invalidUTF8Output(Data)
   }
 
@@ -26,6 +26,7 @@ extension Process {
   ) throws -> String {
     let p = Process()
     let out = Pipe()
+    let err = Pipe()
 
     if #available(macOS 10.13, *) {
       p.executableURL = URL(fileURLWithPath: arguments[0], isDirectory: false)
@@ -38,6 +39,7 @@ extension Process {
       p.environment = environment
     }
     p.standardOutput = out
+    p.standardError = err
 
     if #available(macOS 10.13, *) {
       try p.run()
@@ -45,15 +47,19 @@ extension Process {
       p.launch()
     }
 
-    let data = out.fileHandleForReading.readDataToEndOfFile()
+    let dataOut = out.fileHandleForReading.readDataToEndOfFile()
+    let dataErr = err.fileHandleForReading.readDataToEndOfFile()
     p.waitUntilExit()
 
     if p.terminationReason != .exit || p.terminationStatus != 0 {
-      throw TibsProcessError.nonZeroExit(p.terminationReason, p.terminationStatus)
+      throw TibsProcessError.nonZeroExit(
+        p.terminationReason, p.terminationStatus,
+        stdout: String(data: dataOut, encoding: .utf8),
+        stderr: String(data: dataErr, encoding: .utf8))
     }
 
-    guard let str = String(data: data, encoding: .utf8) else {
-      throw TibsProcessError.invalidUTF8Output(data)
+    guard let str = String(data: dataOut, encoding: .utf8) else {
+      throw TibsProcessError.invalidUTF8Output(dataOut)
     }
     return str
   }
