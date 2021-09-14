@@ -30,7 +30,7 @@ public final class TibsBuilder {
   public enum Error: Swift.Error {
     case duplicateTarget(String)
     case unknownDependency(String, declaredIn: String)
-    case buildFailure(Process.TerminationReason, exitCode: Int32)
+    case buildFailure(Process.TerminationReason, exitCode: Int32, stdout: String?, stderr: String?)
     case noNinjaBinaryConfigured
   }
 
@@ -162,8 +162,8 @@ extension TibsBuilder {
 
     do {
       return try Process.tibs_checkNonZeroExit(arguments: [ninja, "-C", buildRoot.path] + targets)
-    } catch Process.TibsProcessError.nonZeroExit(let reason, let code) {
-      throw Error.buildFailure(reason, exitCode: code)
+    } catch Process.TibsProcessError.nonZeroExit(let reason, let code, let stdout, let stderr) {
+      throw Error.buildFailure(reason, exitCode: code, stdout: stdout, stderr: stderr)
     }
   }
 }
