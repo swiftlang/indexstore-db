@@ -59,6 +59,7 @@ public final class TibsBuilder {
         for source in swiftSources {
           let basename = source.lastPathComponent
           outputFileMap[source.path] = OutputFileMap.Entry(
+            object: "\(name)-\(basename).o",
             swiftmodule: "\(name)-\(basename).swiftmodule~partial",
             swiftdoc: "\(name)-\(basename).swiftdoc~partial",
             dependencies: "\(name)-\(basename).d")
@@ -188,7 +189,8 @@ extension TibsBuilder {
           "-emit-module-path", module.emitModulePath,
           "-emit-dependencies",
           "-pch-output-dir", "pch",
-          "-module-cache-path", "ModuleCache"
+          "-module-cache-path", "ModuleCache",
+          "-c",
         ]
         args += module.emitHeaderPath.map { [
           "-emit-objc-header",
@@ -289,15 +291,18 @@ extension TibsBuilder {
 #else
     let callCmd = ""
 #endif
+    // FIXME: rdar://83355591 avoid -c, since we don't want to spend time writing .o files.
     let swiftIndexCommand = callCmd + """
       \(escapeCommand([toolchain.swiftc.path])) $in $IMPORT_PATHS -module-name $MODULE_NAME \
        -index-store-path index -index-ignore-system-modules \
        -output-file-map $OUTPUT_FILE_MAP \
       -emit-module -emit-module-path $MODULE_PATH -emit-dependencies \
       -pch-output-dir pch -module-cache-path ModuleCache \
+      -c \
       $EMIT_HEADER $BRIDGING_HEADER $SDK $EXTRA_ARGS \
       && \(toolchain.tibs.path) swift-deps-merge $out $DEP_FILES > $out.d
       """
+
     let ccIndexCommand = callCmd + """
       \(escapeCommand([toolchain.clang.path])) -fsyntax-only $in $IMPORT_PATHS -index-store-path index \
       -index-ignore-system-symbols -fmodules -fmodules-cache-path=ModuleCache \

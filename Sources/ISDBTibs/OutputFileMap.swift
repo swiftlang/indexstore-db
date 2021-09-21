@@ -18,11 +18,13 @@ public struct OutputFileMap {
 
   /// A single entry in the OutputFileMap.
   public struct Entry: Hashable, Codable {
+    public var object: String?
     public var swiftmodule: String?
     public var swiftdoc: String?
     public var dependencies: String?
 
-    public init(swiftmodule: String? = nil, swiftdoc: String? = nil, dependencies: String? = nil) {
+    public init(object: String? = nil, swiftmodule: String? = nil, swiftdoc: String? = nil, dependencies: String? = nil) {
+      self.object = object
       self.swiftmodule = swiftmodule
       self.swiftdoc = swiftdoc
       self.dependencies = dependencies
