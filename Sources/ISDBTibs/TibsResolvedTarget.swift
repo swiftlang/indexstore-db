@@ -34,7 +34,7 @@ public final class TibsResolvedTarget {
     public var sdk: String?
 
     public var indexOutputPaths: [String] {
-      return outputFileMap.values.compactMap{ $0.swiftmodule }
+      return outputFileMap.values.compactMap{ $0.object ?? $0.swiftmodule }
     }
 
     public init(

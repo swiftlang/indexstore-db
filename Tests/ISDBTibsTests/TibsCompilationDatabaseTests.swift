@@ -45,7 +45,8 @@ final class TibsCompilationDatabaseTests: XCTestCase {
           "-emit-module", "-emit-module-path", "A.swiftmodule",
           "-emit-dependencies",
           "-pch-output-dir", "pch",
-          "-module-cache-path", "ModuleCache"
+          "-module-cache-path", "ModuleCache",
+          "-c",
         ] + sdkargs + [
           "-working-directory", "/build"
         ]),
@@ -61,7 +62,8 @@ final class TibsCompilationDatabaseTests: XCTestCase {
           "-emit-module", "-emit-module-path", "B.swiftmodule",
           "-emit-dependencies",
           "-pch-output-dir", "pch",
-          "-module-cache-path", "ModuleCache"
+          "-module-cache-path", "ModuleCache",
+          "-c",
         ] + sdkargs + [
           "-working-directory", "/build"
         ]),
@@ -76,7 +78,8 @@ final class TibsCompilationDatabaseTests: XCTestCase {
           "-emit-module", "-emit-module-path", "C.swiftmodule",
           "-emit-dependencies",
           "-pch-output-dir", "pch",
-          "-module-cache-path", "ModuleCache"
+          "-module-cache-path", "ModuleCache",
+          "-c",
         ] + sdkargs + [
           "-working-directory", "/build"
         ]),
@@ -104,6 +107,7 @@ final class TibsCompilationDatabaseTests: XCTestCase {
       "main.swiftmodule", "-emit-dependencies",
       "-pch-output-dir", "pch",
       "-module-cache-path", "ModuleCache",
+      "-c",
       "-emit-objc-header", "-emit-objc-header-path", "main-Swift.h",
       "-import-objc-header", "/src/bridging-header.h",
     ] + sdkargs + [
