@@ -49,11 +49,13 @@ public struct Symbol: Equatable {
   public var usr: String
   public var name: String
   public var kind: IndexSymbolKind
+  public var properties: SymbolProperty
 
-  public init(usr: String, name: String, kind: IndexSymbolKind) {
+  public init(usr: String, name: String, kind: IndexSymbolKind, properties: SymbolProperty = SymbolProperty()) {
     self.usr = usr
     self.name = name
     self.kind = kind
+    self.properties = properties
   }
 }
 
@@ -65,19 +67,23 @@ extension Symbol: Comparable {
 
 extension Symbol: CustomStringConvertible {
   public var description: String {
-    "\(name) | \(kind) | \(usr)"
+    if properties.isEmpty {
+      return "\(name) | \(kind) | \(usr)"
+    }
+    return "\(name) | \(kind) (\(properties)) | \(usr)"
   }
 }
 
 extension Symbol {
 
-  /// Returns a copy of the symbol with the new name, usr, and/or kind.
+  /// Returns a copy of the symbol with the new name, usr, kind, and/or properties.
   public func with(
     name: String? = nil,
     usr: String? = nil,
-    kind: IndexSymbolKind? = nil) -> Symbol
+    kind: IndexSymbolKind? = nil,
+    properties: SymbolProperty? = nil) -> Symbol
   {
-    return Symbol(usr: usr ?? self.usr, name: name ?? self.name, kind: kind ?? self.kind)
+    return Symbol(usr: usr ?? self.usr, name: name ?? self.name, kind: kind ?? self.kind, properties: properties ?? self.properties)
   }
 
   /// Returns a SymbolOccurrence with the given location and roles.
@@ -95,7 +101,8 @@ extension Symbol {
     self.init(
       usr: String(cString: indexstoredb_symbol_usr(value)),
       name: String(cString: indexstoredb_symbol_name(value)),
-      kind: IndexSymbolKind(indexstoredb_symbol_kind(value)))
+      kind: IndexSymbolKind(indexstoredb_symbol_kind(value)),
+      properties: SymbolProperty(rawValue: indexstoredb_symbol_properties(value)))
   }
 }
 

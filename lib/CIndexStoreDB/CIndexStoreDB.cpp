@@ -217,6 +217,12 @@ indexstoredb_symbol_kind(indexstoredb_symbol_t symbol) {
   return toCSymbolKind(value->getSymbolKind());
 }
 
+uint64_t
+indexstoredb_symbol_properties(indexstoredb_symbol_t symbol) {
+  auto value = (Symbol *)symbol;
+  return value->getSymbolProperties().toRaw();
+}
+
 bool
 indexstoredb_index_symbol_names(indexstoredb_index_t index, indexstoredb_symbol_name_receiver receiver) {
   auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;

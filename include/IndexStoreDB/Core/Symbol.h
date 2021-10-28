@@ -109,7 +109,7 @@ enum class SymbolSubKind : uint8_t {
 };
 
 /// Set of properties that provide additional info about a symbol.
-enum class SymbolProperty : uint8_t {
+enum class SymbolProperty : uint32_t {
   Generic                       = 1 << 0,
   TemplatePartialSpecialization = 1 << 1,
   TemplateSpecialization        = 1 << 2,
@@ -118,8 +118,9 @@ enum class SymbolProperty : uint8_t {
   IBOutletCollection            = 1 << 5,
   GKInspectable                 = 1 << 6,
   Local                         = 1 << 7,
+  ProtocolInterface             = 1 << 8,
+  SwiftAsync                    = 1 << 16,
 };
-static const unsigned SymbolPropertyBitNum = 8;
 typedef llvm::OptionSet<SymbolProperty> SymbolPropertySet;
 
 /// Set of roles that are attributed to symbol occurrences.

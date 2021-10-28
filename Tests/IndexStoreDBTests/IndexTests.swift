@@ -412,4 +412,35 @@ final class IndexTests: XCTestCase {
       XCTAssertEqual(actualSymbolNames.sorted(), expectedSymbolNames.sorted())
     }
   }
+
+  func testProperties() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "Properties") else { return }
+    let index = ws.index
+
+    try ws.buildAndIndex()
+
+    let asyncFuncSym = Symbol(usr: "s:4main9asyncFuncyyYaF", name: "asyncFunc()", kind: .function, properties: .swiftAsync)
+    let asyncFuncOccs = index.occurrences(ofUSR: asyncFuncSym.usr, roles: .definition)
+    checkOccurrences(asyncFuncOccs, expected: [
+      asyncFuncSym.at(ws.testLoc("asyncFunc:def"), roles: .definition)
+    ])
+
+    let asyncMethSym = Symbol(usr: "s:4main8MyStructV11asyncMethodyyYaF", name: "asyncMethod()", kind: .instanceMethod, properties: .swiftAsync)
+    let asyncMethOccs = index.occurrences(ofUSR: asyncMethSym.usr, roles: .definition)
+    checkOccurrences(asyncMethOccs, expected: [
+      asyncMethSym.at(ws.testLoc("asyncMethod:def"), roles: .definition)
+    ])
+
+    let testMeSym = Symbol(usr: "s:4main10MyTestCaseC6testMeyyF", name: "testMe()", kind: .instanceMethod, properties: .unitTest)
+    let testMeOccs = index.occurrences(ofUSR: testMeSym.usr, roles: .definition)
+    checkOccurrences(testMeOccs, expected: [
+      testMeSym.at(ws.testLoc("testMe:def"), roles: .definition)
+    ])
+
+    let testMeAsyncSym = Symbol(usr: "s:4main10MyTestCaseC11testMeAsyncyyYaF", name: "testMeAsync()", kind: .instanceMethod, properties: [.unitTest, .swiftAsync])
+    let testMeAsyncOccs = index.occurrences(ofUSR: testMeAsyncSym.usr, roles: .definition)
+    checkOccurrences(testMeAsyncOccs, expected: [
+      testMeAsyncSym.at(ws.testLoc("testMeAsync:def"), roles: .definition)
+    ])
+  }
 }

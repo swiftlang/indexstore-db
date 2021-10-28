@@ -118,6 +118,19 @@ typedef enum {
 } indexstoredb_symbol_kind_t;
 
 typedef enum {
+  INDEXSTOREDB_SYMBOL_PROPERTY_GENERIC                          = 1 << 0,
+  INDEXSTOREDB_SYMBOL_PROPERTY_TEMPLATE_PARTIAL_SPECIALIZATION  = 1 << 1,
+  INDEXSTOREDB_SYMBOL_PROPERTY_TEMPLATE_SPECIALIZATION          = 1 << 2,
+  INDEXSTOREDB_SYMBOL_PROPERTY_UNITTEST                         = 1 << 3,
+  INDEXSTOREDB_SYMBOL_PROPERTY_IBANNOTATED                      = 1 << 4,
+  INDEXSTOREDB_SYMBOL_PROPERTY_IBOUTLETCOLLECTION               = 1 << 5,
+  INDEXSTOREDB_SYMBOL_PROPERTY_GKINSPECTABLE                    = 1 << 6,
+  INDEXSTOREDB_SYMBOL_PROPERTY_LOCAL                            = 1 << 7,
+  INDEXSTOREDB_SYMBOL_PROPERTY_PROTOCOL_INTERFACE               = 1 << 8,
+  INDEXSTOREDB_SYMBOL_PROPERTY_SWIFT_ASYNC                      = 1 << 16,
+} indexstoredb_symbol_property_t;
+
+typedef enum {
   INDEXSTOREDB_EVENT_PROCESSING_ADDED_PENDING = 0,
   INDEXSTOREDB_EVENT_PROCESSING_COMPLETED = 1,
 } indexstoredb_delegate_event_kind_t;
@@ -246,6 +259,10 @@ indexstoredb_symbol_usr(_Nonnull indexstoredb_symbol_t);
 INDEXSTOREDB_PUBLIC
 const char * _Nonnull
 indexstoredb_symbol_name(_Nonnull indexstoredb_symbol_t);
+
+/// Returns the properties of the given symbol.
+INDEXSTOREDB_PUBLIC uint64_t
+indexstoredb_symbol_properties(_Nonnull indexstoredb_symbol_t);
 
 /// Returns the symbol of the given symbol occurrence.
 ///
