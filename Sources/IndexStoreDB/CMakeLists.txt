@@ -11,6 +11,7 @@ add_library(IndexStoreDB
   IndexStoreDBError.swift
   SymbolLocation.swift
   SymbolOccurrence.swift
+  SymbolProperty.swift
   SymbolRole.swift
   Symbol.swift)
 set_target_properties(IndexStoreDB PROPERTIES
