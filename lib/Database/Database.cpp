@@ -173,16 +173,8 @@ retry:
     db->DBEnv = lmdb::env::create();
     db->DBEnv.set_max_dbs(14);
 
-    uint64_t dbFileSize = 0;
-    if (existingDB) {
-      if (std::error_code ec = llvm::sys::fs::file_size(dbPath + "/data.mdb", dbFileSize)) {
-        LOG_WARN_FUNC("failed reading database file size " << dbPath << "/data.mdb: " << ec.message());
-      }
-    }
-    // Start with 64MB.
-    uint64_t initialSize = initialDBSize.getValueOr(64ULL*1024ULL*1024ULL);
-
-    db->MapSize = std::max(dbFileSize, initialSize);
+    // Start with 64MB. We'll update with the actual size after we open the database.
+    db->MapSize = initialDBSize.getValueOr(64ULL*1024ULL*1024ULL);
     db->DBEnv.set_mapsize(db->MapSize);
 
     unsigned openflags = MDB_NOMEMINIT|MDB_WRITEMAP|MDB_NOSYNC;
@@ -190,6 +182,11 @@ retry:
       openflags |= MDB_RDONLY;
     db->DBEnv.open(dbPath, openflags);
     db->MaxKeySize = lmdb::env_get_max_keysize(db->DBEnv);
+
+    // Get actual map size of the database.
+    MDB_envinfo envInfo;
+    lmdb::env_info(db->DBEnv, &envInfo);
+    db->MapSize = envInfo.me_mapsize;
 
     unsigned txnflags = lmdb::txn::default_flags;
     if (readonly)
