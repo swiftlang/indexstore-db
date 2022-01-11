@@ -53,7 +53,7 @@ public struct Makefile {
   }
 
   public init?(path: URL) {
-    guard let contents = try? String(contentsOf: path) else {
+    guard let contents = try? String(contentsOf: path, encoding: .utf8) else {
       return nil
     }
     self.init(contents: contents)
