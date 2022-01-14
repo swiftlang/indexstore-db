@@ -57,6 +57,11 @@ public:
 struct DelegateEvent {
   indexstoredb_delegate_event_kind_t kind;
   uint64_t count;
+  StoreUnitInfo *outOfDateUnitInfo = nullptr;
+  uint64_t outOfDateModTime = 0;
+  std::string outOfDateTriggerFile;
+  std::string outOfDateTriggerDescription;
+  bool outOfDateIsSynchronous = false;
 };
 
 class BlockIndexSystemDelegate: public IndexSystemDelegate {
@@ -65,12 +70,26 @@ public:
   BlockIndexSystemDelegate(indexstoredb_delegate_event_receiver_t callback) : callback(Block_copy(callback)) {}
   ~BlockIndexSystemDelegate() { Block_release(callback); }
 
-  virtual void processingAddedPending(unsigned NumActions) {
+  void processingAddedPending(unsigned NumActions) override {
     DelegateEvent event{INDEXSTOREDB_EVENT_PROCESSING_ADDED_PENDING, NumActions};
     callback(&event);
   }
-  virtual void processingCompleted(unsigned NumActions) {
+  void processingCompleted(unsigned NumActions) override {
     DelegateEvent event{INDEXSTOREDB_EVENT_PROCESSING_COMPLETED, NumActions};
+    callback(&event);
+  }
+
+  void unitIsOutOfDate(StoreUnitInfo unitInfo,
+                       llvm::sys::TimePoint<> outOfDateModTime,
+                       OutOfDateTriggerHintRef hint,
+                       bool synchronous) override {
+    DelegateEvent event{INDEXSTOREDB_EVENT_UNIT_OUT_OF_DATE, 0,
+      &unitInfo,
+      (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(outOfDateModTime.time_since_epoch()).count(),
+      hint->originalFileTrigger(),
+      hint->description(),
+      synchronous
+    };
     callback(&event);
   }
 };
@@ -82,20 +101,17 @@ indexstoredb_index_create(const char *storePath, const char *databasePath,
                           indexstore_library_provider_t libProvider,
                           indexstoredb_delegate_event_receiver_t delegateCallback,
                           bool useExplicitOutputUnits, bool wait, bool readonly,
-                          bool listenToUnitEvents,
+                          bool enableOutOfDateFileWatching, bool listenToUnitEvents,
                           indexstoredb_error_t *error) {
 
   auto delegate = std::make_shared<BlockIndexSystemDelegate>(delegateCallback);
   auto libProviderObj = std::make_shared<BlockIndexStoreLibraryProvider>(libProvider);
 
   std::string errMsg;
-  // `enableOutOfDateFileWatching` is set to `false` by default because the
-  // out-of-date notifications are not exposed at all, so this notification
-  // mechanism is taking CPU & memory unnecessarily.
   if (auto index =
           IndexSystem::create(storePath, databasePath, libProviderObj, delegate,
                               useExplicitOutputUnits, readonly,
-                              /*enableOutOfDateFileWatching=*/false, listenToUnitEvents, wait,
+                              enableOutOfDateFileWatching, listenToUnitEvents, wait,
                               llvm::None, errMsg)) {
 
     return make_object(index);
@@ -125,9 +141,9 @@ indexstoredb_load_indexstore_library(const char *dylibPath,
   return nullptr;
 }
 
-void indexstoredb_index_poll_for_unit_changes_and_wait(indexstoredb_index_t index) {
+void indexstoredb_index_poll_for_unit_changes_and_wait(indexstoredb_index_t index, bool isInitialScan) {
   auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
-  obj->value->pollForUnitChangesAndWait();
+  obj->value->pollForUnitChangesAndWait(isInitialScan);
 }
 
 void indexstoredb_index_add_unit_out_file_paths(indexstoredb_index_t index,
@@ -159,6 +175,37 @@ indexstoredb_delegate_event_get_kind(indexstoredb_delegate_event_t event) {
 
 uint64_t indexstoredb_delegate_event_get_count(indexstoredb_delegate_event_t event) {
   return reinterpret_cast<DelegateEvent *>(event)->count;
+}
+
+indexstoredb_unit_info_t
+indexstoredb_delegate_event_get_outofdate_unit_info(indexstoredb_delegate_event_t event) {
+  return reinterpret_cast<DelegateEvent *>(event)->outOfDateUnitInfo;
+}
+
+uint64_t indexstoredb_delegate_event_get_outofdate_modtime(indexstoredb_delegate_event_t event) {
+  return reinterpret_cast<DelegateEvent *>(event)->outOfDateModTime;
+}
+
+bool indexstoredb_delegate_event_get_outofdate_is_synchronous(indexstoredb_delegate_event_t event) {
+  return reinterpret_cast<DelegateEvent *>(event)->outOfDateIsSynchronous;
+}
+
+const char *
+indexstoredb_delegate_event_get_outofdate_trigger_original_file(indexstoredb_delegate_event_t event) {
+  DelegateEvent *evt = reinterpret_cast<DelegateEvent *>(event);
+  if (evt->outOfDateUnitInfo)
+    return evt->outOfDateTriggerFile.c_str();
+  else
+    return nullptr;
+}
+
+const char *
+indexstoredb_delegate_event_get_outofdate_trigger_description(indexstoredb_delegate_event_t event) {
+  DelegateEvent *evt = reinterpret_cast<DelegateEvent *>(event);
+  if (evt->outOfDateUnitInfo)
+    return evt->outOfDateTriggerDescription.c_str();
+  else
+    return nullptr;
 }
 
 bool

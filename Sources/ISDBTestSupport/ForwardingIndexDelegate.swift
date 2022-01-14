@@ -30,4 +30,20 @@ final class ForwardingIndexDelegate: IndexDelegate {
   func processingCompleted(_ count: Int) {
     delegate?.processingCompleted(count)
   }
+
+  func unitIsOutOfDate(
+    _ unitInfo: StoreUnitInfo,
+    outOfDateModTime: UInt64,
+    triggerHintFile: String,
+    triggerHintDescription: String,
+    synchronous: Bool
+  ) {
+    delegate?.unitIsOutOfDate(
+      unitInfo,
+      outOfDateModTime: outOfDateModTime,
+      triggerHintFile: triggerHintFile,
+      triggerHintDescription: triggerHintDescription,
+      synchronous: synchronous
+    )
+  }
 }

@@ -82,7 +82,7 @@ public:
   void purgeStaleData();
 
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
-  void pollForUnitChangesAndWait();
+  void pollForUnitChangesAndWait(bool isInitialScan);
 
   void printStats(raw_ostream &OS);
 
