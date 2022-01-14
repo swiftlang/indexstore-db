@@ -12,6 +12,11 @@
 
 @_implementationOnly import CIndexStoreDB
 
+public struct StoreUnitInfo {
+  public let mainFilePath: String
+  public let unitName: String
+}
+
 /// Delegate for index events.
 public protocol IndexDelegate: AnyObject {
 
@@ -20,6 +25,31 @@ public protocol IndexDelegate: AnyObject {
 
   /// The index finished processing `count` unit files.
   func processingCompleted(_ count: Int)
+
+  /// Notification about out-of-date unit.
+  /// - Parameters:
+  ///   - outOfDateModTime: number of nanoseconds since clock's epoch.
+  ///   - triggerHintFile: file path that was determined as out-of-date.
+  ///   - triggerHintDescription: full description of the out-of-date trigger.
+  ///   - synchronous: whether the event needs to be handled synchronously.
+  func unitIsOutOfDate(
+    _ unitInfo: StoreUnitInfo,
+    outOfDateModTime: UInt64,
+    triggerHintFile: String,
+    triggerHintDescription: String,
+    synchronous: Bool
+  )
+}
+
+extension IndexDelegate {
+  public func unitIsOutOfDate(
+    _ unitInfo: StoreUnitInfo,
+    outOfDateModTime: UInt64,
+    triggerHintFile: String,
+    triggerHintDescription: String,
+    synchronous: Bool
+  ) {
+  }
 }
 
 extension IndexDelegate {
@@ -32,6 +62,19 @@ extension IndexDelegate {
     case INDEXSTOREDB_EVENT_PROCESSING_COMPLETED:
       let count = indexstoredb_delegate_event_get_count(event)
       self.processingCompleted(Int(count))
+    case INDEXSTOREDB_EVENT_UNIT_OUT_OF_DATE:
+      let c_unitInfo = indexstoredb_delegate_event_get_outofdate_unit_info(event)!
+      let unitInfo = StoreUnitInfo(
+        mainFilePath: String(cString: indexstoredb_unit_info_main_file_path(c_unitInfo)),
+        unitName: String(cString: indexstoredb_unit_info_unit_name(c_unitInfo))
+      )
+      self.unitIsOutOfDate(
+        unitInfo,
+        outOfDateModTime: indexstoredb_delegate_event_get_outofdate_modtime(event),
+        triggerHintFile: String(cString: indexstoredb_delegate_event_get_outofdate_trigger_original_file(event)!),
+        triggerHintDescription: String(cString: indexstoredb_delegate_event_get_outofdate_trigger_description(event)!),
+        synchronous: indexstoredb_delegate_event_get_outofdate_is_synchronous(event)
+      )
     default:
       return
     }

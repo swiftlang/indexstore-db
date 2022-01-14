@@ -133,6 +133,7 @@ typedef enum {
 typedef enum {
   INDEXSTOREDB_EVENT_PROCESSING_ADDED_PENDING = 0,
   INDEXSTOREDB_EVENT_PROCESSING_COMPLETED = 1,
+  INDEXSTOREDB_EVENT_UNIT_OUT_OF_DATE = 2,
 } indexstoredb_delegate_event_kind_t;
 
 typedef void *indexstoredb_delegate_event_t;
@@ -172,6 +173,7 @@ indexstoredb_index_create(const char * _Nonnull storePath,
                   bool useExplicitOutputUnits,
                   bool wait,
                   bool readonly,
+                  bool enableOutOfDateFileWatching,
                   bool listenToUnitEvents,
                   indexstoredb_error_t _Nullable * _Nullable);
 
@@ -190,7 +192,7 @@ indexstoredb_load_indexstore_library(const char * _Nonnull dylibPath,
 
 /// *For Testing* Poll for any changes to index units and wait until they have been registered.
 INDEXSTOREDB_PUBLIC void
-indexstoredb_index_poll_for_unit_changes_and_wait(_Nonnull indexstoredb_index_t index);
+indexstoredb_index_poll_for_unit_changes_and_wait(_Nonnull indexstoredb_index_t index, bool isInitialScan);
 
 /// Add output filepaths for the set of unit files that index data should be loaded from.
 /// Only has an effect if `useExplicitOutputUnits` was set to true for `indexstoredb_index_create`.
@@ -214,6 +216,30 @@ indexstoredb_delegate_event_get_kind(_Nonnull indexstoredb_delegate_event_t);
 
 INDEXSTOREDB_PUBLIC
 uint64_t indexstoredb_delegate_event_get_count(_Nonnull indexstoredb_delegate_event_t);
+
+/// Valid only if the event kind is \p INDEXSTOREDB_EVENT_UNIT_OUT_OF_DATE, otherwise returns null.
+/// The indexstoredb_unit_info_t pointer has the same lifetime as the \c indexstoredb_delegate_event_t
+INDEXSTOREDB_PUBLIC _Nullable indexstoredb_unit_info_t
+indexstoredb_delegate_event_get_outofdate_unit_info(_Nonnull indexstoredb_delegate_event_t);
+
+/// Returns number of nanoseconds since clock's epoch.
+/// Valid only if the event kind is \p INDEXSTOREDB_EVENT_UNIT_OUT_OF_DATE, otherwise returns 0.
+INDEXSTOREDB_PUBLIC uint64_t
+indexstoredb_delegate_event_get_outofdate_modtime(_Nonnull indexstoredb_delegate_event_t);
+
+/// Valid only if the event kind is \p INDEXSTOREDB_EVENT_UNIT_OUT_OF_DATE, otherwise returns false.
+INDEXSTOREDB_PUBLIC bool
+indexstoredb_delegate_event_get_outofdate_is_synchronous(_Nonnull indexstoredb_delegate_event_t);
+
+/// Valid only if the event kind is \p INDEXSTOREDB_EVENT_UNIT_OUT_OF_DATE, otherwise returns null.
+/// The string has the same lifetime as the \c indexstoredb_delegate_event_t.
+INDEXSTOREDB_PUBLIC const char * _Nullable
+indexstoredb_delegate_event_get_outofdate_trigger_original_file(_Nonnull indexstoredb_delegate_event_t);
+
+/// Valid only if the event kind is \p INDEXSTOREDB_EVENT_UNIT_OUT_OF_DATE, otherwise returns null.
+/// The string has the same lifetime as the \c indexstoredb_delegate_event_t.
+INDEXSTOREDB_PUBLIC const char * _Nullable
+indexstoredb_delegate_event_get_outofdate_trigger_description(_Nonnull indexstoredb_delegate_event_t);
 
 /// Iterates over each symbol occurrence matching the given \p usr and \p roles.
 ///
