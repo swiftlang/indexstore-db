@@ -38,6 +38,8 @@ public final class IndexStoreDB {
   ///   * wait: If `true`, wait for the database to be populated from the
   ///     (current) contents of the index store at `storePath` before returning.
   ///   * readonly: If `true`, read an existing database, but do not create or modify.
+  ///   * enableOutOfDateFileWatching: If `true`, enables the mechanism for detecting out-of-date units and sending notications via a delegate event.
+  ///   Note that this mechanism uses additional CPU & memory resources.
   ///   * listenToUnitEvents: Only `true` is supported outside unit tests. Setting to `false`
   ///     disables reading or updating from the index store unless `pollForUnitChangesAndWait()`
   ///     is called.
@@ -49,6 +51,7 @@ public final class IndexStoreDB {
     useExplicitOutputUnits: Bool = false,
     waitUntilDoneInitializing wait: Bool = false,
     readonly: Bool = false,
+    enableOutOfDateFileWatching: Bool = false,
     listenToUnitEvents: Bool = true
   ) throws {
     self.delegate = delegate
@@ -62,7 +65,14 @@ public final class IndexStoreDB {
     }
 
     var error: indexstoredb_error_t? = nil
-    guard let index = indexstoredb_index_create(storePath, databasePath, libProviderFunc, delegateFunc, useExplicitOutputUnits, wait, readonly, listenToUnitEvents, &error) else {
+    guard let index = indexstoredb_index_create(
+      storePath, databasePath,
+      libProviderFunc, delegateFunc,
+      useExplicitOutputUnits,
+      wait, readonly,
+      enableOutOfDateFileWatching, listenToUnitEvents,
+      &error
+    ) else {
       defer { indexstoredb_error_dispose(error) }
       throw IndexStoreDBError.create(error?.description ?? "unknown")
     }
@@ -92,8 +102,8 @@ public final class IndexStoreDB {
   }
 
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
-  public func pollForUnitChangesAndWait() {
-    indexstoredb_index_poll_for_unit_changes_and_wait(impl)
+  public func pollForUnitChangesAndWait(isInitialScan: Bool = false) {
+    indexstoredb_index_poll_for_unit_changes_and_wait(impl, isInitialScan)
   }
 
   /// Add output filepaths for the set of unit files that index data should be loaded from.
