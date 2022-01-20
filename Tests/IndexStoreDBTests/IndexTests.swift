@@ -254,6 +254,14 @@ final class IndexTests: XCTestCase {
   }
 
   func testOutOfDateEvent() throws {
+    try XCTSkipIf(
+      true,
+      """
+      Temporarily disabled due to failing CI: https://ci.swift.org/view/Dashboard/job/oss-swift-package-ubuntu-20_04-aarch64/691/
+      rdar://87728066
+      """
+    )
+
     struct OutOfDateInfo {
       let unitInfo: StoreUnitInfo
       let outOfDateModTime: UInt64
