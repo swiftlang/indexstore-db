@@ -14,7 +14,21 @@ import IndexStoreDB
 import ISDBTestSupport
 import XCTest
 
+let defaultTimeout: TimeInterval = 30
+
 final class IndexTests: XCTestCase {
+
+  @discardableResult
+  func expectation(for block: @escaping ()->Bool) -> XCTestExpectation {
+      self.expectation(for: NSPredicate(block: { (_, _) -> Bool in
+          return block()
+      }), evaluatedWith: nil)
+  }
+
+  func waitForBlock(timeout: TimeInterval = defaultTimeout, _ block: @escaping ()->Bool) {
+      let expect = self.expectation(for: block)
+      self.wait(for: [expect], timeout: timeout)
+  }
 
   func testBasic() throws {
     guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
@@ -254,14 +268,6 @@ final class IndexTests: XCTestCase {
   }
 
   func testOutOfDateEvent() throws {
-    try XCTSkipIf(
-      true,
-      """
-      Temporarily disabled due to failing CI: https://ci.swift.org/view/Dashboard/job/oss-swift-package-ubuntu-20_04-aarch64/691/
-      rdar://87728066
-      """
-    )
-
     struct OutOfDateInfo {
       let unitInfo: StoreUnitInfo
       let outOfDateModTime: UInt64
@@ -317,6 +323,8 @@ final class IndexTests: XCTestCase {
       enableOutOfDateFileWatching: true,
       listenToUnitEvents: true
     )
+
+    waitForBlock({ delegate.outOfDateInfo != nil })
 
     let outOfDateInfo = try XCTUnwrap(delegate.outOfDateInfo)
     XCTAssertEqual(outOfDateInfo.unitInfo.mainFilePath, fileToChange.path)
