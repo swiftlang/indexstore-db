@@ -139,7 +139,6 @@ public final class TibsTestWorkspace {
     try fm.createDirectory(at: buildDir, withIntermediateDirectories: true, attributes: nil)
     let sourceDir = tmpDir.appendingPathComponent("src", isDirectory: true)
     try fm.copyItem(at: projectDir, to: sourceDir)
-    let databaseDir = tmpDir.appendingPathComponent("db", isDirectory: true)
 
     self.sources = try TestSources(rootDirectory: sourceDir)
 
@@ -156,11 +155,36 @@ public final class TibsTestWorkspace {
 
     self.index = try IndexStoreDB(
       storePath: builder.indexstore.path,
-      databasePath: databaseDir.path,
+      databasePath: Self.databaseDirIn(tmpDir).path,
       library: libIndexStore,
       delegate: wrapperDelegate,
       useExplicitOutputUnits: useExplicitOutputUnits,
       listenToUnitEvents: false)
+  }
+
+  static func databaseDirIn(_ tmpDir: URL) -> URL {
+    return tmpDir.appendingPathComponent("db", isDirectory: true)
+  }
+
+  public func reinitIndexStore(
+    useExplicitOutputUnits: Bool = false,
+    waitUntilDoneInitializing: Bool = false,
+    enableOutOfDateFileWatching: Bool = false,
+    listenToUnitEvents: Bool = false,
+    toolchain: TibsToolchain? = nil
+  ) throws {
+    let toolchain = toolchain ?? TibsToolchain.testDefault
+    let libIndexStore = try IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
+
+    self.index = try IndexStoreDB(
+      storePath: builder.indexstore.path,
+      databasePath: Self.databaseDirIn(tmpDir).path,
+      library: libIndexStore,
+      delegate: wrapperDelegate,
+      useExplicitOutputUnits: useExplicitOutputUnits,
+      waitUntilDoneInitializing: waitUntilDoneInitializing,
+      enableOutOfDateFileWatching: enableOutOfDateFileWatching,
+      listenToUnitEvents: listenToUnitEvents)
   }
 
   deinit {

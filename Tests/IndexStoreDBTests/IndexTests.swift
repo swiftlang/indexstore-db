@@ -14,7 +14,21 @@ import IndexStoreDB
 import ISDBTestSupport
 import XCTest
 
+let defaultTimeout: TimeInterval = 30
+
 final class IndexTests: XCTestCase {
+
+  @discardableResult
+  func expectation(for block: @escaping ()->Bool) -> XCTestExpectation {
+      self.expectation(for: NSPredicate(block: { (_, _) -> Bool in
+          return block()
+      }), evaluatedWith: nil)
+  }
+
+  func waitForBlock(timeout: TimeInterval = defaultTimeout, _ block: @escaping ()->Bool) {
+      let expect = self.expectation(for: block)
+      self.wait(for: [expect], timeout: timeout)
+  }
 
   func testBasic() throws {
     guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
@@ -251,6 +265,75 @@ final class IndexTests: XCTestCase {
 
     XCTAssertEqual(delegate.added, 3)
     XCTAssertEqual(delegate.completed, 3)
+  }
+
+  func testOutOfDateEvent() throws {
+    struct OutOfDateInfo {
+      let unitInfo: StoreUnitInfo
+      let outOfDateModTime: UInt64
+      let triggerHintFile: String
+      let triggerHintDescription: String
+      let synchronous: Bool
+    }
+
+    class Delegate: IndexDelegate {
+      let queue: DispatchQueue = DispatchQueue(label: "testDelegate mutex")
+      private var _outOfDateInfo: OutOfDateInfo?
+      var outOfDateInfo: OutOfDateInfo? { queue.sync { _outOfDateInfo } }
+
+      func reset() {
+        queue.sync {
+          _outOfDateInfo = nil
+        }
+      }
+
+      func processingAddedPending(_ count: Int) {}
+      func processingCompleted(_ count: Int) {}
+
+      func unitIsOutOfDate(
+        _ unitInfo: StoreUnitInfo,
+        outOfDateModTime: UInt64,
+        triggerHintFile: String,
+        triggerHintDescription: String,
+        synchronous: Bool
+      ) {
+        queue.sync {
+          _outOfDateInfo = OutOfDateInfo(
+            unitInfo: unitInfo,
+            outOfDateModTime: outOfDateModTime,
+            triggerHintFile: triggerHintFile,
+            triggerHintDescription: triggerHintDescription,
+            synchronous: synchronous
+          )
+        }
+      }
+    }
+
+    guard let ws = try mutableTibsTestWorkspace(name: "proj1") else { return }
+    try ws.buildAndIndex()
+
+    let fileToChange = ws.testLoc("c").url
+    // Set the mod-time a day in the future so that it would still be considered more recent than the unit after building.
+    let modTime = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 1, to: Date()))
+    try FileManager.default.setAttributes([.modificationDate: modTime], ofItemAtPath: fileToChange.path)
+    let delegate = Delegate()
+    ws.delegate = delegate
+    try ws.reinitIndexStore(
+      waitUntilDoneInitializing: true,
+      enableOutOfDateFileWatching: true,
+      listenToUnitEvents: true
+    )
+
+    waitForBlock({ delegate.outOfDateInfo != nil })
+
+    let outOfDateInfo = try XCTUnwrap(delegate.outOfDateInfo)
+    XCTAssertEqual(outOfDateInfo.unitInfo.mainFilePath, fileToChange.path)
+    XCTAssertEqual(outOfDateInfo.triggerHintFile, fileToChange.path)
+
+    delegate.reset()
+    try ws.builder.build()
+    // Make sure we didn't get another out-of-date notification just by creating the new unit.
+    XCTAssertNil(delegate.outOfDateInfo)
   }
 
   func testMainFilesContainingFile() throws {

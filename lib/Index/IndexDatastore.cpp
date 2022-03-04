@@ -81,11 +81,13 @@ namespace {
 struct UnitEventInfo {
   IndexStore::UnitEvent::Kind kind;
   std::string name;
+  /// Whether this is from the initial unit scan.
+  bool isInitialScan;
   /// Whether this is an explicit enqueue of a dependency unit for processing, while `UseExplicitOutputUnits` is enabled.
   bool isDependency;
 
-  UnitEventInfo(IndexStore::UnitEvent::Kind kind, std::string name, bool isDependency = false)
-  : kind(kind), name(std::move(name)), isDependency(isDependency) {}
+  UnitEventInfo(IndexStore::UnitEvent::Kind kind, std::string name, bool isInitialScan, bool isDependency = false)
+  : kind(kind), name(std::move(name)), isInitialScan(isInitialScan), isDependency(isDependency) {}
 };
 
 struct PollUnitsState {
@@ -129,7 +131,7 @@ public:
                      function_ref<void()> DirectoryDeleted);
 
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
-  void pollForUnitChangesAndWait();
+  void pollForUnitChangesAndWait(bool isInitialScan);
 
   std::shared_ptr<UnitProcessingSession> makeUnitProcessingSession();
 
@@ -151,7 +153,7 @@ public:
   void checkUnitContainingFileIsOutOfDate(StringRef file);
 
 private:
-  void registerUnit(StringRef UnitName, std::shared_ptr<UnitProcessingSession> processSession);
+  void registerUnit(StringRef UnitName, bool isInitialScan, std::shared_ptr<UnitProcessingSession> processSession);
   void removeUnit(StringRef UnitName);
 };
 
@@ -181,7 +183,7 @@ public:
   void purgeStaleData();
 
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
-  void pollForUnitChangesAndWait();
+  void pollForUnitChangesAndWait(bool isInitialScan);
 };
 
 class UnitMonitor {
@@ -210,7 +212,8 @@ public:
                   StringRef UnitName,
                   sys::TimePoint<> modTime,
                   ArrayRef<CanonicalFilePath> userFileDepends,
-                  ArrayRef<IDCode> userUnitDepends);
+                  ArrayRef<IDCode> userUnitDepends,
+                  bool checkForOutOfDate);
 
   ~UnitMonitor();
 
@@ -422,7 +425,7 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
       case IndexStore::UnitEvent::Kind::Added:
       case IndexStore::UnitEvent::Kind::Modified:
         if (!shouldIgnore(evt)) {
-          registerUnit(evt.name, processSession);
+          registerUnit(evt.name, evt.isInitialScan, processSession);
         }
         break;
       case IndexStore::UnitEvent::Kind::Removed:
@@ -450,7 +453,7 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
   }
 }
 
-void StoreUnitRepo::registerUnit(StringRef unitName, std::shared_ptr<UnitProcessingSession> processSession) {
+void StoreUnitRepo::registerUnit(StringRef unitName, bool isInitialScan, std::shared_ptr<UnitProcessingSession> processSession) {
   std::string Error;
   auto optModTime = IdxStore->getUnitModificationTime(unitName, Error);
   if (!optModTime) {
@@ -641,7 +644,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName, std::shared_ptr<UnitProcess
 
       for (const auto &unitName : unitDependencies) {
         if (needsUpdate(unitName)) {
-          unitsNeedingUpdate.push_back(UnitEventInfo(IndexStore::UnitEvent::Kind::Added, unitName, /*isDependency=*/true));
+          unitsNeedingUpdate.push_back(UnitEventInfo(IndexStore::UnitEvent::Kind::Added, unitName, isInitialScan, /*isDependency=*/true));
         }
       }
     }
@@ -683,7 +686,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName, std::shared_ptr<UnitProcess
 
   auto localThis = shared_from_this();
   auto unitMonitor = std::make_shared<UnitMonitor>(localThis);
-  unitMonitor->initialize(unitCode, unitName, unitModTime, UserFileDepends, UserUnitDepends);
+  unitMonitor->initialize(unitCode, unitName, unitModTime, UserFileDepends, UserUnitDepends, /*checkForOutOfDate=*/isInitialScan);
   addUnitMonitor(unitCode, unitMonitor);
 }
 
@@ -706,7 +709,7 @@ void StoreUnitRepo::addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool wait
       StringRef unitName = nameBuf.str();
       ExplicitOutputUnitsSet.insert(makeIDCodeFromString(unitName));
       // It makes no difference for unit registration whether the kind is `Added` or `Modified`.
-      unitEvts.push_back(UnitEventInfo(IndexStore::UnitEvent::Kind::Added, unitName));
+      unitEvts.push_back(UnitEventInfo(IndexStore::UnitEvent::Kind::Added, unitName, /*isInitialScan=*/true));
     }
   }
   auto session = makeUnitProcessingSession();
@@ -724,7 +727,7 @@ void StoreUnitRepo::removeUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool w
       IdxStore->getUnitNameFromOutputPath(filePath, nameBuf);
       StringRef unitName = nameBuf.str();
       ExplicitOutputUnitsSet.erase(makeIDCodeFromString(unitName));
-      unitEvts.push_back(UnitEventInfo(IndexStore::UnitEvent::Kind::Removed, unitName));
+      unitEvts.push_back(UnitEventInfo(IndexStore::UnitEvent::Kind::Removed, unitName, /*isInitialScan=*/false));
     }
   }
   auto session = makeUnitProcessingSession();
@@ -741,7 +744,7 @@ void StoreUnitRepo::purgeStaleData() {
   // IdxStore->purgeStaleRecords(ActiveRecNames);
 }
 
-void StoreUnitRepo::pollForUnitChangesAndWait() {
+void StoreUnitRepo::pollForUnitChangesAndWait(bool isInitialScan) {
   sys::ScopedLock L(pollUnitsState.pollMtx);
   std::vector<UnitEventInfo> events;
   {
@@ -763,9 +766,9 @@ void StoreUnitRepo::pollForUnitChangesAndWait() {
 
       auto I = knownUnits.find(unitName);
       if (I != knownUnits.end() && I->getValue() != modTime) {
-        events.push_back({IndexStore::UnitEvent::Kind::Modified, unitName.str()});
+        events.push_back({IndexStore::UnitEvent::Kind::Modified, unitName.str(), /*isInitialScan=*/false});
       } else {
-        events.push_back({IndexStore::UnitEvent::Kind::Added, unitName.str()});
+        events.push_back({IndexStore::UnitEvent::Kind::Added, unitName.str(), isInitialScan});
       }
 
       return true;
@@ -773,7 +776,7 @@ void StoreUnitRepo::pollForUnitChangesAndWait() {
 
     for (const auto &known : knownUnits) {
       if (foundUnits.count(known.getKey()) == 0) {
-        events.push_back({IndexStore::UnitEvent::Kind::Removed, known.getKey().str()});
+        events.push_back({IndexStore::UnitEvent::Kind::Removed, known.getKey().str(), /*isInitialScan=*/false});
       }
     }
 
@@ -921,7 +924,8 @@ void UnitMonitor::initialize(IDCode unitCode,
                              StringRef unitName,
                              sys::TimePoint<> modTime,
                              ArrayRef<CanonicalFilePath> userFileDepends,
-                             ArrayRef<IDCode> userUnitDepends) {
+                             ArrayRef<IDCode> userUnitDepends,
+                             bool checkForOutOfDate) {
   auto unitRepo = this->UnitRepo.lock();
   if (!unitRepo)
     return;
@@ -940,15 +944,16 @@ void UnitMonitor::initialize(IDCode unitCode,
     }
   }
 
-  SmallVector<StringRef, 32> filePaths;
-  filePaths.reserve(userFileDepends.size());
-  for (const auto &canonPath : userFileDepends) {
-    filePaths.push_back(canonPath.getPath());
-  }
-  auto mostRecentFileAndTime = getMostRecentModTime(filePaths);
-  if (mostRecentFileAndTime.second > modTime) {
-    markOutOfDate(mostRecentFileAndTime.second, DependentFileOutOfDateTriggerHint::create(mostRecentFileAndTime.first));
-    return;
+  if (checkForOutOfDate) {
+    SmallVector<StringRef, 32> filePaths;
+    filePaths.reserve(userFileDepends.size());
+    for (const auto &canonPath : userFileDepends) {
+      filePaths.push_back(canonPath.getPath());
+    }
+    auto mostRecentFileAndTime = getMostRecentModTime(filePaths);
+    if (mostRecentFileAndTime.second > modTime) {
+      markOutOfDate(mostRecentFileAndTime.second, DependentFileOutOfDateTriggerHint::create(mostRecentFileAndTime.first));
+    }
   }
 }
 
@@ -1050,15 +1055,16 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
   std::weak_ptr<StoreUnitRepo> WeakUnitRepo = UnitRepo;
   auto eventsDeque = std::make_shared<UnitEventInfoDeque>();
   auto OnUnitsChange = [WeakUnitRepo, Delegate, eventsDeque, waitUntilDoneInitializing](IndexStore::UnitEventNotification EventNote) {
-    bool shouldWait = waitUntilDoneInitializing && EventNote.isInitial();
+    bool isInitialScan = EventNote.isInitial();
+    bool shouldWait = waitUntilDoneInitializing && isInitialScan;
 
     std::vector<UnitEventInfo> evts;
     for (size_t i = 0, e = EventNote.getEventsCount(); i != e; ++i) {
       auto evt = EventNote.getEvent(i);
-      evts.push_back(UnitEventInfo{evt.getKind(), evt.getUnitName()});
+      evts.push_back(UnitEventInfo{evt.getKind(), evt.getUnitName(), isInitialScan});
     }
 
-    if (EventNote.isInitial()) {
+    if (isInitialScan) {
       Delegate->initialPendingUnits(evts.size());
     }
 
@@ -1074,7 +1080,7 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
     if (err)
       return true;
   } else if (waitUntilDoneInitializing) {
-    pollForUnitChangesAndWait();
+    pollForUnitChangesAndWait(/*isInitialScan=*/true);
   }
 
   return false;
@@ -1114,8 +1120,8 @@ void IndexDatastoreImpl::purgeStaleData() {
   UnitRepo->purgeStaleData();
 }
 
-void IndexDatastoreImpl::pollForUnitChangesAndWait() {
-  UnitRepo->pollForUnitChangesAndWait();
+void IndexDatastoreImpl::pollForUnitChangesAndWait(bool isInitialScan) {
+  UnitRepo->pollForUnitChangesAndWait(isInitialScan);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1175,6 +1181,6 @@ void IndexDatastore::purgeStaleData() {
   return IMPL->purgeStaleData();
 }
 
-void IndexDatastore::pollForUnitChangesAndWait() {
-  return IMPL->pollForUnitChangesAndWait();
+void IndexDatastore::pollForUnitChangesAndWait(bool isInitialScan) {
+  return IMPL->pollForUnitChangesAndWait(isInitialScan);
 }
