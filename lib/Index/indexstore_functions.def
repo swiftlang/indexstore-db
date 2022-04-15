@@ -2,10 +2,14 @@
 // Format is Name/required. If 'required' is true then loading will fail if the symbol is missing,
 // otherwise loading will continue and the function pointer will be null.
 
+INDEXSTORE_FUNCTION(creation_options_add_prefix_mapping, false)
+INDEXSTORE_FUNCTION(creation_options_create, false)
+INDEXSTORE_FUNCTION(creation_options_dispose, false)
 INDEXSTORE_FUNCTION(error_get_description, true)
 INDEXSTORE_FUNCTION(error_dispose, true)
 INDEXSTORE_FUNCTION(format_version, true)
 INDEXSTORE_FUNCTION(store_create, true)
+INDEXSTORE_FUNCTION(store_create_with_options, false)
 INDEXSTORE_FUNCTION(store_dispose, true)
 #if INDEXSTORE_HAS_BLOCKS
 INDEXSTORE_FUNCTION(store_units_apply, true)

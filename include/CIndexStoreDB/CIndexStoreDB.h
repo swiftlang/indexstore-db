@@ -161,6 +161,43 @@ typedef bool(^indexstoredb_file_includes_receiver)(const char *_Nonnull sourcePa
 /// Returns true to continue.
 typedef bool(^indexstoredb_unit_includes_receiver)(const char *_Nonnull sourcePath, const char *_Nonnull targetPath, size_t line);
 
+typedef void *indexstoredb_creation_options_t;
+
+INDEXSTOREDB_PUBLIC indexstoredb_creation_options_t _Nonnull
+indexstoredb_creation_options_create(void);
+
+INDEXSTOREDB_PUBLIC void
+indexstoredb_creation_options_dispose(indexstoredb_creation_options_t _Nonnull);
+
+/// Adds a remapping from \c path_prefix to \c remapped_path_prefix.
+///
+/// This should be used to convert hermetic or remote paths embedded in the index data to the
+/// equivalent paths on the local machine.
+INDEXSTOREDB_PUBLIC void
+indexstoredb_creation_options_add_prefix_mapping(indexstoredb_creation_options_t _Nonnull options,
+                                                 const char * _Nonnull pathPrefix,
+                                                 const char * _Nonnull remappedPathPrefix);
+
+INDEXSTOREDB_PUBLIC void
+indexstoredb_creation_options_listen_to_unit_events(indexstoredb_creation_options_t _Nonnull options,
+                                                        bool listenToUnitEvents);
+
+INDEXSTOREDB_PUBLIC void
+indexstoredb_creation_options_enable_out_of_date_file_watching(indexstoredb_creation_options_t _Nonnull options,
+                                                               bool enableOutOfDateFileWatching);
+
+INDEXSTOREDB_PUBLIC void
+indexstoredb_creation_options_readonly(indexstoredb_creation_options_t _Nonnull options,
+                                           bool readonly);
+
+INDEXSTOREDB_PUBLIC void
+indexstoredb_creation_options_wait(indexstoredb_creation_options_t _Nonnull options,
+                                       bool wait);
+
+INDEXSTOREDB_PUBLIC void
+indexstoredb_creation_options_use_explicit_output_units(indexstoredb_creation_options_t _Nonnull options,
+                                                            bool useExplicitOutputUnits);
+
 /// Creates an index for the given raw index data in \p storePath.
 ///
 /// The resulting index must be released using \c indexstoredb_release.
@@ -170,11 +207,7 @@ indexstoredb_index_create(const char * _Nonnull storePath,
                   const char * _Nonnull databasePath,
                   _Nonnull indexstore_library_provider_t libProvider,
                   _Nonnull indexstoredb_delegate_event_receiver_t delegate,
-                  bool useExplicitOutputUnits,
-                  bool wait,
-                  bool readonly,
-                  bool enableOutOfDateFileWatching,
-                  bool listenToUnitEvents,
+                  indexstoredb_creation_options_t _Nonnull options,
                   indexstoredb_error_t _Nullable * _Nullable);
 
 /// Add an additional delegate to the given index.
