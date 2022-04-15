@@ -21,6 +21,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Mutex.h"
 #include <ctime>
+#include <vector>
 
 namespace indexstore {
   using llvm::ArrayRef;
@@ -40,6 +41,30 @@ public:
   IndexStoreLibrary(indexstore_functions_t functions) : functions(functions) {}
 
   const indexstore_functions_t &api() const { return functions; }
+};
+
+class IndexStoreCreationOptions {
+  std::vector<std::pair<std::string, std::string>> prefixMap;
+
+public:
+  IndexStoreCreationOptions() {}
+
+  void addPrefixMapping(StringRef orig, StringRef remapped) {
+    prefixMap.emplace_back(std::string(orig), std::string(remapped));
+  }
+
+  bool hasPrefixMappings() const { return !prefixMap.empty(); }
+
+  /// Convert this into a `indexstore_creation_options_t` that the caller
+  /// owns and is responsible for disposing.
+  indexstore_creation_options_t createOptions(const indexstore_functions_t &api) const {
+    indexstore_creation_options_t options = api.creation_options_create();
+    for (const auto &Mapping : prefixMap) {
+      api.creation_options_add_prefix_mapping(options, Mapping.first.c_str(),
+                                              Mapping.second.c_str());
+    }
+    return options;
+  }
 };
 
 template<typename FnT, typename ...Params>
@@ -117,10 +142,24 @@ class IndexStore {
   friend class IndexUnitReader;
 
 public:
-  IndexStore(StringRef path, IndexStoreLibraryRef library, std::string &error) : library(std::move(library)) {
+  IndexStore(StringRef path, IndexStoreLibraryRef library,
+             const IndexStoreCreationOptions &options,
+             std::string &error) : library(std::move(library)) {
     llvm::SmallString<64> buf = path;
     indexstore_error_t c_err = nullptr;
-    obj = api().store_create(buf.c_str(), &c_err);
+    // Backwards compatibility for previous versions which don't support a
+    // prefix mapping.
+    if (api().store_create_with_options) {
+      indexstore_creation_options_t c_options = options.createOptions(api());
+      obj = api().store_create_with_options(buf.c_str(), c_options, &c_err);
+      api().creation_options_dispose(c_options);
+    } else if (options.hasPrefixMappings()) {
+      error = "Prefix mappings unavailable in this version of libIndexStore.";
+      obj = nullptr;
+      return;
+    } else {
+      obj = api().store_create(buf.c_str(), &c_err);
+    }
     if (c_err) {
       error = api().error_get_description(c_err);
       api().error_dispose(c_err);
@@ -135,8 +174,10 @@ public:
     api().store_dispose(obj);
   }
 
-  static IndexStoreRef create(StringRef path, IndexStoreLibraryRef library, std::string &error) {
-    auto storeRef = std::make_shared<IndexStore>(path, std::move(library), error);
+  static IndexStoreRef create(StringRef path, IndexStoreLibraryRef library,
+                              const IndexStoreCreationOptions &options,
+                              std::string &error) {
+    auto storeRef = std::make_shared<IndexStore>(path, std::move(library), options, error);
     if (storeRef->isInvalid())
       return nullptr;
     return storeRef;

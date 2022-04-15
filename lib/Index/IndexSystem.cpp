@@ -134,9 +134,7 @@ public:
             StringRef dbasePath,
             std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
             std::shared_ptr<IndexSystemDelegate> Delegate,
-            bool useExplicitOutputUnits, bool readonly,
-            bool enableOutOfDateFileWatching, bool listenToUnitEvents,
-            bool waitUntilDoneInitializing,
+            const CreationOptions &options,
             Optional<size_t> initialDBSize,
             std::string &Error);
 
@@ -229,16 +227,14 @@ bool IndexSystemImpl::init(StringRef StorePath,
                            StringRef dbasePath,
                            std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                            std::shared_ptr<IndexSystemDelegate> Delegate,
-                           bool useExplicitOutputUnits, bool readonly,
-                           bool enableOutOfDateFileWatching, bool listenToUnitEvents,
-                           bool waitUntilDoneInitializing,
+                           const CreationOptions &options,
                            Optional<size_t> initialDBSize,
                            std::string &Error) {
   this->StorePath = StorePath;
   this->DBasePath = dbasePath;
   this->DelegateWrap = std::make_shared<AsyncIndexDelegate>(Delegate);
 
-  auto dbase = db::Database::create(dbasePath, readonly, initialDBSize, Error);
+  auto dbase = db::Database::create(dbasePath, options.readonly, initialDBSize, Error);
   if (!dbase)
     return true;
 
@@ -248,7 +244,7 @@ bool IndexSystemImpl::init(StringRef StorePath,
     return true;
   }
 
-  if (!readonly) {
+  if (!options.readonly) {
     // Create the index store path, if it does not already exist.
     if (std::error_code EC = llvm::sys::fs::create_directories(StorePath)) {
       Error = "could not create directories for data store path ";
@@ -256,13 +252,13 @@ bool IndexSystemImpl::init(StringRef StorePath,
     }
   }
 
-  auto idxStore = indexstore::IndexStore::create(StorePath, idxStoreLib, Error);
+  auto idxStore = indexstore::IndexStore::create(StorePath, idxStoreLib, options.indexStoreOptions, Error);
   if (!idxStore)
     return true;
 
   auto canonPathCache = std::make_shared<CanonicalPathCache>();
 
-  this->VisibilityChecker = std::make_shared<FileVisibilityChecker>(dbase, canonPathCache, useExplicitOutputUnits);
+  this->VisibilityChecker = std::make_shared<FileVisibilityChecker>(dbase, canonPathCache, options.useExplicitOutputUnits);
   this->SymIndex = std::make_shared<SymbolIndex>(dbase, idxStore, this->VisibilityChecker);
   this->PathIndex = std::make_shared<FilePathIndex>(dbase, idxStore, this->VisibilityChecker,
                                                     canonPathCache);
@@ -270,11 +266,7 @@ bool IndexSystemImpl::init(StringRef StorePath,
                                             this->SymIndex,
                                             this->DelegateWrap,
                                             canonPathCache,
-                                            useExplicitOutputUnits,
-                                            readonly,
-                                            enableOutOfDateFileWatching,
-                                            listenToUnitEvents,
-                                            waitUntilDoneInitializing,
+                                            options,
                                             Error);
 
   if (!this->IndexStore)
@@ -638,16 +630,12 @@ IndexSystem::create(StringRef StorePath,
                     StringRef dbasePath,
                     std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                     std::shared_ptr<IndexSystemDelegate> Delegate,
-                    bool useExplicitOutputUnits, bool readonly,
-                    bool enableOutOfDateFileWatching, bool listenToUnitEvents,
-                    bool waitUntilDoneInitializing,
+                    const CreationOptions &options,
                     Optional<size_t> initialDBSize,
                     std::string &Error) {
   std::unique_ptr<IndexSystemImpl> Impl(new IndexSystemImpl());
   bool Err = Impl->init(StorePath, dbasePath, std::move(storeLibProvider), std::move(Delegate),
-                        useExplicitOutputUnits, readonly,
-                        enableOutOfDateFileWatching, listenToUnitEvents, waitUntilDoneInitializing,
-                        initialDBSize, Error);
+                        options, initialDBSize, Error);
   if (Err)
     return nullptr;
 
