@@ -41,6 +41,7 @@ public enum IndexSymbolKind: Hashable {
   case conversionFunction
   case parameter
   case using
+  case concept
   case commentTag
 }
 
@@ -163,6 +164,8 @@ extension IndexSymbolKind {
       self = .parameter
     case INDEXSTOREDB_SYMBOL_KIND_USING:
       self = .using
+    case INDEXSTOREDB_SYMBOL_KIND_CONCEPT:
+      self = .concept
     case INDEXSTOREDB_SYMBOL_KIND_COMMENTTAG:
       self = .commentTag
     default:

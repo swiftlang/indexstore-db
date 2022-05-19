@@ -93,6 +93,8 @@ static SymbolKind convertStoreSymbolKind(indexstore_symbol_kind_t storeKind) {
     return SymbolKind::ConversionFunction;
   case INDEXSTORE_SYMBOL_KIND_PARAMETER:
     return SymbolKind::Parameter;
+  case INDEXSTORE_SYMBOL_KIND_CONCEPT:
+    return SymbolKind::Concept;
 #if INDEXSTORE_VERSION >= 9
   case INDEXSTORE_SYMBOL_KIND_COMMENTTAG:
     return SymbolKind::CommentTag;
