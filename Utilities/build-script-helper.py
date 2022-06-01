@@ -1,6 +1,4 @@
-#!/usr/bin/env python
-
-from __future__ import print_function
+#!/usr/bin/env python3
 
 import argparse
 import os
@@ -93,7 +91,10 @@ def main():
     parser.add_argument('--sanitize-all', action='store_true', help='build using every available sanitizer in sub-directories of build path')
     parser.add_argument('--verbose', '-v', action='store_true', help='enable verbose output')
 
-  subparsers = parser.add_subparsers(title='subcommands', dest='action', metavar='action')
+  if sys.version_info >= (3,7,0):
+    subparsers = parser.add_subparsers(title='subcommands', dest='action', required=True, metavar='action')
+  else:
+    subparsers = parser.add_subparsers(title='subcommands', dest='action', metavar='action')
   build_parser = subparsers.add_parser('build', help='build the package')
   add_common_args(build_parser)
 
