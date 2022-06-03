@@ -30,6 +30,7 @@ namespace IndexStoreDB {
 namespace index {
   class IndexSystemDelegate;
   class SymbolIndex;
+  struct CreationOptions;
   typedef std::shared_ptr<SymbolIndex> SymbolIndexRef;
 
 class IndexDatastore {
@@ -40,11 +41,7 @@ public:
                                                 SymbolIndexRef SymIndex,
                                                 std::shared_ptr<IndexSystemDelegate> Delegate,
                                                 std::shared_ptr<CanonicalPathCache> CanonPathCache,
-                                                bool useExplicitOutputUnits,
-                                                bool readonly,
-                                                bool enableOutOfDateFileWatching,
-                                                bool listenToUnitEvents,
-                                                bool waitUntilDoneInitializing,
+                                                const CreationOptions &Options,
                                                 std::string &Error);
 
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);

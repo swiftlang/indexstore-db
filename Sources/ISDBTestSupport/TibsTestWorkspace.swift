@@ -171,6 +171,7 @@ public final class TibsTestWorkspace {
     waitUntilDoneInitializing: Bool = false,
     enableOutOfDateFileWatching: Bool = false,
     listenToUnitEvents: Bool = false,
+    prefixMappings: [PathMapping] = [],
     toolchain: TibsToolchain? = nil
   ) throws {
     let toolchain = toolchain ?? TibsToolchain.testDefault
@@ -184,7 +185,8 @@ public final class TibsTestWorkspace {
       useExplicitOutputUnits: useExplicitOutputUnits,
       waitUntilDoneInitializing: waitUntilDoneInitializing,
       enableOutOfDateFileWatching: enableOutOfDateFileWatching,
-      listenToUnitEvents: listenToUnitEvents)
+      listenToUnitEvents: listenToUnitEvents,
+      prefixMappings: prefixMappings)
   }
 
   deinit {
