@@ -15,6 +15,7 @@
 
 #include "IndexStoreDB/Support/LLVM.h"
 #include "IndexStoreDB/Support/Visibility.h"
+#include "indexstore/IndexStoreCXX.h"
 #include "llvm/ADT/OptionSet.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Chrono.h"
@@ -43,6 +44,15 @@ namespace index {
   struct StoreUnitInfo;
   class IndexStoreLibraryProvider;
 
+struct CreationOptions {
+  indexstore::IndexStoreCreationOptions indexStoreOptions;
+  bool useExplicitOutputUnits = false;
+  bool wait = false;
+  bool readonly = false;
+  bool enableOutOfDateFileWatching = false;
+  bool listenToUnitEvents = true;
+};
+
 class INDEXSTOREDB_EXPORT IndexSystem {
 public:
   ~IndexSystem();
@@ -51,11 +61,7 @@ public:
                                              StringRef dbasePath,
                                              std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
                                              std::shared_ptr<IndexSystemDelegate> Delegate,
-                                             bool useExplicitOutputUnits,
-                                             bool readonly,
-                                             bool enableOutOfDateFileWatching,
-                                             bool listenToUnitEvents,
-                                             bool waitUntilDoneInitializing,
+                                             const CreationOptions &options,
                                              Optional<size_t> initialDBSize,
                                              std::string &Error);
 

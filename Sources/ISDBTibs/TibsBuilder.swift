@@ -47,8 +47,8 @@ public final class TibsBuilder {
         sourceRoot.appendingPathComponent($0, isDirectory: false)
       }
 
-      let swiftFlags = targetDesc.swiftFlags ?? []
-      let clangFlags = targetDesc.clangFlags ?? []
+      let swiftFlags = expandMagicVariables(targetDesc.swiftFlags ?? [], sourceRoot.path, buildRoot.path)
+      let clangFlags = expandMagicVariables(targetDesc.clangFlags ?? [], sourceRoot.path, buildRoot.path)
 
       let swiftSources = sources.filter { $0.pathExtension == "swift" }
       let clangSources = sources.filter { $0.pathExtension != "swift" }
@@ -166,6 +166,15 @@ extension TibsBuilder {
     } catch Process.TibsProcessError.nonZeroExit(let reason, let code, let stdout, let stderr) {
       throw Error.buildFailure(reason, exitCode: code, stdout: stdout, stderr: stderr)
     }
+  }
+}
+
+func expandMagicVariables(_ arguments: [String], _ sourceRoot: String, _ buildRoot: String) -> [String] {
+  return arguments.map { arg in
+    var expanded = arg
+    expanded = expanded.replacingOccurrences(of: "$SRC_DIR", with: sourceRoot)
+    expanded = expanded.replacingOccurrences(of: "$BUILD_DIR", with: buildRoot)
+    return expanded
   }
 }
 

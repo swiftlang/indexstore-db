@@ -1,0 +1,9 @@
+{
+  "clang_flags": ["-Wno-objc-root-class", "-fdebug-prefix-map=$SRC_DIR=/SRC_ROOT", "-fdebug-prefix-map=$BUILD_DIR=/BUILD_ROOT"],
+  "swift_flags": ["-file-prefix-map", "$SRC_DIR=/SRC_ROOT", "-file-prefix-map", "$BUILD_DIR=/BUILD_ROOT"],
+  "sources": [
+    "a.swift",
+    "c.m",
+  ],
+  "bridging_header": "bridging-header.h"
+}
