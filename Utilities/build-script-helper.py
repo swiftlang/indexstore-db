@@ -6,19 +6,50 @@ import platform
 import shutil
 import subprocess
 import sys
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
-def swiftpm(action: str, swift_exec: str, swiftpm_args: List[str], env: Optional[Dict[str, str]] = None) -> None:
-    cmd = [swift_exec, action] + swiftpm_args
-    print(' '.join(cmd))
-    subprocess.check_call(cmd, env=env)
+# -----------------------------------------------------------------------------
+# General utilities
 
-def swiftpm_bin_path(swift_exec: str, swiftpm_args: List[str], env: Optional[Dict[str, str]] = None) -> str:
+
+def fatal_error(message):
+    print(message, file=sys.stderr)
+    raise SystemExit(1)
+
+
+def escapeCmdArg(arg: str) -> str:
+    if '"' in arg or " " in arg:
+        return '"%s"' % arg.replace('"', '\\"')
+    else:
+        return arg
+
+
+def check_call(cmd: List[str], env: Optional[Dict[str, str]], cwd: Optional[str] = None, verbose: bool = False):
+    if verbose:
+        print(" ".join([escapeCmdArg(arg) for arg in cmd]))
+    return subprocess.check_call(cmd, cwd=cwd, env=env, stderr=subprocess.STDOUT)
+
+# -----------------------------------------------------------------------------
+# SwiftPM wrappers
+
+
+def swiftpm_bin_path(swift_exec: str, swiftpm_args: List[str], env: Optional[Dict[str, str]], verbose: bool = False) -> str:
+    """
+    Return the path of the directory that contains the binaries produced by this package.
+    """
     cmd = [swift_exec, 'build', '--show-bin-path'] + swiftpm_args
-    print(' '.join(cmd))
+    if verbose:
+        print(" ".join([escapeCmdArg(arg) for arg in cmd]))
     return subprocess.check_output(cmd, env=env, universal_newlines=True).strip()
 
+# -----------------------------------------------------------------------------
+# Build indexstore-db
+
+
 def get_swiftpm_options(args: argparse.Namespace) -> List[str]:
+    """
+    Return the arguments that should be passed to a 'swift build' or 'swift test' invocation
+    """
     swiftpm_args = [
         '--package-path', args.package_path,
         '--build-path', args.build_path,
@@ -45,8 +76,11 @@ def get_swiftpm_options(args: argparse.Namespace) -> List[str]:
     return swiftpm_args
 
 
-def handle_invocation(swift_exec: str, args: argparse.Namespace):
-    swiftpm_args = get_swiftpm_options(args)
+def get_swiftpm_environment_variables(args: argparse.Namespace) -> Dict[str, str]:
+    """
+    Return the environment variables that should be used for a 'swift build' or
+    'swift test' invocation.
+    """
 
     env = dict(os.environ)
     # Set the toolchain used in tests at runtime
@@ -64,24 +98,55 @@ def handle_invocation(swift_exec: str, args: argparse.Namespace):
     if args.sanitize and 'thread' in args.sanitize:
         env['INDEXSTOREDB_ENABLED_THREAD_SANITIZER'] = '1'
 
-    # Workaround for incremental build bug in swiftpm.
-    print('Cleaning ' + args.build_path)
-    shutil.rmtree(args.build_path, ignore_errors=True)
+    return env
 
+
+def build(swift_exec: str, args: argparse.Namespace) -> None:
+    """
+    Build one product in the package
+    """
+    swiftpm_args = get_swiftpm_options(args)
+    env = get_swiftpm_environment_variables(args)
+    cmd = [swift_exec, 'build'] + swiftpm_args
+    check_call(cmd, env=env, verbose=args.verbose)
+
+
+def run_tests(swift_exec: str, args: argparse.Namespace) -> None:
+    """
+    Run all tests in the indexstore-db package
+    """
+    swiftpm_args = get_swiftpm_options(args)
+    env = get_swiftpm_environment_variables(args)
+
+    bin_path = swiftpm_bin_path(swift_exec=swift_exec, swiftpm_args=swiftpm_args, env=env, verbose=args.verbose)
+    tests = os.path.join(bin_path, 'isdb-tests')
+    print('Cleaning ' + tests)
+    shutil.rmtree(tests, ignore_errors=True)
+
+    cmd = [swift_exec, 'test', '--parallel', '--test-product', 'IndexStoreDBPackageTests'] + swiftpm_args
+    check_call(cmd, env=env, verbose=args.verbose)
+
+
+def handle_invocation(swift_exec: str, args: argparse.Namespace) -> None:
+    """
+    Depending on the action in 'args', build the package or run tests.
+    """
     if args.action == 'build':
-        swiftpm('build', swift_exec, swiftpm_args, env)
+        # Workaround for incremental build bug in swiftpm.
+        print('Cleaning ' + args.build_path)
+        shutil.rmtree(args.build_path, ignore_errors=True)
+
+        build(swift_exec, args)
     elif args.action == 'test':
-        bin_path = swiftpm_bin_path(swift_exec, swiftpm_args, env)
-        tests = os.path.join(bin_path, 'isdb-tests')
-        print('Cleaning ' + tests)
-        shutil.rmtree(tests, ignore_errors=True)
-        swiftpm('test', swift_exec, swiftpm_args + ['--parallel'], env)
+        run_tests(swift_exec, args)
     else:
-        assert False, 'unknown action \'{}\''.format(args.action)
+        fatal_error(f"unknown action '{args.action}'")
+
+# -----------------------------------------------------------------------------
+# Argument parsing
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description='Build along with the Swift build-script.')
+def parse_args() -> argparse.Namespace:
     def add_common_args(parser):
         parser.add_argument('--package-path', metavar='PATH', help='directory of the package to build', default='.')
         parser.add_argument('--toolchain', required=True, metavar='PATH', help='build using the toolchain at PATH')
@@ -91,8 +156,10 @@ def main() -> None:
         parser.add_argument('--sanitize', action='append', help='build using the given sanitizer(s) (address|thread|undefined)')
         parser.add_argument('--sanitize-all', action='store_true', help='build using every available sanitizer in sub-directories of build path')
         parser.add_argument('--verbose', '-v', action='store_true', help='enable verbose output')
+        
+    parser = argparse.ArgumentParser(description='Build along with the Swift build-script.')
 
-    if sys.version_info >= (3,7,0):
+    if sys.version_info >= (3, 7, 0):
         subparsers = parser.add_subparsers(title='subcommands', dest='action', required=True, metavar='action')
     else:
         subparsers = parser.add_subparsers(title='subcommands', dest='action', metavar='action')
@@ -104,13 +171,19 @@ def main() -> None:
 
     args = parser.parse_args(sys.argv[1:])
 
-    if args.sanitize and args.sanitize_all:
-        assert False, 'cannot combine --sanitize with --sanitize-all'
-
     # Canonicalize paths
     args.package_path = os.path.abspath(args.package_path)
     args.build_path = os.path.abspath(args.build_path)
     args.toolchain = os.path.abspath(args.toolchain)
+
+    if args.sanitize and args.sanitize_all:
+        fatal_error('cannot combine --sanitize with --sanitize-all')
+
+    return args
+
+
+def main() -> None:
+    args = parse_args()
 
     if args.toolchain:
         swift_exec = os.path.join(args.toolchain, 'bin', 'swift')
