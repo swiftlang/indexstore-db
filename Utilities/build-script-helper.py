@@ -6,18 +6,19 @@ import platform
 import shutil
 import subprocess
 import sys
+from typing import Optional, List, Dict
 
-def swiftpm(action, swift_exec, swiftpm_args, env=None):
+def swiftpm(action: str, swift_exec: str, swiftpm_args: List[str], env: Optional[Dict[str, str]] = None) -> None:
   cmd = [swift_exec, action] + swiftpm_args
   print(' '.join(cmd))
   subprocess.check_call(cmd, env=env)
 
-def swiftpm_bin_path(swift_exec, swiftpm_args, env=None):
+def swiftpm_bin_path(swift_exec: str, swiftpm_args: List[str], env: Optional[Dict[str, str]] = None) -> str:
   cmd = [swift_exec, 'build', '--show-bin-path'] + swiftpm_args
   print(' '.join(cmd))
   return subprocess.check_output(cmd, env=env, universal_newlines=True).strip()
 
-def get_swiftpm_options(args):
+def get_swiftpm_options(args: argparse.Namespace) -> List[str]:
   swiftpm_args = [
     '--package-path', args.package_path,
     '--build-path', args.build_path,
@@ -44,10 +45,10 @@ def get_swiftpm_options(args):
   return swiftpm_args
 
 
-def handle_invocation(swift_exec, args):
+def handle_invocation(swift_exec: str, args: argparse.Namespace):
   swiftpm_args = get_swiftpm_options(args)
 
-  env = os.environ
+  env = dict(os.environ)
   # Set the toolchain used in tests at runtime
   env['INDEXSTOREDB_TOOLCHAIN_BIN_PATH'] = args.toolchain
 
@@ -79,7 +80,7 @@ def handle_invocation(swift_exec, args):
     assert False, 'unknown action \'{}\''.format(args.action)
 
 
-def main():
+def main() -> None:
   parser = argparse.ArgumentParser(description='Build along with the Swift build-script.')
   def add_common_args(parser):
     parser.add_argument('--package-path', metavar='PATH', help='directory of the package to build', default='.')
