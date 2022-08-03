@@ -85,6 +85,7 @@ def get_swiftpm_environment_variables(args: argparse.Namespace) -> Dict[str, str
     env = dict(os.environ)
     # Set the toolchain used in tests at runtime
     env['INDEXSTOREDB_TOOLCHAIN_BIN_PATH'] = args.toolchain
+    env["SWIFTCI_USE_LOCAL_DEPS"] = "1"
 
     if args.ninja_bin:
         env['NINJA_BIN'] = args.ninja_bin
