@@ -74,7 +74,7 @@ def get_swiftpm_options(args: argparse.Namespace) -> List[str]:
     """
     swiftpm_args = [
         '--package-path', args.package_path,
-        '--build-path', args.build_path,
+        '--scratch-path', args.build_path,
         '--configuration', args.configuration,
     ]
 
