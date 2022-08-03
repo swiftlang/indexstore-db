@@ -6,7 +6,7 @@ import platform
 import shutil
 import subprocess
 import sys
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 # -----------------------------------------------------------------------------
 # General utilities
@@ -24,23 +24,41 @@ def escapeCmdArg(arg: str) -> str:
         return arg
 
 
-def check_call(cmd: List[str], env: Optional[Dict[str, str]], cwd: Optional[str] = None, verbose: bool = False):
+def print_cmd(cmd: List[str], additional_env: Dict[str, str]) -> None:
+    env_str = " ".join([f"{key}={escapeCmdArg(str(value))}" for (key, value) in additional_env.items()])
+    command_str = " ".join([escapeCmdArg(str(arg)) for arg in cmd])
+    print(f"{env_str} {command_str}")
+
+
+def env_with_additional_env(additional_env: Dict[str, str]) -> Dict[str, str]:
+    env = dict(os.environ)
+    for (key, value) in additional_env.items():
+        env[key] = str(value)
+    return env
+
+
+def check_call(cmd: List[str], additional_env: Dict[str, str] = {}, verbose: bool = False) -> None:
     if verbose:
-        print(" ".join([escapeCmdArg(arg) for arg in cmd]))
-    return subprocess.check_call(cmd, cwd=cwd, env=env, stderr=subprocess.STDOUT)
+        print_cmd(cmd=cmd, additional_env=additional_env)
+
+    subprocess.check_call(cmd, env=env_with_additional_env(additional_env), stderr=subprocess.STDOUT)
+
+
+def check_output(cmd: List[str], additional_env: Dict[str, str] = {}, verbose: bool = False) -> str:
+    if verbose:
+        print_cmd(cmd=cmd, additional_env=additional_env)
+    return subprocess.check_output(cmd, env=env_with_additional_env(additional_env), stderr=subprocess.STDOUT, encoding='utf-8')
 
 # -----------------------------------------------------------------------------
 # SwiftPM wrappers
 
 
-def swiftpm_bin_path(swift_exec: str, swiftpm_args: List[str], env: Optional[Dict[str, str]], verbose: bool = False) -> str:
+def swiftpm_bin_path(swift_exec: str, swiftpm_args: List[str], additional_env: Dict[str, str], verbose: bool = False) -> str:
     """
     Return the path of the directory that contains the binaries produced by this package.
     """
     cmd = [swift_exec, 'build', '--show-bin-path'] + swiftpm_args
-    if verbose:
-        print(" ".join([escapeCmdArg(arg) for arg in cmd]))
-    return subprocess.check_output(cmd, env=env, universal_newlines=True).strip()
+    return check_output(cmd, additional_env=additional_env, verbose=verbose).strip()
 
 # -----------------------------------------------------------------------------
 # Build indexstore-db
@@ -85,10 +103,11 @@ def get_swiftpm_environment_variables(args: argparse.Namespace) -> Dict[str, str
     'swift test' invocation.
     """
 
-    env = dict(os.environ)
-    # Set the toolchain used in tests at runtime
-    env['INDEXSTOREDB_TOOLCHAIN_BIN_PATH'] = args.toolchain
-    env["SWIFTCI_USE_LOCAL_DEPS"] = "1"
+    env = {
+        # Set the toolchain used in tests at runtime
+        'INDEXSTOREDB_TOOLCHAIN_BIN_PATH': args.toolchain,
+        'SWIFTCI_USE_LOCAL_DEPS': '1',
+    }
 
     if args.ninja_bin:
         env['NINJA_BIN'] = args.ninja_bin
@@ -110,9 +129,9 @@ def build(swift_exec: str, args: argparse.Namespace) -> None:
     Build one product in the package
     """
     swiftpm_args = get_swiftpm_options(args)
-    env = get_swiftpm_environment_variables(args)
+    additional_env = get_swiftpm_environment_variables(args)
     cmd = [swift_exec, 'build', '--product', 'IndexStoreDBPackageTests'] + swiftpm_args
-    check_call(cmd, env=env, verbose=args.verbose)
+    check_call(cmd, additional_env=additional_env, verbose=args.verbose)
 
 
 def run_tests(swift_exec: str, args: argparse.Namespace) -> None:
@@ -120,15 +139,15 @@ def run_tests(swift_exec: str, args: argparse.Namespace) -> None:
     Run all tests in the indexstore-db package
     """
     swiftpm_args = get_swiftpm_options(args)
-    env = get_swiftpm_environment_variables(args)
+    additional_env = get_swiftpm_environment_variables(args)
 
-    bin_path = swiftpm_bin_path(swift_exec=swift_exec, swiftpm_args=swiftpm_args, env=env, verbose=args.verbose)
+    bin_path = swiftpm_bin_path(swift_exec=swift_exec, swiftpm_args=swiftpm_args, additional_env=additional_env, verbose=args.verbose)
     tests = os.path.join(bin_path, 'isdb-tests')
     print('Cleaning ' + tests)
     shutil.rmtree(tests, ignore_errors=True)
 
     cmd = [swift_exec, 'test', '--parallel', '--test-product', 'IndexStoreDBPackageTests'] + swiftpm_args
-    check_call(cmd, env=env, verbose=args.verbose)
+    check_call(cmd, additional_env=additional_env, verbose=args.verbose)
 
 
 def handle_invocation(swift_exec: str, args: argparse.Namespace) -> None:
