@@ -132,10 +132,6 @@ def handle_invocation(swift_exec: str, args: argparse.Namespace) -> None:
     Depending on the action in 'args', build the package or run tests.
     """
     if args.action == 'build':
-        # Workaround for incremental build bug in swiftpm.
-        print('Cleaning ' + args.build_path)
-        shutil.rmtree(args.build_path, ignore_errors=True)
-
         build(swift_exec, args)
     elif args.action == 'test':
         run_tests(swift_exec, args)
