@@ -107,7 +107,7 @@ def build(swift_exec: str, args: argparse.Namespace) -> None:
     """
     swiftpm_args = get_swiftpm_options(args)
     env = get_swiftpm_environment_variables(args)
-    cmd = [swift_exec, 'build'] + swiftpm_args
+    cmd = [swift_exec, 'build', '--product', 'IndexStoreDBPackageTests'] + swiftpm_args
     check_call(cmd, env=env, verbose=args.verbose)
 
 
