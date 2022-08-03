@@ -56,6 +56,9 @@ def get_swiftpm_options(args: argparse.Namespace) -> List[str]:
         '--configuration', args.configuration,
     ]
 
+    if args.multiroot_data_file:
+        swiftpm_args += ['--multiroot-data-file', args.multiroot_data_file]
+
     if args.verbose:
         swiftpm_args += ['--verbose']
 
@@ -153,7 +156,8 @@ def parse_args() -> argparse.Namespace:
         parser.add_argument('--sanitize', action='append', help='build using the given sanitizer(s) (address|thread|undefined)')
         parser.add_argument('--sanitize-all', action='store_true', help='build using every available sanitizer in sub-directories of build path')
         parser.add_argument('--verbose', '-v', action='store_true', help='enable verbose output')
-        
+        parser.add_argument('--multiroot-data-file', help='path to an Xcode workspace to create a unified build of all of Swift\'s SwiftPM projects')
+
     parser = argparse.ArgumentParser(description='Build along with the Swift build-script.')
 
     if sys.version_info >= (3, 7, 0):
