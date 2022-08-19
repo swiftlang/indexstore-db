@@ -297,8 +297,10 @@ extension TibsBuilder {
   public func writeNinjaRules<Output: TextOutputStream>(to stream: inout Output) {
 #if os(Windows)
     let callCmd = "cmd.exe /C "
+    let copyCmd = "copy NUL $out"
 #else
     let callCmd = ""
+    let copyCmd = "touch $out"
 #endif
     // FIXME: rdar://83355591 avoid -c, since we don't want to spend time writing .o files.
     let swiftIndexCommand = callCmd + """
@@ -315,7 +317,7 @@ extension TibsBuilder {
     let ccIndexCommand = callCmd + """
       \(escapeCommand([toolchain.clang.path])) -fsyntax-only $in $IMPORT_PATHS -index-store-path index \
       -index-ignore-system-symbols -fmodules -fmodules-cache-path=ModuleCache \
-      -MMD -MF $OUTPUT_NAME.d -o $out $EXTRA_ARGS && touch $out
+      -MMD -MF $OUTPUT_NAME.d -o $out $EXTRA_ARGS && \(copyCmd)
       """
     stream.write("""
       rule swiftc_index
