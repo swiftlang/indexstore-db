@@ -404,12 +404,12 @@ extension TibsBuilder {
 
 extension TibsBuilder {
 
-  /// The default sdk path to use on Darwin (on other platforms, returns nil).
+  /// The default sdk path to use.
   public static var defaultSDKPath: String? = {
-    #if !os(macOS)
-    return nil
-    #else
+    #if os(macOS)
     return xcrunSDKPath()
+    #else
+    return ProcessInfo.processInfo.environment["SDKROOT"]
     #endif
   }()
 }
