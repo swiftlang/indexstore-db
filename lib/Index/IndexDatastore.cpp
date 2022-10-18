@@ -517,8 +517,9 @@ void StoreUnitRepo::registerUnit(StringRef unitName, bool isInitialScan, std::sh
       CanonMainFile = CanonPathCache->getCanonicalPath(Reader.getMainFilePath(), WorkDir);
       unitImport.setMainFile(CanonMainFile);
     }
-    CanonicalFilePath CanonOutFile = CanonPathCache->getCanonicalPath(Reader.getOutputFile(), WorkDir);
-    unitImport.setOutFile(CanonOutFile);
+    // We treat the output file verbatim without any canonicalization.
+    StringRef OutFile = Reader.getOutputFile();
+    unitImport.setOutFile(OutFile);
 
     CanonicalFilePath CanonSysroot = CanonPathCache->getCanonicalPath(Reader.getSysrootPath(), WorkDir);
     unitImport.setSysroot(CanonSysroot);
@@ -594,7 +595,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName, bool isInitialScan, std::sh
     }
 
     unitImport.commit();
-    StoreUnitInfoOpt = StoreUnitInfo{unitName, CanonMainFile, CanonOutFile, unitImport.getHasTestSymbols().getValue(), unitModTime};
+    StoreUnitInfoOpt = StoreUnitInfo{unitName, CanonMainFile, OutFile, unitImport.getHasTestSymbols().getValue(), unitModTime};
     import.commit();
     return false;
   };
@@ -606,7 +607,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName, bool isInitialScan, std::sh
     if (!StoreUnitInfoOpt.hasValue()) {
       ReadTransaction reader(SymIndex->getDBase());
       CanonicalFilePath mainFile = reader.getFullFilePathFromCode(PrevMainFileCode);
-      CanonicalFilePath outFile = reader.getFullFilePathFromCode(PrevOutFileCode);
+      StringRef outFile = reader.getUnitFileIdentifierFromCode(PrevOutFileCode);
       StoreUnitInfoOpt = StoreUnitInfo{unitName, mainFile, outFile, PrevHasTestSymbols.getValue(), unitModTime};
     }
     Delegate->processedStoreUnit(StoreUnitInfoOpt.getValue());
@@ -813,7 +814,7 @@ void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
                                     OutOfDateTriggerHintRef hint,
                                     bool synchronous) {
   CanonicalFilePath MainFilePath;
-  CanonicalFilePath OutFilePath;
+  StringRef OutFilePath;
   bool hasTestSymbols = false;
   llvm::sys::TimePoint<> CurrModTime;
   SmallVector<IDCode, 8> dependentUnits;
@@ -824,7 +825,7 @@ void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
       if (unitInfo.HasMainFile) {
         MainFilePath = reader.getFullFilePathFromCode(unitInfo.MainFileCode);
       }
-      OutFilePath = reader.getFullFilePathFromCode(unitInfo.OutFileCode);
+      OutFilePath = reader.getUnitFileIdentifierFromCode(unitInfo.OutFileCode);
       hasTestSymbols = unitInfo.HasTestSymbols;
       CurrModTime = unitInfo.ModTime;
     }
