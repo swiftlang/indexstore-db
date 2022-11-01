@@ -658,4 +658,17 @@ final class IndexTests: XCTestCase {
       testMeAsyncSym.at(ws.testLoc("testMeAsync:def"), roles: .definition)
     ])
   }
+
+  func testConcepts() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "CxxLangFeatures") else { return }
+    try ws.buildAndIndex()
+    let index = ws.index
+
+    let largeType = Symbol(usr: "c:@CT@LargeType", name: "LargeType", kind: .concept)
+    let largeTypeOccs = index.occurrences(ofUSR: largeType.usr, roles: .all)
+    checkOccurrences(largeTypeOccs, expected: [
+      largeType.at(ws.testLoc("LargeType:def"), roles: .definition),
+      largeType.at(ws.testLoc("LargeType:ref"), roles: .reference),
+    ])
+  }
 }
