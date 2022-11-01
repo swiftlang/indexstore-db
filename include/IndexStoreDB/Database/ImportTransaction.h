@@ -39,6 +39,7 @@ public:
                        StringRef USR, StringRef symbolName, SymbolInfo symInfo,
                        SymbolRoleSet roles, SymbolRoleSet relatedRoles);
   IDCode addFilePath(CanonicalFilePathRef filePath);
+  IDCode addUnitFileIdentifier(StringRef unitFile);
 
   void removeUnitData(IDCode unitCode);
   void removeUnitData(StringRef unitName);
@@ -55,7 +56,7 @@ class INDEXSTOREDB_EXPORT UnitDataImport {
   ImportTransaction &Import;
   std::string UnitName;
   CanonicalFilePath MainFile;
-  CanonicalFilePath OutFile;
+  StringRef OutFile;
   CanonicalFilePath Sysroot;
   llvm::sys::TimePoint<> ModTime;
   Optional<bool> IsSystem;
@@ -100,7 +101,7 @@ public:
   }
 
   void setMainFile(CanonicalFilePathRef mainFile);
-  void setOutFile(CanonicalFilePathRef outFile);
+  void setOutFile(StringRef outFile);
   void setSysroot(CanonicalFilePathRef sysroot);
   void setIsSystemUnit(bool isSystem);
   void setSymbolProviderKind(SymbolProviderKind K);

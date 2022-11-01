@@ -66,10 +66,7 @@ void FileVisibilityChecker::addUnitOutFilePaths(ArrayRef<StringRef> filePaths) {
 
   ReadTransaction reader(DBase);
   for (StringRef filePath : filePaths) {
-    CanonicalFilePath canonPath = CanonPathCache->getCanonicalPath(filePath);
-    if (canonPath.empty())
-      continue;
-    IDCode pathCode = reader.getFilePathCode(canonPath);
+    IDCode pathCode = reader.getUnitFileIdentifierCode(filePath);
     OutUnitFiles.insert(pathCode);
   }
   UnitVisibilityCache.clear();
@@ -80,10 +77,7 @@ void FileVisibilityChecker::removeUnitOutFilePaths(ArrayRef<StringRef> filePaths
 
   ReadTransaction reader(DBase);
   for (StringRef filePath : filePaths) {
-    CanonicalFilePath canonPath = CanonPathCache->getCanonicalPath(filePath);
-    if (canonPath.empty())
-      continue;
-    IDCode pathCode = reader.getFilePathCode(canonPath);
+    IDCode pathCode = reader.getUnitFileIdentifierCode(filePath);
     OutUnitFiles.erase(pathCode);
   }
   UnitVisibilityCache.clear();

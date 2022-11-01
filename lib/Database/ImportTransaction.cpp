@@ -101,11 +101,14 @@ IDCode ImportTransaction::Implementation::addSymbolInfo(IDCode provider, StringR
 }
 
 IDCode ImportTransaction::Implementation::addFilePath(CanonicalFilePathRef canonFilePath) {
+  return addFilePath(canonFilePath.getPath());
+}
+
+IDCode ImportTransaction::Implementation::addFilePath(StringRef filePath) {
   auto &db = DBase->impl();
   auto &dbiDirNames = db.getDBIDirNameByCode();
   auto &dbiFilenames = db.getDBIFilenameByCode();
 
-  StringRef filePath = canonFilePath.getPath();
   IDCode filePathCode = makeIDCodeFromString(filePath);
   IDCode dirCode;
   StringRef dirName = llvm::sys::path::parent_path(filePath);
@@ -132,6 +135,11 @@ IDCode ImportTransaction::Implementation::addFilePath(CanonicalFilePathRef canon
   }
 
   return filePathCode;
+}
+
+
+IDCode ImportTransaction::Implementation::addUnitFileIdentifier(StringRef unitFile) {
+  return addFilePath(unitFile);
 }
 
 IDCode ImportTransaction::Implementation::addDirectory(CanonicalFilePathRef directory) {
@@ -378,6 +386,10 @@ IDCode ImportTransaction::addFilePath(CanonicalFilePathRef filePath) {
   return Impl->addFilePath(filePath);
 }
 
+IDCode ImportTransaction::addUnitFileIdentifier(StringRef unitFile) {
+  return Impl->addUnitFileIdentifier(unitFile);
+}
+
 void ImportTransaction::removeUnitData(IDCode unitCode) {
   return Impl->removeUnitData(unitCode);
 }
@@ -433,7 +445,7 @@ void UnitDataImport::setMainFile(CanonicalFilePathRef mainFile) {
   MainFile = mainFile;
 }
 
-void UnitDataImport::setOutFile(CanonicalFilePathRef outFile) {
+void UnitDataImport::setOutFile(StringRef outFile) {
   assert(!IsUpToDate);
   OutFile = outFile;
 }
@@ -532,9 +544,9 @@ void UnitDataImport::commit() {
   }
   IDCode outFileCode;
   if (!OutFile.empty()) {
-    outFileCode = makeIDCodeFromString(OutFile.getPath());
+    outFileCode = makeIDCodeFromString(OutFile);
     if (outFileCode != PrevOutFileCode)
-      import.addFilePath(OutFile);
+      import.addUnitFileIdentifier(OutFile);
   }
   bool hasSysroot = false;
   IDCode sysrootCode;

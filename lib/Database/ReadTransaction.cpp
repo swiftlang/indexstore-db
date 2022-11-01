@@ -409,6 +409,15 @@ CanonicalFilePath ReadTransaction::Implementation::getFullFilePathFromCode(IDCod
   return CanonicalFilePathRef::getAsCanonicalPath(path);
 }
 
+StringRef ReadTransaction::Implementation::getUnitFileIdentifierFromCode(IDCode filePathCode) {
+  SmallString<128> path;
+  {
+    llvm::raw_svector_ostream OS(path);
+    getFullFilePathFromCode(filePathCode, OS);
+  }
+  return path;
+}
+
 CanonicalFilePathRef ReadTransaction::Implementation::getDirectoryFromCode(IDCode dirCode) {
   lmdb::val key{&dirCode, sizeof(dirCode)};
   lmdb::val value{};
@@ -484,6 +493,10 @@ bool ReadTransaction::Implementation::findFilePathsWithParentPaths(ArrayRef<Cano
 
 IDCode ReadTransaction::Implementation::getFilePathCode(CanonicalFilePathRef filePath) {
   return makeIDCodeFromString(filePath.getPath());
+}
+
+IDCode ReadTransaction::Implementation::getUnitPathCode(StringRef filePath) {
+  return makeIDCodeFromString(filePath);
 }
 
 bool ReadTransaction::Implementation::getFilePathFromValue(lmdb::val &filePathValue, raw_ostream &OS) {
@@ -721,6 +734,10 @@ CanonicalFilePath ReadTransaction::getFullFilePathFromCode(IDCode filePathCode) 
   return Impl->getFullFilePathFromCode(filePathCode);
 }
 
+StringRef ReadTransaction::getUnitFileIdentifierFromCode(IDCode filePathCode) {
+  return Impl->getUnitFileIdentifierFromCode(filePathCode);
+}
+
 CanonicalFilePathRef ReadTransaction::getDirectoryFromCode(IDCode dirCode) {
   return Impl->getDirectoryFromCode(dirCode);
 }
@@ -736,6 +753,10 @@ bool ReadTransaction::findFilePathsWithParentPaths(ArrayRef<CanonicalFilePathRef
 
 IDCode ReadTransaction::getFilePathCode(CanonicalFilePathRef filePath) {
   return Impl->getFilePathCode(filePath);
+}
+
+IDCode ReadTransaction::getUnitFileIdentifierCode(StringRef filePath) {
+  return Impl->getUnitPathCode(filePath);
 }
 
 UnitInfo ReadTransaction::getUnitInfo(IDCode unitCode) {
