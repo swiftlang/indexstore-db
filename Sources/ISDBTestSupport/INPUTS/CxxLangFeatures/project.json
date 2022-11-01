@@ -1,0 +1,6 @@
+{
+  "clang_flags": ["-std=gnu++20"],
+  "sources": [
+    "concepts.cpp",
+  ],
+}

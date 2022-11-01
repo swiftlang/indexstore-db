@@ -25,7 +25,7 @@
  * INDEXSTORE_VERSION_MAJOR is intended for "major" source/ABI breaking changes.
  */
 #define INDEXSTORE_VERSION_MAJOR 0
-#define INDEXSTORE_VERSION_MINOR 13
+#define INDEXSTORE_VERSION_MINOR 14 /* added C++ concept */
 
 #define INDEXSTORE_VERSION_ENCODE(major, minor) ( \
       ((major) * 10000)                           \
@@ -128,6 +128,7 @@ typedef enum {
   INDEXSTORE_SYMBOL_KIND_CONVERSIONFUNCTION = 24,
   INDEXSTORE_SYMBOL_KIND_PARAMETER = 25,
   INDEXSTORE_SYMBOL_KIND_USING = 26,
+  INDEXSTORE_SYMBOL_KIND_CONCEPT = 27,
 
   INDEXSTORE_SYMBOL_KIND_COMMENTTAG = 1000,
 } indexstore_symbol_kind_t;

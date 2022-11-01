@@ -515,6 +515,8 @@ static indexstoredb_symbol_kind_t toCSymbolKind(SymbolKind K) {
     return INDEXSTOREDB_SYMBOL_KIND_DESTRUCTOR;
   case SymbolKind::ConversionFunction:
     return INDEXSTOREDB_SYMBOL_KIND_CONVERSIONFUNCTION;
+  case SymbolKind::Concept:
+    return INDEXSTOREDB_SYMBOL_KIND_CONCEPT;
   case SymbolKind::CommentTag:
     return INDEXSTOREDB_SYMBOL_KIND_COMMENTTAG;
   default:

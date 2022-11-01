@@ -62,6 +62,8 @@ enum class SymbolKind : uint8_t {
   Destructor,
   ConversionFunction,
 
+  Concept,
+
   CommentTag,
 };
 

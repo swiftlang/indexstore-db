@@ -489,6 +489,8 @@ Optional<GlobalSymbolKind> db::getGlobalSymbolKind(SymbolKind K) {
       return GlobalSymbolKind::Function;
     case SymbolKind::Variable:
       return GlobalSymbolKind::GlobalVar;
+    case SymbolKind::Concept:
+      return GlobalSymbolKind::Concept;
     case SymbolKind::CommentTag:
       return GlobalSymbolKind::CommentTag;
   }
