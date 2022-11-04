@@ -409,10 +409,10 @@ CanonicalFilePath ReadTransaction::Implementation::getFullFilePathFromCode(IDCod
   return CanonicalFilePathRef::getAsCanonicalPath(path);
 }
 
-StringRef ReadTransaction::Implementation::getUnitFileIdentifierFromCode(IDCode filePathCode) {
-  SmallString<128> path;
+std::string ReadTransaction::Implementation::getUnitFileIdentifierFromCode(IDCode filePathCode) {
+  std::string path;
   {
-    llvm::raw_svector_ostream OS(path);
+    llvm::raw_string_ostream OS(path);
     getFullFilePathFromCode(filePathCode, OS);
   }
   return path;
@@ -734,7 +734,7 @@ CanonicalFilePath ReadTransaction::getFullFilePathFromCode(IDCode filePathCode) 
   return Impl->getFullFilePathFromCode(filePathCode);
 }
 
-StringRef ReadTransaction::getUnitFileIdentifierFromCode(IDCode filePathCode) {
+std::string ReadTransaction::getUnitFileIdentifierFromCode(IDCode filePathCode) {
   return Impl->getUnitFileIdentifierFromCode(filePathCode);
 }
 

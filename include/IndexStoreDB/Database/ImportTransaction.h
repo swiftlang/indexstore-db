@@ -56,7 +56,7 @@ class INDEXSTOREDB_EXPORT UnitDataImport {
   ImportTransaction &Import;
   std::string UnitName;
   CanonicalFilePath MainFile;
-  StringRef OutFile;
+  std::string OutFileIdentifier;
   CanonicalFilePath Sysroot;
   llvm::sys::TimePoint<> ModTime;
   Optional<bool> IsSystem;
@@ -101,7 +101,7 @@ public:
   }
 
   void setMainFile(CanonicalFilePathRef mainFile);
-  void setOutFile(StringRef outFile);
+  void setOutFileIdentifier(StringRef outFileIdentifier);
   void setSysroot(CanonicalFilePathRef sysroot);
   void setIsSystemUnit(bool isSystem);
   void setSymbolProviderKind(SymbolProviderKind K);

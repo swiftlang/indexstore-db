@@ -445,9 +445,9 @@ void UnitDataImport::setMainFile(CanonicalFilePathRef mainFile) {
   MainFile = mainFile;
 }
 
-void UnitDataImport::setOutFile(StringRef outFile) {
+void UnitDataImport::setOutFileIdentifier(StringRef outFileIdentifier) {
   assert(!IsUpToDate);
-  OutFile = outFile;
+  OutFileIdentifier = outFileIdentifier;
 }
 
 void UnitDataImport::setSysroot(CanonicalFilePathRef sysroot) {
@@ -543,10 +543,10 @@ void UnitDataImport::commit() {
       import.addFilePath(MainFile);
   }
   IDCode outFileCode;
-  if (!OutFile.empty()) {
-    outFileCode = makeIDCodeFromString(OutFile);
+  if (!OutFileIdentifier.empty()) {
+    outFileCode = makeIDCodeFromString(OutFileIdentifier);
     if (outFileCode != PrevOutFileCode)
-      import.addUnitFileIdentifier(OutFile);
+      import.addUnitFileIdentifier(OutFileIdentifier);
   }
   bool hasSysroot = false;
   IDCode sysrootCode;

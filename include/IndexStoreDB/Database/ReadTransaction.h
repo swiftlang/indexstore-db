@@ -83,7 +83,7 @@ public:
   CanonicalFilePathRef getDirectoryFromCode(IDCode dirCode);
   /// Returns empty path if it was not found. This should only be used for the unit path since it is not treated as
   /// a canonicalized path.
-  StringRef getUnitFileIdentifierFromCode(IDCode fileCode);
+  std::string getUnitFileIdentifierFromCode(IDCode fileCode);
 
   bool foreachDirPath(llvm::function_ref<bool(CanonicalFilePathRef dirPath)> receiver);
 
