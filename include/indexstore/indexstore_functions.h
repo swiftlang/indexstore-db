@@ -237,6 +237,8 @@ typedef struct {
   unsigned
   (*format_version)(void);
 
+  unsigned (*version)(void);
+
   indexstore_creation_options_t
   (*creation_options_create)(void);
 
