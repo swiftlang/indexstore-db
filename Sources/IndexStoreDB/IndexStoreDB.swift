@@ -390,6 +390,32 @@ public protocol IndexStoreLibraryProvider {
 public class IndexStoreLibrary {
   let library: UnsafeMutableRawPointer // indexstoredb_indexstore_library_t
 
+  public var version: Version {
+    return Version(encoded: Int(indexstoredb_store_version(library)))
+  }
+
+  public var formatVersion: Int {
+    return Int(indexstoredb_format_version(library))
+  }
+
+  public struct Version: Comparable {
+    public let major: Int
+    public let minor: Int
+
+    public init(major: Int, minor: Int) {
+      self.major = major
+      self.minor = minor
+    }
+
+    public init(encoded: Int) {
+      self.init(major: encoded / 10000, minor: encoded % 10000)
+    }
+
+    public static func < (lhs: Version, rhs: Version) -> Bool {
+      return (lhs.major, lhs.minor) < (rhs.major, rhs.minor)
+    }
+  }
+
   public init(dylibPath: String) throws {
     var error: indexstoredb_error_t? = nil
     guard let lib = indexstoredb_load_indexstore_library(dylibPath, &error) else {

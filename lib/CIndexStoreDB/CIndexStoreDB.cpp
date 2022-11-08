@@ -193,6 +193,20 @@ indexstoredb_load_indexstore_library(const char *dylibPath,
   return nullptr;
 }
 
+unsigned indexstoredb_format_version(indexstoredb_indexstore_library_t lib) {
+  auto obj = (Object<std::shared_ptr<indexstore::IndexStoreLibrary>> *)lib;
+  return obj->value->api().format_version();
+}
+
+unsigned indexstoredb_store_version(indexstoredb_indexstore_library_t lib) {
+  auto obj = (Object<std::shared_ptr<indexstore::IndexStoreLibrary>> *)lib;
+  const indexstore_functions_t &api = obj->value->api();
+  if (api.version) {
+    return api.version();
+  }
+  return 0;
+}
+
 void indexstoredb_index_poll_for_unit_changes_and_wait(indexstoredb_index_t index, bool isInitialScan) {
   auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   obj->value->pollForUnitChangesAndWait(isInitialScan);

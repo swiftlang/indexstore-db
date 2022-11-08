@@ -661,11 +661,12 @@ final class IndexTests: XCTestCase {
 
   func testConcepts() throws {
     guard let ws = try staticTibsTestWorkspace(name: "CxxLangFeatures") else { return }
+    try XCTSkipIf(ws.libIndexStore.version < IndexStoreLibrary.Version(major: 0, minor: 14))
+
     try ws.buildAndIndex()
-    let index = ws.index
 
     let largeType = Symbol(usr: "c:@CT@LargeType", name: "LargeType", kind: .concept)
-    let largeTypeOccs = index.occurrences(ofUSR: largeType.usr, roles: .all)
+    let largeTypeOccs = ws.index.occurrences(ofUSR: largeType.usr, roles: .all)
     checkOccurrences(largeTypeOccs, expected: [
       largeType.at(ws.testLoc("LargeType:def"), roles: .definition),
       largeType.at(ws.testLoc("LargeType:ref"), roles: .reference),

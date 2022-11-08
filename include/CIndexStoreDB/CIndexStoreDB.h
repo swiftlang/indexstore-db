@@ -224,6 +224,15 @@ indexstoredb_indexstore_library_t
 indexstoredb_load_indexstore_library(const char * _Nonnull dylibPath,
                              indexstoredb_error_t _Nullable * _Nullable);
 
+/// Retrieve the format version of the indexstore.
+INDEXSTOREDB_PUBLIC unsigned
+indexstoredb_format_version(_Nonnull indexstoredb_indexstore_library_t lib);
+
+/// Retrieve the version of the indexstore, 0 if the underlying indexstore API
+/// isn't available.
+INDEXSTOREDB_PUBLIC unsigned
+indexstoredb_store_version(_Nonnull indexstoredb_indexstore_library_t lib);
+
 /// *For Testing* Poll for any changes to index units and wait until they have been registered.
 INDEXSTOREDB_PUBLIC void
 indexstoredb_index_poll_for_unit_changes_and_wait(_Nonnull indexstoredb_index_t index, bool isInitialScan);

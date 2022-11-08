@@ -41,6 +41,9 @@ public final class TibsTestWorkspace {
   /// The current resolved project and builder.
   public var builder: TibsBuilder
 
+  // The loaded indexstore library
+  public var libIndexStore: IndexStoreLibrary
+
   /// The source code index.
   public var index: IndexStoreDB
 
@@ -98,7 +101,7 @@ public final class TibsTestWorkspace {
 
     try builder.writeBuildFiles()
 
-    let libIndexStore = try IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
+    self.libIndexStore = try IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
 
     self.index = try IndexStoreDB(
       storePath: builder.indexstore.path,
@@ -151,7 +154,7 @@ public final class TibsTestWorkspace {
 
     try builder.writeBuildFiles()
 
-    let libIndexStore = try IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
+    self.libIndexStore = try IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
 
     self.index = try IndexStoreDB(
       storePath: builder.indexstore.path,
@@ -175,8 +178,7 @@ public final class TibsTestWorkspace {
     toolchain: TibsToolchain? = nil
   ) throws {
     let toolchain = toolchain ?? TibsToolchain.testDefault
-    let libIndexStore = try IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
-
+    self.libIndexStore = try IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
     self.index = try IndexStoreDB(
       storePath: builder.indexstore.path,
       databasePath: Self.databaseDirIn(tmpDir).path,
