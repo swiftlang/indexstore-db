@@ -35,8 +35,9 @@ public:
   /// \returns a IDCode of the USR.
   IDCode addSymbolInfo(IDCode provider, StringRef USR, StringRef symbolName, SymbolInfo symInfo,
                        SymbolRoleSet roles, SymbolRoleSet relatedRoles);
-  IDCode addFilePath(CanonicalFilePathRef filePath);
+  IDCode addFilePath(CanonicalFilePathRef canonFilePath);
   IDCode addDirectory(CanonicalFilePathRef directory);
+  IDCode addUnitFileIdentifier(StringRef unitFile);
   IDCode addTargetName(StringRef target);
   IDCode addModuleName(StringRef moduleName);
   /// If file is already associated, its timestamp is updated if \c modTime is more recent.
@@ -59,6 +60,9 @@ public:
   void removeUnitData(StringRef unitName);
 
   void commit();
+
+private:
+  IDCode addFilePath(StringRef filePath);
 };
 
 } // namespace db

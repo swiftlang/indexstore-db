@@ -83,10 +83,14 @@ public:
   /// Returns empty path if it was not found.
   CanonicalFilePath getFullFilePathFromCode(IDCode filePathCode);
   CanonicalFilePathRef getDirectoryFromCode(IDCode dirCode);
+  /// Returns empty path if it was not found. This should only be used for the unit path since it is not treated as
+  ///  a canonicalized path.
+  std::string getUnitFileIdentifierFromCode(IDCode fileCode);
   bool foreachDirPath(llvm::function_ref<bool(CanonicalFilePathRef dirPath)> receiver);
   bool findFilePathsWithParentPaths(ArrayRef<CanonicalFilePathRef> parentPaths,
                                     llvm::function_ref<bool(IDCode pathCode, CanonicalFilePathRef filePath)> receiver);
   IDCode getFilePathCode(CanonicalFilePathRef filePath);
+  IDCode getUnitPathCode(StringRef filePath);
 
   /// UnitInfo.UnitName will be empty if \c unit was not found. UnitInfo.UnitCode is always filled out.
   UnitInfo getUnitInfo(IDCode unitCode);

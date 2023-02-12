@@ -15,6 +15,7 @@
 #include "IndexStoreDB/Core/Symbol.h"
 #include "IndexStoreDB/Index/FilePathIndex.h"
 #include "IndexStoreDB/Index/SymbolIndex.h"
+#include "IndexStoreDB/Index/IndexSystem.h"
 #include "IndexStoreDB/Index/IndexSystemDelegate.h"
 #include "IndexStoreDB/Database/Database.h"
 #include "IndexStoreDB/Database/DatabaseError.h"
@@ -166,11 +167,7 @@ public:
             SymbolIndexRef SymIndex,
             std::shared_ptr<IndexSystemDelegate> Delegate,
             std::shared_ptr<CanonicalPathCache> CanonPathCache,
-            bool useExplicitOutputUnits,
-            bool readonly,
-            bool enableOutOfDateFileWatching,
-            bool listenToUnitEvents,
-            bool waitUntilDoneInitializing,
+            const CreationOptions &Options,
             std::string &Error);
 
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
@@ -520,8 +517,9 @@ void StoreUnitRepo::registerUnit(StringRef unitName, bool isInitialScan, std::sh
       CanonMainFile = CanonPathCache->getCanonicalPath(Reader.getMainFilePath(), WorkDir);
       unitImport.setMainFile(CanonMainFile);
     }
-    CanonicalFilePath CanonOutFile = CanonPathCache->getCanonicalPath(Reader.getOutputFile(), WorkDir);
-    unitImport.setOutFile(CanonOutFile);
+    // We treat the output file verbatim without any canonicalization.
+    std::string OutFileIdentifier = Reader.getOutputFile();
+    unitImport.setOutFileIdentifier(OutFileIdentifier);
 
     CanonicalFilePath CanonSysroot = CanonPathCache->getCanonicalPath(Reader.getSysrootPath(), WorkDir);
     unitImport.setSysroot(CanonSysroot);
@@ -597,7 +595,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName, bool isInitialScan, std::sh
     }
 
     unitImport.commit();
-    StoreUnitInfoOpt = StoreUnitInfo{unitName, CanonMainFile, CanonOutFile, unitImport.getHasTestSymbols().getValue(), unitModTime};
+    StoreUnitInfoOpt = StoreUnitInfo{unitName, CanonMainFile, OutFileIdentifier, unitImport.getHasTestSymbols().getValue(), unitModTime};
     import.commit();
     return false;
   };
@@ -609,8 +607,8 @@ void StoreUnitRepo::registerUnit(StringRef unitName, bool isInitialScan, std::sh
     if (!StoreUnitInfoOpt.hasValue()) {
       ReadTransaction reader(SymIndex->getDBase());
       CanonicalFilePath mainFile = reader.getFullFilePathFromCode(PrevMainFileCode);
-      CanonicalFilePath outFile = reader.getFullFilePathFromCode(PrevOutFileCode);
-      StoreUnitInfoOpt = StoreUnitInfo{unitName, mainFile, outFile, PrevHasTestSymbols.getValue(), unitModTime};
+      std::string outFileIdentifier = reader.getUnitFileIdentifierFromCode(PrevOutFileCode);
+      StoreUnitInfoOpt = StoreUnitInfo{unitName, mainFile, outFileIdentifier, PrevHasTestSymbols.getValue(), unitModTime};
     }
     Delegate->processedStoreUnit(StoreUnitInfoOpt.getValue());
   }
@@ -816,7 +814,7 @@ void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
                                     OutOfDateTriggerHintRef hint,
                                     bool synchronous) {
   CanonicalFilePath MainFilePath;
-  CanonicalFilePath OutFilePath;
+  std::string OutFileIdentifier;
   bool hasTestSymbols = false;
   llvm::sys::TimePoint<> CurrModTime;
   SmallVector<IDCode, 8> dependentUnits;
@@ -827,7 +825,7 @@ void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
       if (unitInfo.HasMainFile) {
         MainFilePath = reader.getFullFilePathFromCode(unitInfo.MainFileCode);
       }
-      OutFilePath = reader.getFullFilePathFromCode(unitInfo.OutFileCode);
+      OutFileIdentifier = reader.getUnitFileIdentifierFromCode(unitInfo.OutFileCode);
       hasTestSymbols = unitInfo.HasTestSymbols;
       CurrModTime = unitInfo.ModTime;
     }
@@ -835,7 +833,7 @@ void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
   }
 
   if (!MainFilePath.empty() && Delegate) {
-    StoreUnitInfo unitInfo{unitName, MainFilePath, OutFilePath, hasTestSymbols, CurrModTime};
+    StoreUnitInfo unitInfo{unitName, MainFilePath, OutFileIdentifier, hasTestSymbols, CurrModTime};
     Delegate->unitIsOutOfDate(unitInfo, outOfDateModTime, hint, synchronous);
   }
 
@@ -1038,21 +1036,18 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
                               SymbolIndexRef SymIndex,
                               std::shared_ptr<IndexSystemDelegate> Delegate,
                               std::shared_ptr<CanonicalPathCache> CanonPathCache,
-                              bool useExplicitOutputUnits,
-                              bool readonly,
-                              bool enableOutOfDateFileWatching,
-                              bool listenToUnitEvents,
-                              bool waitUntilDoneInitializing,
+                              const CreationOptions &Options,
                               std::string &Error) {
   this->IdxStore = std::move(idxStore);
   if (!this->IdxStore)
     return true;
 
-  if (readonly)
+  if (Options.readonly)
     return false;
 
-  auto UnitRepo = std::make_shared<StoreUnitRepo>(this->IdxStore, SymIndex, useExplicitOutputUnits, enableOutOfDateFileWatching, Delegate, CanonPathCache);
+  auto UnitRepo = std::make_shared<StoreUnitRepo>(this->IdxStore, SymIndex, Options.useExplicitOutputUnits, Options.enableOutOfDateFileWatching, Delegate, CanonPathCache);
   std::weak_ptr<StoreUnitRepo> WeakUnitRepo = UnitRepo;
+  bool waitUntilDoneInitializing = Options.wait;
   auto eventsDeque = std::make_shared<UnitEventInfoDeque>();
   auto OnUnitsChange = [WeakUnitRepo, Delegate, eventsDeque, waitUntilDoneInitializing](IndexStore::UnitEventNotification EventNote) {
     bool isInitialScan = EventNote.isInitial();
@@ -1074,7 +1069,7 @@ bool IndexDatastoreImpl::init(IndexStoreRef idxStore,
 
   this->UnitRepo = std::move(UnitRepo);
 
-  if (listenToUnitEvents) {
+  if (Options.listenToUnitEvents) {
     this->IdxStore->setUnitEventHandler(OnUnitsChange);
     bool err = this->IdxStore->startEventListening(waitUntilDoneInitializing, Error);
     if (err)
@@ -1133,16 +1128,11 @@ IndexDatastore::create(IndexStoreRef idxStore,
                        SymbolIndexRef SymIndex,
                        std::shared_ptr<IndexSystemDelegate> Delegate,
                        std::shared_ptr<CanonicalPathCache> CanonPathCache,
-                       bool useExplicitOutputUnits,
-                       bool readonly,
-                       bool enableOutOfDateFileWatching,
-                       bool listenToUnitEvents,
-                       bool waitUntilDoneInitializing,
+                       const CreationOptions &Options,
                        std::string &Error) {
   std::unique_ptr<IndexDatastoreImpl> Impl(new IndexDatastoreImpl());
   bool Err = Impl->init(std::move(idxStore), std::move(SymIndex), std::move(Delegate), std::move(CanonPathCache),
-                        useExplicitOutputUnits, readonly, enableOutOfDateFileWatching,
-                        listenToUnitEvents, waitUntilDoneInitializing, Error);
+                        Options, Error);
   if (Err)
     return nullptr;
 

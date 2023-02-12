@@ -9790,7 +9790,12 @@ mdb_page_split(MDB_cursor *mc, MDB_val *newkey, MDB_val *newdata, pgno_t newpgno
 			 * the split so the new page is emptier than the old page.
 			 * This yields better packing during sequential inserts.
 			 */
-			if (nkeys < 32 || nsize > pmax/16 || newindx >= nkeys) {
+// INDEXSTOREDB START
+// Changed in IndexStoreDB's copy of LMDB only. Should be removed once
+// ITS#9806 is fixed upstream. This changes the `nkeys < 32` check, which
+// seem to work well for larger than 4kb page sizes.
+			if (nkeys < env->me_psize/128 || nsize > pmax/16 || newindx >= nkeys) {
+// INDEXSTOREDB END
 				/* Find split point */
 				psize = 0;
 				if (newindx <= split_indx || newindx >= nkeys) {

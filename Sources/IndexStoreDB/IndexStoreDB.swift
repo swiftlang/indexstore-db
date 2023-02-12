@@ -22,6 +22,19 @@ import ucrt
 import Darwin.POSIX
 #endif
 
+public struct PathMapping {
+  /// Path prefix to be replaced, typically the canonical or hermetic path.
+  let original: String
+
+  /// Replacement path prefix, typically the path on the local machine.
+  let replacement: String
+
+  public init(original: String, replacement: String) {
+    self.original = original
+    self.replacement = replacement
+  }
+}
+
 /// IndexStoreDB index.
 public final class IndexStoreDB {
 
@@ -43,6 +56,7 @@ public final class IndexStoreDB {
   ///   * listenToUnitEvents: Only `true` is supported outside unit tests. Setting to `false`
   ///     disables reading or updating from the index store unless `pollForUnitChangesAndWait()`
   ///     is called.
+  ///   * prefixMappings: Path mappings to use (if supported) to remap paths in the index data to paths on the local machine.
   public init(
     storePath: String,
     databasePath: String,
@@ -52,7 +66,8 @@ public final class IndexStoreDB {
     waitUntilDoneInitializing wait: Bool = false,
     readonly: Bool = false,
     enableOutOfDateFileWatching: Bool = false,
-    listenToUnitEvents: Bool = true
+    listenToUnitEvents: Bool = true,
+    prefixMappings: [PathMapping] = []
   ) throws {
     self.delegate = delegate
 
@@ -63,15 +78,26 @@ public final class IndexStoreDB {
     let delegateFunc = { [weak delegate] (event: indexstoredb_delegate_event_t) -> () in
       delegate?.handleEvent(event)
     }
+    let options = indexstoredb_creation_options_create()
+    defer { indexstoredb_creation_options_dispose(options) }
+    indexstoredb_creation_options_use_explicit_output_units(options, useExplicitOutputUnits)
+    indexstoredb_creation_options_wait(options, wait)
+    indexstoredb_creation_options_readonly(options, readonly)
+    indexstoredb_creation_options_enable_out_of_date_file_watching(options, enableOutOfDateFileWatching)
+    indexstoredb_creation_options_listen_to_unit_events(options, listenToUnitEvents)
+    for mapping in prefixMappings {
+      mapping.original.withCString { origCStr in
+        mapping.replacement.withCString { remappedCStr in
+          indexstoredb_creation_options_add_prefix_mapping(options, origCStr, remappedCStr)
+        }
+      }
+    }
 
     var error: indexstoredb_error_t? = nil
     guard let index = indexstoredb_index_create(
       storePath, databasePath,
       libProviderFunc, delegateFunc,
-      useExplicitOutputUnits,
-      wait, readonly,
-      enableOutOfDateFileWatching, listenToUnitEvents,
-      &error
+      options, &error
     ) else {
       defer { indexstoredb_error_dispose(error) }
       throw IndexStoreDBError.create(error?.description ?? "unknown")
@@ -363,6 +389,32 @@ public protocol IndexStoreLibraryProvider {
 
 public class IndexStoreLibrary {
   let library: UnsafeMutableRawPointer // indexstoredb_indexstore_library_t
+
+  public var version: Version {
+    return Version(encoded: Int(indexstoredb_store_version(library)))
+  }
+
+  public var formatVersion: Int {
+    return Int(indexstoredb_format_version(library))
+  }
+
+  public struct Version: Comparable {
+    public let major: Int
+    public let minor: Int
+
+    public init(major: Int, minor: Int) {
+      self.major = major
+      self.minor = minor
+    }
+
+    public init(encoded: Int) {
+      self.init(major: encoded / 10000, minor: encoded % 10000)
+    }
+
+    public static func < (lhs: Version, rhs: Version) -> Bool {
+      return (lhs.major, lhs.minor) < (rhs.major, rhs.minor)
+    }
+  }
 
   public init(dylibPath: String) throws {
     var error: indexstoredb_error_t? = nil

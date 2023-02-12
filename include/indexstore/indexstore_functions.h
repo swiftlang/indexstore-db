@@ -25,7 +25,7 @@
  * INDEXSTORE_VERSION_MAJOR is intended for "major" source/ABI breaking changes.
  */
 #define INDEXSTORE_VERSION_MAJOR 0
-#define INDEXSTORE_VERSION_MINOR 11
+#define INDEXSTORE_VERSION_MINOR 14 /* added C++ concept */
 
 #define INDEXSTORE_VERSION_ENCODE(major, minor) ( \
       ((major) * 10000)                           \
@@ -79,6 +79,7 @@ typedef struct {
 } indexstore_string_ref_t;
 
 typedef void *indexstore_t;
+typedef void *indexstore_creation_options_t;
 
 typedef void *indexstore_unit_event_notification_t;
 typedef void *indexstore_unit_event_t;
@@ -127,6 +128,7 @@ typedef enum {
   INDEXSTORE_SYMBOL_KIND_CONVERSIONFUNCTION = 24,
   INDEXSTORE_SYMBOL_KIND_PARAMETER = 25,
   INDEXSTORE_SYMBOL_KIND_USING = 26,
+  INDEXSTORE_SYMBOL_KIND_CONCEPT = 27,
 
   INDEXSTORE_SYMBOL_KIND_COMMENTTAG = 1000,
 } indexstore_symbol_kind_t;
@@ -235,8 +237,26 @@ typedef struct {
   unsigned
   (*format_version)(void);
 
+  unsigned (*version)(void);
+
+  indexstore_creation_options_t
+  (*creation_options_create)(void);
+
+  void
+  (*creation_options_dispose)(indexstore_creation_options_t);
+
+  void
+  (*creation_options_add_prefix_mapping)(indexstore_creation_options_t options,
+                                         const char *path_prefix,
+                                         const char *remapped_path_prefix);
+
   indexstore_t
   (*store_create)(const char *store_path, indexstore_error_t *error);
+
+  indexstore_t
+  (*store_create_with_options)(const char *store_path,
+                               indexstore_creation_options_t options,
+                               indexstore_error_t *error);
 
   void
   (*store_dispose)(indexstore_t);

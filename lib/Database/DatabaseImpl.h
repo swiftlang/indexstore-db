@@ -98,6 +98,7 @@ enum class GlobalSymbolKind : unsigned {
   TestClassOrExtension = 9,
   TestMethod = 10,
   CommentTag = 11,
+  Concept = 12,
 };
 
 Optional<GlobalSymbolKind> getGlobalSymbolKind(SymbolKind K);

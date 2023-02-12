@@ -47,8 +47,8 @@ public final class TibsBuilder {
         sourceRoot.appendingPathComponent($0, isDirectory: false)
       }
 
-      let swiftFlags = targetDesc.swiftFlags ?? []
-      let clangFlags = targetDesc.clangFlags ?? []
+      let swiftFlags = expandMagicVariables(targetDesc.swiftFlags ?? [], sourceRoot.path, buildRoot.path)
+      let clangFlags = expandMagicVariables(targetDesc.clangFlags ?? [], sourceRoot.path, buildRoot.path)
 
       let swiftSources = sources.filter { $0.pathExtension == "swift" }
       let clangSources = sources.filter { $0.pathExtension != "swift" }
@@ -166,6 +166,15 @@ extension TibsBuilder {
     } catch Process.TibsProcessError.nonZeroExit(let reason, let code, let stdout, let stderr) {
       throw Error.buildFailure(reason, exitCode: code, stdout: stdout, stderr: stderr)
     }
+  }
+}
+
+func expandMagicVariables(_ arguments: [String], _ sourceRoot: String, _ buildRoot: String) -> [String] {
+  return arguments.map { arg in
+    var expanded = arg
+    expanded = expanded.replacingOccurrences(of: "$SRC_DIR", with: sourceRoot)
+    expanded = expanded.replacingOccurrences(of: "$BUILD_DIR", with: buildRoot)
+    return expanded
   }
 }
 
@@ -288,8 +297,10 @@ extension TibsBuilder {
   public func writeNinjaRules<Output: TextOutputStream>(to stream: inout Output) {
 #if os(Windows)
     let callCmd = "cmd.exe /C "
+    let copyCmd = "copy NUL $out"
 #else
     let callCmd = ""
+    let copyCmd = "touch $out"
 #endif
     // FIXME: rdar://83355591 avoid -c, since we don't want to spend time writing .o files.
     let swiftIndexCommand = callCmd + """
@@ -306,7 +317,7 @@ extension TibsBuilder {
     let ccIndexCommand = callCmd + """
       \(escapeCommand([toolchain.clang.path])) -fsyntax-only $in $IMPORT_PATHS -index-store-path index \
       -index-ignore-system-symbols -fmodules -fmodules-cache-path=ModuleCache \
-      -MMD -MF $OUTPUT_NAME.d -o $out $EXTRA_ARGS && touch $out
+      -MMD -MF $OUTPUT_NAME.d -o $out $EXTRA_ARGS && \(copyCmd)
       """
     stream.write("""
       rule swiftc_index
@@ -393,12 +404,12 @@ extension TibsBuilder {
 
 extension TibsBuilder {
 
-  /// The default sdk path to use on Darwin (on other platforms, returns nil).
+  /// The default sdk path to use.
   public static var defaultSDKPath: String? = {
-    #if !os(macOS)
-    return nil
-    #else
+    #if os(macOS)
     return xcrunSDKPath()
+    #else
+    return ProcessInfo.processInfo.environment["SDKROOT"]
     #endif
   }()
 }

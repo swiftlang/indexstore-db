@@ -96,23 +96,75 @@ public:
 
 } // end anonymous namespace
 
+indexstoredb_creation_options_t
+indexstoredb_creation_options_create(void) {
+  return new CreationOptions();
+}
+
+void
+indexstoredb_creation_options_dispose(indexstoredb_creation_options_t c_options) {
+  auto *options = static_cast<CreationOptions *>(c_options);
+  delete options;
+}
+
+void
+indexstoredb_creation_options_add_prefix_mapping(indexstoredb_creation_options_t c_options,
+                                                 const char *path_prefix,
+                                                 const char *remapped_path_prefix) {
+  auto *options = static_cast<CreationOptions *>(c_options);
+  options->indexStoreOptions.addPrefixMapping(path_prefix, remapped_path_prefix);
+}
+
+void
+indexstoredb_creation_options_listen_to_unit_events(indexstoredb_creation_options_t c_options,
+                                                        bool listenToUnitEvents) {
+  auto *options = static_cast<CreationOptions *>(c_options);
+  options->listenToUnitEvents = listenToUnitEvents;
+}
+
+void
+indexstoredb_creation_options_enable_out_of_date_file_watching(indexstoredb_creation_options_t c_options,
+                                                               bool enableOutOfDateFileWatching) {
+  auto *options = static_cast<CreationOptions *>(c_options);
+  options->enableOutOfDateFileWatching = enableOutOfDateFileWatching;
+}
+
+void
+indexstoredb_creation_options_readonly(indexstoredb_creation_options_t c_options,
+                                           bool readonly) {
+  auto *options = static_cast<CreationOptions *>(c_options);
+  options->readonly = readonly;
+}
+
+void
+indexstoredb_creation_options_wait(indexstoredb_creation_options_t c_options,
+                                       bool wait) {
+  auto *options = static_cast<CreationOptions *>(c_options);
+  options->wait = wait;
+}
+
+void
+indexstoredb_creation_options_use_explicit_output_units(indexstoredb_creation_options_t c_options,
+                                                            bool useExplicitOutputUnits) {
+  auto *options = static_cast<CreationOptions *>(c_options);
+  options->useExplicitOutputUnits = useExplicitOutputUnits;
+}
+
 indexstoredb_index_t
 indexstoredb_index_create(const char *storePath, const char *databasePath,
                           indexstore_library_provider_t libProvider,
                           indexstoredb_delegate_event_receiver_t delegateCallback,
-                          bool useExplicitOutputUnits, bool wait, bool readonly,
-                          bool enableOutOfDateFileWatching, bool listenToUnitEvents,
+                          indexstoredb_creation_options_t cOptions,
                           indexstoredb_error_t *error) {
 
   auto delegate = std::make_shared<BlockIndexSystemDelegate>(delegateCallback);
   auto libProviderObj = std::make_shared<BlockIndexStoreLibraryProvider>(libProvider);
+  auto options = static_cast<CreationOptions *>(cOptions);
 
   std::string errMsg;
   if (auto index =
           IndexSystem::create(storePath, databasePath, libProviderObj, delegate,
-                              useExplicitOutputUnits, readonly,
-                              enableOutOfDateFileWatching, listenToUnitEvents, wait,
-                              llvm::None, errMsg)) {
+                              *options, llvm::None, errMsg)) {
 
     return make_object(index);
 
@@ -139,6 +191,20 @@ indexstoredb_load_indexstore_library(const char *dylibPath,
     *error = (indexstoredb_error_t)new IndexStoreDBError(errMsg);
   }
   return nullptr;
+}
+
+unsigned indexstoredb_format_version(indexstoredb_indexstore_library_t lib) {
+  auto obj = (Object<std::shared_ptr<indexstore::IndexStoreLibrary>> *)lib;
+  return obj->value->api().format_version();
+}
+
+unsigned indexstoredb_store_version(indexstoredb_indexstore_library_t lib) {
+  auto obj = (Object<std::shared_ptr<indexstore::IndexStoreLibrary>> *)lib;
+  const indexstore_functions_t &api = obj->value->api();
+  if (api.version) {
+    return api.version();
+  }
+  return 0;
 }
 
 void indexstoredb_index_poll_for_unit_changes_and_wait(indexstoredb_index_t index, bool isInitialScan) {
@@ -463,6 +529,8 @@ static indexstoredb_symbol_kind_t toCSymbolKind(SymbolKind K) {
     return INDEXSTOREDB_SYMBOL_KIND_DESTRUCTOR;
   case SymbolKind::ConversionFunction:
     return INDEXSTOREDB_SYMBOL_KIND_CONVERSIONFUNCTION;
+  case SymbolKind::Concept:
+    return INDEXSTOREDB_SYMBOL_KIND_CONCEPT;
   case SymbolKind::CommentTag:
     return INDEXSTOREDB_SYMBOL_KIND_COMMENTTAG;
   default:

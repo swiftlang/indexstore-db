@@ -23,17 +23,17 @@ namespace index {
 struct StoreUnitInfo {
   std::string UnitName;
   CanonicalFilePath MainFilePath;
-  CanonicalFilePath OutFilePath;
+  std::string OutFileIdentifier;
   bool HasTestSymbols = false;
   llvm::sys::TimePoint<> ModTime;
 
   StoreUnitInfo() = default;
   StoreUnitInfo(std::string unitName, CanonicalFilePath mainFilePath,
-                CanonicalFilePath outFilePath, bool hasTestSymbols,
+                StringRef outFileIdentifier, bool hasTestSymbols,
                 llvm::sys::TimePoint<> modTime)
       : UnitName(unitName),
         MainFilePath(mainFilePath),
-        OutFilePath(outFilePath),
+        OutFileIdentifier(outFileIdentifier),
         HasTestSymbols(hasTestSymbols),
         ModTime(modTime) {}
 };

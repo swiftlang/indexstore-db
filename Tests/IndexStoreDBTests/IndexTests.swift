@@ -143,6 +143,138 @@ final class IndexTests: XCTestCase {
     ])
   }
 
+  func testHermeticMixedLang() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "HermeticMixedLang") else { return }
+    // Provide the reverse mappings to the one in the project.json.
+    try ws.reinitIndexStore(waitUntilDoneInitializing: true, prefixMappings: [
+      PathMapping(original: "/SRC_ROOT", replacement: ws.sources.rootDirectory.path),
+      PathMapping(original: "/BUILD_ROOT", replacement: ws.builder.buildRoot.path)
+    ])
+    try ws.buildAndIndex()
+    let index = ws.index
+
+  #if os(macOS)
+    let cdecl = Symbol(usr: "c:objc(cs)C", name: "C", kind: .class)
+    let cdeclOccs = index.occurrences(ofUSR: cdecl.usr, roles: .all)
+    checkOccurrences(cdeclOccs, expected: [
+      cdecl.at(ws.testLoc("C:decl"), roles: [.declaration, .canonical]),
+      cdecl.at(ws.testLoc("C:def"), roles: .definition),
+      cdecl.at(ws.testLoc("C:ref:swift"), roles: .reference),
+    ])
+
+    let cmethod = Symbol(usr: "c:objc(cs)C(im)method", name: "method", kind: .instanceMethod)
+    let cmethodOccs = index.occurrences(ofUSR: cmethod.usr, roles: .all)
+    checkOccurrences(cmethodOccs, expected: [
+      cmethod.with(name: "method()").at(ws.testLoc("C.method:call:swift"), roles: [.call, .dynamic]),
+      cmethod.at(ws.testLoc("C.method:decl"), roles: .declaration),
+      cmethod.at(ws.testLoc("C.method:def"), roles: .definition),
+    ])
+  #endif
+
+    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function)
+    let bridgingHeaderOccs = index.occurrences(ofUSR: bhdecl.usr, roles: .all)
+    checkOccurrences(bridgingHeaderOccs, expected: [
+      bhdecl.at(ws.testLoc("bridgingHeader:decl"), roles: .declaration),
+      bhdecl.with(name: "bridgingHeader()").at(ws.testLoc("bridgingHeader:call"), roles: .call),
+    ])
+  }
+
+  func testHermeticExplicitOutputUnits() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "HermeticMixedLang", useExplicitOutputUnits: true) else { return }
+    // Provide the reverse mappings to the one in the project.json.
+    try ws.reinitIndexStore(useExplicitOutputUnits: true,
+                            prefixMappings: [
+      PathMapping(original: "/SRC_ROOT", replacement: ws.sources.rootDirectory.path),
+      PathMapping(original: "/BUILD_ROOT", replacement: ws.builder.buildRoot.path)
+    ])
+    try ws.buildAndIndex()
+    let index = ws.index
+
+  #if os(macOS)
+    let cdecl = Symbol(usr: "c:objc(cs)C", name: "C", kind: .class)
+    let getOccs = { index.occurrences(ofUSR: cdecl.usr, roles: .all) }
+
+    // Output units are not set yet.
+    XCTAssertEqual(0, getOccs().count)
+  #endif
+
+    // We must use the canonical output paths, not the local ones.
+    let indexOutputPaths = ws.builder.indexOutputPaths.map {
+      $0.path.replacingOccurrences(of: ws.builder.buildRoot.path, with: "/BUILD_ROOT")
+    }
+    index.addUnitOutFilePaths(indexOutputPaths, waitForProcessing: true)
+
+    // The bridging header is referenced as a PCH unit dependency, make sure we can see the data.
+    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function)
+    let bridgingHeaderOccs = index.occurrences(ofUSR: bhdecl.usr, roles: .all)
+    checkOccurrences(bridgingHeaderOccs, expected: [
+      bhdecl.at(ws.testLoc("bridgingHeader:decl"), roles: .declaration),
+      bhdecl.with(name: "bridgingHeader()").at(ws.testLoc("bridgingHeader:call"), roles: .call),
+    ])
+  #if os(macOS)
+    checkOccurrences(getOccs(), expected: [
+      cdecl.at(ws.testLoc("C:decl"), roles: [.declaration, .canonical]),
+      cdecl.at(ws.testLoc("C:def"), roles: .definition),
+      cdecl.at(ws.testLoc("C:ref:swift"), roles: .reference),
+    ])
+
+    let outUnitASwift = try XCTUnwrap(indexOutputPaths.first{ $0.hasSuffix("-a.swift.o") })
+    index.removeUnitOutFilePaths([outUnitASwift], waitForProcessing: true)
+    checkOccurrences(getOccs(), expected: [
+      cdecl.at(ws.testLoc("C:decl"), roles: [.declaration, .canonical]),
+      cdecl.at(ws.testLoc("C:def"), roles: .definition),
+    ])
+  #endif
+  }
+
+  /// Same as `testHermeticExplicitOutputUnits` but with remappings to make all paths relative.
+  func testHermeticRelativePathExplicitOutputUnits() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "HermeticMixedLangRelativePaths", useExplicitOutputUnits: true) else { return }
+    // Provide the reverse mappings to the one in the project.json.
+    try ws.reinitIndexStore(useExplicitOutputUnits: true,
+                            prefixMappings: [
+      PathMapping(original: ".", replacement: ws.sources.rootDirectory.path),
+    ])
+    try ws.buildAndIndex()
+    let index = ws.index
+
+  #if os(macOS)
+    let cdecl = Symbol(usr: "c:objc(cs)C", name: "C", kind: .class)
+    let getOccs = { index.occurrences(ofUSR: cdecl.usr, roles: .all) }
+
+    // Output units are not set yet.
+    XCTAssertEqual(0, getOccs().count)
+  #endif
+
+    // We must use the canonical output paths, not the local ones.
+    let indexOutputPaths = ws.builder.indexOutputPaths.map {
+      $0.path.replacingOccurrences(of: ws.builder.buildRoot.path, with: ".")
+    }
+    index.addUnitOutFilePaths(indexOutputPaths, waitForProcessing: true)
+
+    // The bridging header is referenced as a PCH unit dependency, make sure we can see the data.
+    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function)
+    let bridgingHeaderOccs = index.occurrences(ofUSR: bhdecl.usr, roles: .all)
+    checkOccurrences(bridgingHeaderOccs, expected: [
+      bhdecl.at(ws.testLoc("bridgingHeader:decl"), roles: .declaration),
+      bhdecl.with(name: "bridgingHeader()").at(ws.testLoc("bridgingHeader:call"), roles: .call),
+    ])
+  #if os(macOS)
+    checkOccurrences(getOccs(), expected: [
+      cdecl.at(ws.testLoc("C:decl"), roles: [.declaration, .canonical]),
+      cdecl.at(ws.testLoc("C:def"), roles: .definition),
+      cdecl.at(ws.testLoc("C:ref:swift"), roles: .reference),
+    ])
+
+    let outUnitASwift = try XCTUnwrap(indexOutputPaths.first{ $0.hasSuffix("-a.swift.o") })
+    index.removeUnitOutFilePaths([outUnitASwift], waitForProcessing: true)
+    checkOccurrences(getOccs(), expected: [
+      cdecl.at(ws.testLoc("C:decl"), roles: [.declaration, .canonical]),
+      cdecl.at(ws.testLoc("C:def"), roles: .definition),
+    ])
+  #endif
+  }
+
   func testSwiftModules() throws {
     guard let ws = try staticTibsTestWorkspace(name: "SwiftModules") else { return }
     try ws.buildAndIndex()
@@ -524,6 +656,20 @@ final class IndexTests: XCTestCase {
     let testMeAsyncOccs = index.occurrences(ofUSR: testMeAsyncSym.usr, roles: .definition)
     checkOccurrences(testMeAsyncOccs, expected: [
       testMeAsyncSym.at(ws.testLoc("testMeAsync:def"), roles: .definition)
+    ])
+  }
+
+  func testConcepts() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "CxxLangFeatures") else { return }
+    try XCTSkipIf(ws.libIndexStore.version < IndexStoreLibrary.Version(major: 0, minor: 14))
+
+    try ws.buildAndIndex()
+
+    let largeType = Symbol(usr: "c:@CT@LargeType", name: "LargeType", kind: .concept)
+    let largeTypeOccs = ws.index.occurrences(ofUSR: largeType.usr, roles: .all)
+    checkOccurrences(largeTypeOccs, expected: [
+      largeType.at(ws.testLoc("LargeType:def"), roles: .definition),
+      largeType.at(ws.testLoc("LargeType:ref"), roles: .reference),
     ])
   }
 }

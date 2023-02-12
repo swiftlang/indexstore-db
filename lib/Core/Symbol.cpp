@@ -93,6 +93,7 @@ const char *IndexStoreDB::getSymbolKindString(SymbolKind kind) {
   case SymbolKind::ConversionFunction: return "conversion-func";
   case SymbolKind::Namespace: return "namespace";
   case SymbolKind::NamespaceAlias: return "namespace-alias";
+  case SymbolKind::Concept: return "concept";
   case SymbolKind::CommentTag: return "comment-tag";
   }
   llvm_unreachable("Garbage symbol kind");
