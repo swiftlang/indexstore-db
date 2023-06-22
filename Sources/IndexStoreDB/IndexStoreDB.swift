@@ -16,6 +16,8 @@ import CIndexStoreDB
 // For `strdup`
 #if canImport(Glibc)
 import Glibc
+#elseif canImport(Musl)
+import Musl
 #elseif os(Windows)
 import ucrt
 #else
