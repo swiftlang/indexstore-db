@@ -219,6 +219,20 @@ public:
 
   bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,
       function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
+
+  /// Calls `receiver` for every unit test symbol in unit files that reference
+  /// one of the main files in `mainFilePaths`.
+  ///
+  ///  \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
+  bool foreachUnitTestSymbolReferencedByMainFiles(
+      ArrayRef<StringRef> mainFilePaths,
+      function_ref<bool(SymbolOccurrenceRef Occur)> receiver
+  );
+
+  /// Calls `receiver` for every unit test symbol in the index.
+  ///
+  ///  \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
+  bool foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver);
 };
 
 } // anonymous namespace
@@ -598,6 +612,21 @@ bool IndexSystemImpl::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<Cano
   return SymIndex->foreachUnitTestSymbolReferencedByOutputPaths(FilePaths, std::move(Receiver));
 }
 
+bool IndexSystemImpl::foreachUnitTestSymbolReferencedByMainFiles(
+    ArrayRef<StringRef> mainFilePaths,
+    function_ref<bool(SymbolOccurrenceRef Occur)> receiver
+) {
+  std::vector<CanonicalFilePath> canonicalMainFilesPaths;
+  for (StringRef mainFilePath : mainFilePaths) {
+    canonicalMainFilesPaths.push_back(PathIndex->getCanonicalPath(mainFilePath));
+  }
+  return SymIndex->foreachUnitTestSymbolReferencedByMainFiles(canonicalMainFilesPaths, std::move(receiver));
+}
+
+bool IndexSystemImpl::foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver) {
+  return SymIndex->foreachUnitTestSymbol(std::move(receiver));
+}
+
 //===----------------------------------------------------------------------===//
 // IndexSystem
 //===----------------------------------------------------------------------===//
@@ -803,4 +832,15 @@ bool IndexSystem::foreachIncludeOfUnit(StringRef unitName,
 bool IndexSystem::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,
     function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
   return IMPL->foreachUnitTestSymbolReferencedByOutputPaths(FilePaths, std::move(Receiver));
+}
+
+bool IndexSystem::foreachUnitTestSymbolReferencedByMainFiles(
+   ArrayRef<StringRef> mainFilePaths,
+   function_ref<bool(SymbolOccurrenceRef Occur)> receiver
+) {
+  return IMPL->foreachUnitTestSymbolReferencedByMainFiles(mainFilePaths, std::move(receiver));
+}
+
+bool IndexSystem::foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver) {
+  return IMPL->foreachUnitTestSymbol(std::move(receiver));
 }

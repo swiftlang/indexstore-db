@@ -381,6 +381,28 @@ public final class IndexStoreDB {
       return body(Symbol(symbol))
     }
   }
+
+  /// Returns all unit test symbol in unit files that reference one of the main files in `mainFilePaths`.
+  public func unitTests(referencedByMainFiles mainFilePaths: [String]) -> [SymbolOccurrence] {
+    var result: [SymbolOccurrence] = []
+    let cMainFiles: [UnsafePointer<CChar>] = mainFilePaths.map { UnsafePointer($0.withCString(strdup)!) }
+    defer { for cPath in cMainFiles { free(UnsafeMutablePointer(mutating: cPath)) } }
+    indexstoredb_index_unit_tests_referenced_by_main_files(impl, cMainFiles, cMainFiles.count) { symbol in
+      result.append(SymbolOccurrence(symbol))
+      return true
+    }
+    return result
+  }
+
+  /// Returns all unit test symbols in the index.
+  public func unitTests() -> [SymbolOccurrence] {
+    var result: [SymbolOccurrence] = []
+    indexstoredb_index_unit_tests(impl) { symbol in
+      result.append(SymbolOccurrence(symbol))
+      return true
+    }
+    return result
+  }
 }
 
 public protocol IndexStoreLibraryProvider {

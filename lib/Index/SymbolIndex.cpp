@@ -86,7 +86,28 @@ public:
   bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,
       function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 
+  /// Calls `receiver` for every unit test symbol in unit files that reference
+  /// one of the main files in `mainFilePaths`.
+  ///
+  /// \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
+  bool foreachUnitTestSymbolReferencedByMainFiles(
+      ArrayRef<CanonicalFilePath> mainFilePaths,
+      function_ref<bool(SymbolOccurrenceRef Occur)> receiver
+  );
+  /// Calls `receiver` for every unit test symbol in the index.
+  ///
+  /// \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
+  bool foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver);
+
 private:
+  /// Returns all the providers in the index that contain test cases and satisfy `unitFilter`.
+  std::vector<SymbolDataProviderRef> providersContainingTestCases(ReadTransaction &reader, function_ref<bool(const UnitInfo &)> unitFilter);
+
+  /// Calls `receiver` for every unit test contained by a provider in `providers`.
+  ///
+  /// \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
+  bool foreachUnitTestSymbolOccurrence(const std::vector<SymbolDataProviderRef> &providers, function_ref<bool(SymbolOccurrenceRef Occur)> receiver);
+
   bool foreachCanonicalSymbolImpl(bool workspaceOnly,
                                   function_ref<bool(ReadTransaction &, function_ref<bool(ArrayRef<IDCode> usrCode)> usrConsumer)> usrProducer,
                                   function_ref<bool(SymbolDataProviderRef, std::vector<std::pair<IDCode, bool>> USRs)> receiver);
@@ -518,30 +539,57 @@ bool SymbolIndexImpl::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<Cano
   {
     ReadTransaction reader(DBase);
 
-    SmallVector<IDCode, 16> providerCodes;
-    reader.foreachProviderContainingTestSymbols([&](IDCode providerCode) -> bool {
-      providerCodes.push_back(providerCode);
-      return true;
-    });
-
-    if (providerCodes.empty()) {
-      return true;
-    }
-
     std::unordered_set<IDCode> outFileCodes;
     for (const CanonicalFilePathRef &path : outFilePaths) {
       outFileCodes.insert(reader.getFilePathCode(path));
     }
-    for (IDCode providerCode : providerCodes) {
-      auto provider = createProviderForCode(providerCode, reader, [&](const UnitInfo &unitInfo) -> bool {
-        return outFileCodes.count(unitInfo.OutFileCode);
-      });
-      if (provider) {
-        providers.push_back(std::move(provider));
-      }
-    }
+
+    providers = providersContainingTestCases(reader, [&](const UnitInfo &unitInfo) -> bool {
+      return outFileCodes.count(unitInfo.OutFileCode);
+    });
   }
 
+  return foreachUnitTestSymbolOccurrence(providers, receiver);
+}
+
+bool SymbolIndexImpl::foreachUnitTestSymbolReferencedByMainFiles(ArrayRef<CanonicalFilePath> mainFilePaths, function_ref<bool(SymbolOccurrenceRef Occur)> receiver) {
+  std::vector<SymbolDataProviderRef> providers;
+  {
+    ReadTransaction reader(DBase);
+
+    std::unordered_set<IDCode> fileCodes;
+    for (const CanonicalFilePathRef &path : mainFilePaths) {
+      fileCodes.insert(reader.getFilePathCode(path));
+    }
+
+    providers = providersContainingTestCases(reader, [&](const UnitInfo &unitInfo) -> bool {
+      return fileCodes.count(unitInfo.MainFileCode);
+    });
+  }
+  return foreachUnitTestSymbolOccurrence(providers, receiver);
+}
+
+bool SymbolIndexImpl::foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver) {
+  std::vector<SymbolDataProviderRef> providers;
+  {
+    ReadTransaction reader(DBase);
+    providers = providersContainingTestCases(reader, [&](const UnitInfo &unitInfo) -> bool { return true; });
+  }
+  return foreachUnitTestSymbolOccurrence(providers, receiver);
+}
+
+std::vector<SymbolDataProviderRef> SymbolIndexImpl::providersContainingTestCases(ReadTransaction &reader, function_ref<bool(const UnitInfo &)> unitFilter) {
+  std::vector<SymbolDataProviderRef> providers;
+  reader.foreachProviderContainingTestSymbols([&](IDCode providerCode) -> bool {
+    if (auto provider = createProviderForCode(providerCode, reader, unitFilter)) {
+      providers.push_back(std::move(provider));
+    }
+    return true;
+  });
+  return providers;
+}
+
+bool SymbolIndexImpl::foreachUnitTestSymbolOccurrence(const std::vector<SymbolDataProviderRef> &providers, function_ref<bool(SymbolOccurrenceRef Occur)> receiver) {
   for (SymbolDataProviderRef provider : providers) {
     bool cont = provider->foreachUnitTestSymbolOccurrence(receiver);
     if (!cont) return false;
@@ -636,4 +684,15 @@ bool SymbolIndex::foreachSymbolInFilePath(CanonicalFilePathRef filePath,
 bool SymbolIndex::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,
     function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
   return IMPL->foreachUnitTestSymbolReferencedByOutputPaths(FilePaths, std::move(Receiver));
+}
+
+bool SymbolIndex::foreachUnitTestSymbolReferencedByMainFiles(
+     ArrayRef<CanonicalFilePath> mainFilePaths,
+     function_ref<bool(SymbolOccurrenceRef Occur)> receiver
+ ) {
+  return IMPL->foreachUnitTestSymbolReferencedByMainFiles(mainFilePaths, std::move(receiver));
+}
+
+bool SymbolIndex::foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver) {
+  return IMPL->foreachUnitTestSymbol(std::move(receiver));
 }
