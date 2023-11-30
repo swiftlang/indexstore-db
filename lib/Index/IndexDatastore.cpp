@@ -188,7 +188,7 @@ class UnitMonitor {
     OutOfDateTriggerHintRef hint;
     sys::TimePoint<> outOfDateModTime;
 
-    std::string getTriggerFilePath() const {
+    StringRef getTriggerFilePath() const {
       return hint->originalFileTrigger();
     }
   };

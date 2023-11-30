@@ -604,7 +604,7 @@ bool IndexSystemImpl::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<Cano
 
 void OutOfDateTriggerHint::_anchor() {}
 
-std::string DependentFileOutOfDateTriggerHint::originalFileTrigger() {
+StringRef DependentFileOutOfDateTriggerHint::originalFileTrigger() {
   return FilePath;
 }
 
@@ -612,7 +612,7 @@ std::string DependentFileOutOfDateTriggerHint::description() {
   return FilePath;
 }
 
-std::string DependentUnitOutOfDateTriggerHint::originalFileTrigger() {
+StringRef DependentUnitOutOfDateTriggerHint::originalFileTrigger() {
   return DepHint->originalFileTrigger();
 }
 
