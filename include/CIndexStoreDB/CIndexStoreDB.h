@@ -522,6 +522,36 @@ indexstoredb_index_includes_of_unit(
   const char *_Nonnull unitName,
   _Nonnull indexstoredb_unit_includes_receiver receiver);
 
+/// Calls `receiver` for every unit test symbol in unit files that reference
+/// one of the main files in `mainFilePaths`.
+///
+/// \param index An IndexStoreDB object which contains the symbols.
+/// \param mainFilePaths File paths to search for unit tests
+/// \param count Number of elements in `mainFilePaths`.
+/// \param receiver A function to be called for each unit tests. If the receiver
+/// returns `false`, iteration is stopped and the function returns `true`.
+/// \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
+INDEXSTOREDB_PUBLIC bool
+indexstoredb_index_unit_tests_referenced_by_main_files(
+  _Nonnull indexstoredb_index_t index,
+   const char *_Nonnull const *_Nonnull mainFilePaths,
+   size_t count,
+  _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver
+);
+
+/// Calls `receiver` for every unit test symbol in the index.
+///
+/// \param index An IndexStoreDB object which contains the symbols.
+/// \param receiver A function to be called for each unit tests. If the receiver
+/// returns `false`, iteration is stopped and the function returns `true`.
+/// \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
+INDEXSTOREDB_PUBLIC bool
+indexstoredb_index_unit_tests(
+  _Nonnull indexstoredb_index_t index,
+  _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver
+);
+
+
 INDEXSTOREDB_END_DECLS
 
 #endif

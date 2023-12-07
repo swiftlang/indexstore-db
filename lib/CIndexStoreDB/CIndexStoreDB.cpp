@@ -15,6 +15,7 @@
 #include "IndexStoreDB/Index/IndexStoreLibraryProvider.h"
 #include "IndexStoreDB/Index/IndexSystem.h"
 #include "IndexStoreDB/Index/IndexSystemDelegate.h"
+#include "IndexStoreDB/Support/Path.h"
 #include "IndexStoreDB/Core/Symbol.h"
 #include "indexstore/IndexStoreCXX.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -595,6 +596,34 @@ indexstoredb_index_includes_of_unit(
   auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   return obj->value->foreachIncludeOfUnit(unitName, [&](CanonicalFilePathRef sourcePath, CanonicalFilePathRef targetPath, unsigned line)->bool {
     return receiver(sourcePath.getPath().str().c_str(), targetPath.getPath().str().c_str(), line);
+  });
+}
+
+bool
+indexstoredb_index_unit_tests_referenced_by_main_files(
+  _Nonnull indexstoredb_index_t index,
+   const char *_Nonnull const *_Nonnull cMainFilePaths,
+   size_t count,
+  _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver
+) {
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
+  SmallVector<StringRef, 2> mainFilePaths;
+  for (size_t i = 0; i < count; ++i) {
+    mainFilePaths.push_back(cMainFilePaths[i]);
+  }
+  return obj->value->foreachUnitTestSymbolReferencedByMainFiles(mainFilePaths, [&](SymbolOccurrenceRef occur) -> bool {
+    return receiver((indexstoredb_symbol_occurrence_t)occur.get());
+  });
+}
+
+bool
+indexstoredb_index_unit_tests(
+  _Nonnull indexstoredb_index_t index,
+  _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver
+) {
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachUnitTestSymbol([&](SymbolOccurrenceRef occur) -> bool {
+    return receiver((indexstoredb_symbol_occurrence_t)occur.get());
   });
 }
 

@@ -89,6 +89,18 @@ public:
   bool foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,
       function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 
+  /// Calls `receiver` for every unit test symbol in unit files that reference
+  /// one of the main files in `mainFilePaths`.
+  ///
+  ///  \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
+  bool foreachUnitTestSymbolReferencedByMainFiles(
+      ArrayRef<CanonicalFilePath> mainFilePaths,
+      function_ref<bool(SymbolOccurrenceRef Occur)> receiver
+  );
+  /// Calls `receiver` for every unit test symbol in the index.
+  ///
+  ///  \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
+  bool foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver);
 private:
   void *Impl; // A SymbolIndexImpl.
 };
