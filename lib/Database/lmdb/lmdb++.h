@@ -1276,12 +1276,11 @@ public:
    * @post `handle() == nullptr`
    */
   void commit() {
+    // INDEXSTOREDB START (prevent double free)
     MDB_txn *hnd = _handle;
-    // Clear _handle before the call otherwise if an error is thrown then
-    // the destructor will do abort() which will be double-free since
-    // txn_commit will have already freed the handle object.
     _handle = nullptr;
     lmdb::txn_commit(hnd);
+    // INDEXSTOREDB END
   }
 
   /**
@@ -1290,8 +1289,11 @@ public:
    * @post `handle() == nullptr`
    */
   void abort() noexcept {
-    lmdb::txn_abort(_handle);
+    // INDEXSTOREDB START (prevent double free)
+    MDB_txn *hnd = _handle;
     _handle = nullptr;
+    lmdb::txn_abort(hnd);
+    // INDEXSTOREDB END
   }
 
   /**
