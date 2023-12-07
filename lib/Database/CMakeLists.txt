@@ -5,6 +5,9 @@ add_library(Database STATIC
   ReadTransaction.cpp
   lmdb/mdb.c
   lmdb/midl.c)
+target_compile_definitions(Database PRIVATE
+  _CRT_NONSTDC_NO_WARNINGS
+  _CRT_SECURE_NO_WARNINGS)
 target_compile_options(Database PRIVATE
   -fblocks)
 target_include_directories(Database PRIVATE
