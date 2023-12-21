@@ -137,6 +137,13 @@ typedef enum {
   INDEXSTOREDB_EVENT_UNIT_OUT_OF_DATE = 2,
 } indexstoredb_delegate_event_kind_t;
 
+typedef enum {
+  INDEXSTOREDB_LANGUAGE_C,
+  INDEXSTOREDB_LANGUAGE_OBJC,
+  INDEXSTOREDB_LANGUAGE_CXX,
+  INDEXSTOREDB_LANGUAGE_SWIFT
+} indexstoredb_language_t;
+
 typedef void *indexstoredb_delegate_event_t;
 
 /// Returns true on success.
@@ -332,6 +339,10 @@ indexstoredb_symbol_name(_Nonnull indexstoredb_symbol_t);
 /// Returns the properties of the given symbol.
 INDEXSTOREDB_PUBLIC uint64_t
 indexstoredb_symbol_properties(_Nonnull indexstoredb_symbol_t);
+
+/// Return the language in which the given symbol is defined.
+indexstoredb_language_t
+indexstoredb_symbol_language(_Nonnull indexstoredb_symbol_t symbol);
 
 /// Returns the symbol of the given symbol occurrence.
 ///

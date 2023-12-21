@@ -319,6 +319,21 @@ indexstoredb_symbol_usr(indexstoredb_symbol_t symbol) {
   return value->getUSR().c_str();
 }
 
+indexstoredb_language_t
+indexstoredb_symbol_language(_Nonnull indexstoredb_symbol_t symbol) {
+  auto value = (Symbol *)symbol;
+  switch (value->getLanguage()) {
+  case IndexStoreDB::SymbolLanguage::C:
+    return INDEXSTOREDB_LANGUAGE_C;
+  case IndexStoreDB::SymbolLanguage::ObjC:
+    return INDEXSTOREDB_LANGUAGE_OBJC;
+  case IndexStoreDB::SymbolLanguage::CXX:
+    return INDEXSTOREDB_LANGUAGE_CXX;
+  case IndexStoreDB::SymbolLanguage::Swift:
+    return INDEXSTOREDB_LANGUAGE_SWIFT;
+  }
+}
+
 const char *
 indexstoredb_symbol_name(indexstoredb_symbol_t symbol) {
   auto value = (Symbol *)symbol;
