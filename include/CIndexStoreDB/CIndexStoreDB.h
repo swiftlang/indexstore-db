@@ -144,6 +144,12 @@ typedef enum {
   INDEXSTOREDB_LANGUAGE_SWIFT
 } indexstoredb_language_t;
 
+typedef enum {
+  INDEXSTOREDB_SYMBOL_PROVIDER_KIND_CLANG,
+  INDEXSTOREDB_SYMBOL_PROVIDER_KIND_SWIFT,
+  INDEXSTOREDB_SYMBOL_PROVIDER_KIND_UNKNOWN,
+} indexstoredb_symbol_provider_kind_t;
+
 typedef void *indexstoredb_delegate_event_t;
 
 /// Returns true on success.
@@ -482,6 +488,9 @@ indexstoredb_unit_info_main_file_path(_Nonnull indexstoredb_unit_info_t);
 /// Returns the unit name of a unit info object.
 INDEXSTOREDB_PUBLIC const char *_Nonnull
 indexstoredb_unit_info_unit_name(_Nonnull indexstoredb_unit_info_t);
+
+INDEXSTOREDB_PUBLIC indexstoredb_symbol_provider_kind_t
+indexstoredb_unit_info_symbol_provider_kind(_Nonnull indexstoredb_unit_info_t info);
 
 /// Iterates over the compilation units that contain \p path and return their units.
 ///

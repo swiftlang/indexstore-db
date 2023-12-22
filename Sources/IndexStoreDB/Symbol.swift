@@ -84,9 +84,9 @@ extension Symbol: Comparable {
 extension Symbol: CustomStringConvertible {
   public var description: String {
     if properties.isEmpty {
-      return "\(name) | \(kind) | \(usr)"
+      return "\(name) | \(kind) | \(usr) | \(language)"
     }
-    return "\(name) | \(kind) (\(properties)) | \(usr)"
+    return "\(name) | \(kind) (\(properties)) | \(usr) | \(language)"
   }
 }
 

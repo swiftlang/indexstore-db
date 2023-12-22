@@ -166,6 +166,7 @@ bool FileIndexImpl::foreachMainUnitContainingFile(CanonicalFilePathRef filePath,
       currUnit.ModTime = unitInfo.ModTime;
       currUnit.MainFilePath = reader.getFullFilePathFromCode(unitInfo.MainFileCode);
       currUnit.OutFileIdentifier = reader.getUnitFileIdentifierFromCode(unitInfo.OutFileCode);
+      currUnit.SymProviderKind = unitInfo.SymProviderKind;
       return true;
     });
   }
