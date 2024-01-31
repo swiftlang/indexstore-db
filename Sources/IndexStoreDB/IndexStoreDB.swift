@@ -153,6 +153,10 @@ public final class IndexStoreDB {
     return indexstoredb_index_remove_unit_out_file_paths(impl, cPaths, cPaths.count, waitForProcessing)
   }
 
+  /// Invoke `body` with every occurrance of `usr` in one of the specified roles.
+  ///
+  /// Stop iteration if `body` returns `false`.
+  /// - Returns: `false` if iteration was terminated by `body` returning `true` or `true` if iteration finished.
   @discardableResult
   public func forEachSymbolOccurrence(byUSR usr: String, roles: SymbolRole, _ body: @escaping (SymbolOccurrence) -> Bool) -> Bool {
     return indexstoredb_index_symbol_occurrences_by_usr(impl, usr, roles.rawValue) { occur in
@@ -160,6 +164,7 @@ public final class IndexStoreDB {
     }
   }
 
+  /// Returns all occurrences of `usr` in one of the specified roles.
   public func occurrences(ofUSR usr: String, roles: SymbolRole) -> [SymbolOccurrence] {
     var result: [SymbolOccurrence] = []
     forEachSymbolOccurrence(byUSR: usr, roles: roles) { occur in
