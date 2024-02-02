@@ -35,6 +35,11 @@ public struct PathMapping {
   }
 }
 
+public enum SymbolProviderKind {
+  case clang
+  case swift
+}
+
 /// IndexStoreDB index.
 public final class IndexStoreDB {
 
@@ -148,6 +153,10 @@ public final class IndexStoreDB {
     return indexstoredb_index_remove_unit_out_file_paths(impl, cPaths, cPaths.count, waitForProcessing)
   }
 
+  /// Invoke `body` with every occurrance of `usr` in one of the specified roles.
+  ///
+  /// Stop iteration if `body` returns `false`.
+  /// - Returns: `false` if iteration was terminated by `body` returning `true` or `true` if iteration finished.
   @discardableResult
   public func forEachSymbolOccurrence(byUSR usr: String, roles: SymbolRole, _ body: @escaping (SymbolOccurrence) -> Bool) -> Bool {
     return indexstoredb_index_symbol_occurrences_by_usr(impl, usr, roles.rawValue) { occur in
@@ -155,6 +164,7 @@ public final class IndexStoreDB {
     }
   }
 
+  /// Returns all occurrences of `usr` in one of the specified roles.
   public func occurrences(ofUSR usr: String, roles: SymbolRole) -> [SymbolOccurrence] {
     var result: [SymbolOccurrence] = []
     forEachSymbolOccurrence(byUSR: usr, roles: roles) { occur in
@@ -275,6 +285,41 @@ public final class IndexStoreDB {
     return result
   }
     
+  public func symbolProvider(for sourceFilePath: String) -> SymbolProviderKind? {
+    var result: SymbolProviderKind? = nil
+    indexstoredb_index_units_containing_file(impl, sourceFilePath) { unit in
+      let providerKind: SymbolProviderKind? = switch indexstoredb_unit_info_symbol_provider_kind(unit) {
+      case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_SWIFT:
+        .swift
+      case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_CLANG:
+        .clang
+      case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_UNKNOWN:
+        nil
+      default:
+        preconditionFailure("Unknown enum case in indexstoredb_symbol_provider_kind_t")
+      }
+
+      let mainFilePath = String(cString: indexstoredb_unit_info_main_file_path(unit))
+      if providerKind == .swift && mainFilePath != sourceFilePath {
+        // We have a unit that is "included" from Swift. This happens for header
+        // files that Swift files depend on. But Swift doesn't have includes and
+        // we shouldn't infer the header file's language to Swift based on this unit.
+        // Ignore it.
+        return true
+      }
+
+      if result == nil {
+        result = providerKind
+      } else if result != providerKind {
+        // Found two conflicting provider kinds. Return nil as we don't know the provider in this case.
+        result = nil
+        return false
+      }
+      return true
+    }
+    return result
+  }
+
   @discardableResult
   public func foreachFileIncludedByFile(path: String, body: @escaping (String) -> Bool) -> Bool {
     return indexstoredb_index_files_included_by_file(impl, path) { targetPath, line in

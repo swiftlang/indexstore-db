@@ -45,18 +45,33 @@ public enum IndexSymbolKind: Hashable {
   case commentTag
 }
 
+public enum Language: Hashable {
+  case c
+  case cxx
+  case objc
+  case swift
+}
+
 public struct Symbol: Equatable {
 
   public var usr: String
   public var name: String
   public var kind: IndexSymbolKind
   public var properties: SymbolProperty
+  public var language: Language
 
-  public init(usr: String, name: String, kind: IndexSymbolKind, properties: SymbolProperty = SymbolProperty()) {
+  public init(
+    usr: String,
+    name: String,
+    kind: IndexSymbolKind,
+    properties: SymbolProperty = SymbolProperty(),
+    language: Language
+  ) {
     self.usr = usr
     self.name = name
     self.kind = kind
     self.properties = properties
+    self.language = language
   }
 }
 
@@ -69,9 +84,9 @@ extension Symbol: Comparable {
 extension Symbol: CustomStringConvertible {
   public var description: String {
     if properties.isEmpty {
-      return "\(name) | \(kind) | \(usr)"
+      return "\(name) | \(kind) | \(usr) | \(language)"
     }
-    return "\(name) | \(kind) (\(properties)) | \(usr)"
+    return "\(name) | \(kind) (\(properties)) | \(usr) | \(language)"
   }
 }
 
@@ -82,9 +97,16 @@ extension Symbol {
     name: String? = nil,
     usr: String? = nil,
     kind: IndexSymbolKind? = nil,
-    properties: SymbolProperty? = nil) -> Symbol
-  {
-    return Symbol(usr: usr ?? self.usr, name: name ?? self.name, kind: kind ?? self.kind, properties: properties ?? self.properties)
+    properties: SymbolProperty? = nil,
+    language: Language? = nil
+  ) -> Symbol {
+    return Symbol(
+      usr: usr ?? self.usr,
+      name: name ?? self.name,
+      kind: kind ?? self.kind,
+      properties: properties ?? self.properties,
+      language: language ?? self.language
+    )
   }
 
   /// Returns a SymbolOccurrence with the given location and roles.
@@ -95,6 +117,23 @@ extension Symbol {
 
 // MARK: CIndexStoreDB conversions
 
+fileprivate extension Language {
+  init(_ value: indexstoredb_language_t) {
+    switch value {
+    case INDEXSTOREDB_LANGUAGE_C:
+      self = .c
+    case INDEXSTOREDB_LANGUAGE_CXX:
+      self = .cxx
+    case INDEXSTOREDB_LANGUAGE_OBJC:
+      self = .objc
+    case INDEXSTOREDB_LANGUAGE_SWIFT:
+      self = .swift
+    default:
+      preconditionFailure("Unhandled case from C enum indexstoredb_language_t")
+    }
+  }
+}
+
 extension Symbol {
 
   /// Note: `value` is expected to be passed +1.
@@ -103,7 +142,9 @@ extension Symbol {
       usr: String(cString: indexstoredb_symbol_usr(value)),
       name: String(cString: indexstoredb_symbol_name(value)),
       kind: IndexSymbolKind(indexstoredb_symbol_kind(value)),
-      properties: SymbolProperty(rawValue: indexstoredb_symbol_properties(value)))
+      properties: SymbolProperty(rawValue: indexstoredb_symbol_properties(value)),
+      language: Language(indexstoredb_symbol_language(value))
+    )
   }
 }
 

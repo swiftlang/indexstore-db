@@ -41,8 +41,8 @@ final class IndexTests: XCTestCase {
 
     try ws.buildAndIndex()
 
-    let csym = Symbol(usr: usr, name: "c()", kind: .function)
-    let asym = Symbol(usr: "s:4main1ayyF", name: "a()", kind: .function)
+    let csym = Symbol(usr: usr, name: "c()", kind: .function, language: .swift)
+    let asym = Symbol(usr: "s:4main1ayyF", name: "a()", kind: .function, language: .swift)
 
     let ccanon = SymbolOccurrence(
       symbol: csym,
@@ -92,7 +92,7 @@ final class IndexTests: XCTestCase {
     [
       ccall,
       SymbolOccurrence(
-        symbol: Symbol(usr: "s:4main1byyF", name: "b()", kind: .function),
+        symbol: Symbol(usr: "s:4main1byyF", name: "b()", kind: .function, language: .swift),
         location: SymbolLocation(ws.testLoc("b:call")),
         roles: [.reference, .call, .calledBy, .containedBy],
         relations: [
@@ -108,26 +108,26 @@ final class IndexTests: XCTestCase {
 
   #if os(macOS)
 
-    let cdecl = Symbol(usr: "c:objc(cs)C", name: "C", kind: .class)
+    let cdecl = Symbol(usr: "c:objc(cs)C", name: "C", kind: .class, language: .objc)
     let cdeclOccs = index.occurrences(ofUSR: cdecl.usr, roles: .all)
     checkOccurrences(cdeclOccs, expected: [
       cdecl.at(ws.testLoc("C:decl"), roles: [.declaration, .canonical]),
       cdecl.at(ws.testLoc("C:def"), roles: .definition),
-      cdecl.at(ws.testLoc("C:ref:swift"), roles: .reference),
+      cdecl.with(language: .swift).at(ws.testLoc("C:ref:swift"), roles: .reference),
       cdecl.at(ws.testLoc("C:ref:e.mm"), roles: .reference),
     ])
 
-    let cmethod = Symbol(usr: "c:objc(cs)C(im)method", name: "method", kind: .instanceMethod)
+    let cmethod = Symbol(usr: "c:objc(cs)C(im)method", name: "method", kind: .instanceMethod, language: .objc)
     let cmethodOccs = index.occurrences(ofUSR: cmethod.usr, roles: .all)
     checkOccurrences(cmethodOccs, expected: [
-      cmethod.with(name: "method()").at(ws.testLoc("C.method:call:swift"), roles: [.call, .dynamic]),
+      cmethod.with(name: "method()", language: .swift).at(ws.testLoc("C.method:call:swift"), roles: [.call, .dynamic]),
       cmethod.at(ws.testLoc("C.method:decl"), roles: .declaration),
       cmethod.at(ws.testLoc("C.method:def"), roles: .definition),
       cmethod.at(ws.testLoc("C.method:call:e.mm"), roles: [.call, .dynamic]),
     ])
   #endif
 
-    let ddecl = Symbol(usr: "c:@S@D", name: "D", kind: .class)
+    let ddecl = Symbol(usr: "c:@S@D", name: "D", kind: .class, language: .cxx)
     let dOccs = index.occurrences(ofUSR: ddecl.usr, roles: .all)
     checkOccurrences(dOccs, expected: [
       ddecl.at(ws.testLoc("D:def"), roles: .definition),
@@ -135,11 +135,11 @@ final class IndexTests: XCTestCase {
       ddecl.at(ws.testLoc("D:ref:e.mm"), roles: .reference),
     ])
 
-    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function)
+    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function, language: .c)
     let bridgingHeaderOccs = index.occurrences(ofUSR: bhdecl.usr, roles: .all)
     checkOccurrences(bridgingHeaderOccs, expected: [
       bhdecl.at(ws.testLoc("bridgingHeader:decl"), roles: .declaration),
-      bhdecl.with(name: "bridgingHeader()").at(ws.testLoc("bridgingHeader:call"), roles: .call),
+      bhdecl.with(name: "bridgingHeader()", language: .swift).at(ws.testLoc("bridgingHeader:call"), roles: .call),
     ])
   }
 
@@ -154,28 +154,28 @@ final class IndexTests: XCTestCase {
     let index = ws.index
 
   #if os(macOS)
-    let cdecl = Symbol(usr: "c:objc(cs)C", name: "C", kind: .class)
+    let cdecl = Symbol(usr: "c:objc(cs)C", name: "C", kind: .class, language: .objc)
     let cdeclOccs = index.occurrences(ofUSR: cdecl.usr, roles: .all)
     checkOccurrences(cdeclOccs, expected: [
       cdecl.at(ws.testLoc("C:decl"), roles: [.declaration, .canonical]),
       cdecl.at(ws.testLoc("C:def"), roles: .definition),
-      cdecl.at(ws.testLoc("C:ref:swift"), roles: .reference),
+      cdecl.with(language: .swift).at(ws.testLoc("C:ref:swift"), roles: .reference),
     ])
 
-    let cmethod = Symbol(usr: "c:objc(cs)C(im)method", name: "method", kind: .instanceMethod)
+    let cmethod = Symbol(usr: "c:objc(cs)C(im)method", name: "method", kind: .instanceMethod, language: .objc)
     let cmethodOccs = index.occurrences(ofUSR: cmethod.usr, roles: .all)
     checkOccurrences(cmethodOccs, expected: [
-      cmethod.with(name: "method()").at(ws.testLoc("C.method:call:swift"), roles: [.call, .dynamic]),
+      cmethod.with(name: "method()", language: .swift).at(ws.testLoc("C.method:call:swift"), roles: [.call, .dynamic]),
       cmethod.at(ws.testLoc("C.method:decl"), roles: .declaration),
       cmethod.at(ws.testLoc("C.method:def"), roles: .definition),
     ])
   #endif
 
-    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function)
+    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function, language: .c)
     let bridgingHeaderOccs = index.occurrences(ofUSR: bhdecl.usr, roles: .all)
     checkOccurrences(bridgingHeaderOccs, expected: [
       bhdecl.at(ws.testLoc("bridgingHeader:decl"), roles: .declaration),
-      bhdecl.with(name: "bridgingHeader()").at(ws.testLoc("bridgingHeader:call"), roles: .call),
+      bhdecl.with(name: "bridgingHeader()", language: .swift).at(ws.testLoc("bridgingHeader:call"), roles: .call),
     ])
   }
 
@@ -191,7 +191,7 @@ final class IndexTests: XCTestCase {
     let index = ws.index
 
   #if os(macOS)
-    let cdecl = Symbol(usr: "c:objc(cs)C", name: "C", kind: .class)
+    let cdecl = Symbol(usr: "c:objc(cs)C", name: "C", kind: .class, language: .objc)
     let getOccs = { index.occurrences(ofUSR: cdecl.usr, roles: .all) }
 
     // Output units are not set yet.
@@ -205,17 +205,17 @@ final class IndexTests: XCTestCase {
     index.addUnitOutFilePaths(indexOutputPaths, waitForProcessing: true)
 
     // The bridging header is referenced as a PCH unit dependency, make sure we can see the data.
-    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function)
+    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function, language: .c)
     let bridgingHeaderOccs = index.occurrences(ofUSR: bhdecl.usr, roles: .all)
     checkOccurrences(bridgingHeaderOccs, expected: [
       bhdecl.at(ws.testLoc("bridgingHeader:decl"), roles: .declaration),
-      bhdecl.with(name: "bridgingHeader()").at(ws.testLoc("bridgingHeader:call"), roles: .call),
+      bhdecl.with(name: "bridgingHeader()", language: .swift).at(ws.testLoc("bridgingHeader:call"), roles: .call),
     ])
   #if os(macOS)
     checkOccurrences(getOccs(), expected: [
       cdecl.at(ws.testLoc("C:decl"), roles: [.declaration, .canonical]),
       cdecl.at(ws.testLoc("C:def"), roles: .definition),
-      cdecl.at(ws.testLoc("C:ref:swift"), roles: .reference),
+      cdecl.with(language: .swift).at(ws.testLoc("C:ref:swift"), roles: .reference),
     ])
 
     let outUnitASwift = try XCTUnwrap(indexOutputPaths.first{ $0.hasSuffix("-a.swift.o") })
@@ -239,7 +239,7 @@ final class IndexTests: XCTestCase {
     let index = ws.index
 
   #if os(macOS)
-    let cdecl = Symbol(usr: "c:objc(cs)C", name: "C", kind: .class)
+    let cdecl = Symbol(usr: "c:objc(cs)C", name: "C", kind: .class, language: .objc)
     let getOccs = { index.occurrences(ofUSR: cdecl.usr, roles: .all) }
 
     // Output units are not set yet.
@@ -253,17 +253,17 @@ final class IndexTests: XCTestCase {
     index.addUnitOutFilePaths(indexOutputPaths, waitForProcessing: true)
 
     // The bridging header is referenced as a PCH unit dependency, make sure we can see the data.
-    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function)
+    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function, language: .c)
     let bridgingHeaderOccs = index.occurrences(ofUSR: bhdecl.usr, roles: .all)
     checkOccurrences(bridgingHeaderOccs, expected: [
       bhdecl.at(ws.testLoc("bridgingHeader:decl"), roles: .declaration),
-      bhdecl.with(name: "bridgingHeader()").at(ws.testLoc("bridgingHeader:call"), roles: .call),
+      bhdecl.with(name: "bridgingHeader()", language: .swift).at(ws.testLoc("bridgingHeader:call"), roles: .call),
     ])
   #if os(macOS)
     checkOccurrences(getOccs(), expected: [
       cdecl.at(ws.testLoc("C:decl"), roles: [.declaration, .canonical]),
       cdecl.at(ws.testLoc("C:def"), roles: .definition),
-      cdecl.at(ws.testLoc("C:ref:swift"), roles: .reference),
+      cdecl.with(language: .swift).at(ws.testLoc("C:ref:swift"), roles: .reference),
     ])
 
     let outUnitASwift = try XCTUnwrap(indexOutputPaths.first{ $0.hasSuffix("-a.swift.o") })
@@ -279,7 +279,7 @@ final class IndexTests: XCTestCase {
     guard let ws = try staticTibsTestWorkspace(name: "SwiftModules") else { return }
     try ws.buildAndIndex()
 
-    let aaa = Symbol(usr: "s:1A3aaayyF", name: "aaa()", kind: .function)
+    let aaa = Symbol(usr: "s:1A3aaayyF", name: "aaa()", kind: .function, language: .swift)
     checkOccurrences(ws.index.occurrences(ofUSR: aaa.usr, roles: .all), expected: [
       aaa.at(ws.testLoc("aaa:def"), moduleName: "A", roles: .definition),
       aaa.at(ws.testLoc("aaa:call"), moduleName: "B", roles: .call),
@@ -291,7 +291,7 @@ final class IndexTests: XCTestCase {
     guard let ws = try mutableTibsTestWorkspace(name: "proj1") else { return }
     try ws.buildAndIndex()
 
-    let cdecl = Symbol(usr: "s:4main1cyyF", name: "c()", kind: .function)
+    let cdecl = Symbol(usr: "s:4main1cyyF", name: "c()", kind: .function, language: .swift)
     let roles: SymbolRole = [.reference, .definition, .declaration]
 
     checkOccurrences(ws.index.occurrences(ofUSR: cdecl.usr, roles: .all), expected: [
@@ -348,7 +348,7 @@ final class IndexTests: XCTestCase {
       waitUntilDoneInitializing: true,
       listenToUnitEvents: true)
 
-    let csym = Symbol(usr: "s:4main1cyyF", name: "c()", kind: .function)
+    let csym = Symbol(usr: "s:4main1cyyF", name: "c()", kind: .function, language: .swift)
     let waitOccs = indexWait.occurrences(ofUSR: csym.usr, roles: [.reference, .definition])
 
     checkOccurrences(waitOccs, expected: [
@@ -547,7 +547,7 @@ final class IndexTests: XCTestCase {
     try ws.buildAndIndex()
     let index = ws.index
 
-    let ddecl = Symbol(usr: "c:@S@D", name: "D", kind: .class)
+    let ddecl = Symbol(usr: "c:@S@D", name: "D", kind: .class, language: .cxx)
     let getOccs = { index.occurrences(ofUSR: ddecl.usr, roles: .all) }
 
     // Output units are not set yet.
@@ -569,11 +569,11 @@ final class IndexTests: XCTestCase {
     ])
 
     // The bridging header is referenced as a PCH unit dependency, make sure we can see the data.
-    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function)
+    let bhdecl = Symbol(usr: "c:@F@bridgingHeader", name: "bridgingHeader", kind: .function, language: .c)
     let bridgingHeaderOccs = index.occurrences(ofUSR: bhdecl.usr, roles: .all)
     checkOccurrences(bridgingHeaderOccs, expected: [
       bhdecl.at(ws.testLoc("bridgingHeader:decl"), roles: .declaration),
-      bhdecl.with(name: "bridgingHeader()").at(ws.testLoc("bridgingHeader:call"), roles: .call),
+      bhdecl.with(name: "bridgingHeader()", language: .swift).at(ws.testLoc("bridgingHeader:call"), roles: .call),
     ])
   }
 
@@ -634,25 +634,25 @@ final class IndexTests: XCTestCase {
 
     try ws.buildAndIndex()
 
-    let asyncFuncSym = Symbol(usr: "s:4main9asyncFuncyyYaF", name: "asyncFunc()", kind: .function, properties: .swiftAsync)
+    let asyncFuncSym = Symbol(usr: "s:4main9asyncFuncyyYaF", name: "asyncFunc()", kind: .function, properties: .swiftAsync, language: .swift)
     let asyncFuncOccs = index.occurrences(ofUSR: asyncFuncSym.usr, roles: .definition)
     checkOccurrences(asyncFuncOccs, expected: [
       asyncFuncSym.at(ws.testLoc("asyncFunc:def"), roles: .definition)
     ])
 
-    let asyncMethSym = Symbol(usr: "s:4main8MyStructV11asyncMethodyyYaF", name: "asyncMethod()", kind: .instanceMethod, properties: .swiftAsync)
+    let asyncMethSym = Symbol(usr: "s:4main8MyStructV11asyncMethodyyYaF", name: "asyncMethod()", kind: .instanceMethod, properties: .swiftAsync, language: .swift)
     let asyncMethOccs = index.occurrences(ofUSR: asyncMethSym.usr, roles: .definition)
     checkOccurrences(asyncMethOccs, expected: [
       asyncMethSym.at(ws.testLoc("asyncMethod:def"), roles: .definition)
     ])
 
-    let testMeSym = Symbol(usr: "s:4main10MyTestCaseC6testMeyyF", name: "testMe()", kind: .instanceMethod, properties: .unitTest)
+    let testMeSym = Symbol(usr: "s:4main10MyTestCaseC6testMeyyF", name: "testMe()", kind: .instanceMethod, properties: .unitTest, language: .swift)
     let testMeOccs = index.occurrences(ofUSR: testMeSym.usr, roles: .definition)
     checkOccurrences(testMeOccs, expected: [
       testMeSym.at(ws.testLoc("testMe:def"), roles: .definition)
     ])
 
-    let testMeAsyncSym = Symbol(usr: "s:4main10MyTestCaseC11testMeAsyncyyYaF", name: "testMeAsync()", kind: .instanceMethod, properties: [.unitTest, .swiftAsync])
+    let testMeAsyncSym = Symbol(usr: "s:4main10MyTestCaseC11testMeAsyncyyYaF", name: "testMeAsync()", kind: .instanceMethod, properties: [.unitTest, .swiftAsync], language: .swift)
     let testMeAsyncOccs = index.occurrences(ofUSR: testMeAsyncSym.usr, roles: .definition)
     checkOccurrences(testMeAsyncOccs, expected: [
       testMeAsyncSym.at(ws.testLoc("testMeAsync:def"), roles: .definition)
@@ -665,7 +665,7 @@ final class IndexTests: XCTestCase {
 
     try ws.buildAndIndex()
 
-    let largeType = Symbol(usr: "c:@CT@LargeType", name: "LargeType", kind: .concept)
+    let largeType = Symbol(usr: "c:@CT@LargeType", name: "LargeType", kind: .concept, language: .c)
     let largeTypeOccs = ws.index.occurrences(ofUSR: largeType.usr, roles: .all)
     checkOccurrences(largeTypeOccs, expected: [
       largeType.at(ws.testLoc("LargeType:def"), roles: .definition),

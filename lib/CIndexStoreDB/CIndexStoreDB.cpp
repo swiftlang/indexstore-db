@@ -319,6 +319,21 @@ indexstoredb_symbol_usr(indexstoredb_symbol_t symbol) {
   return value->getUSR().c_str();
 }
 
+indexstoredb_language_t
+indexstoredb_symbol_language(_Nonnull indexstoredb_symbol_t symbol) {
+  auto value = (Symbol *)symbol;
+  switch (value->getLanguage()) {
+  case IndexStoreDB::SymbolLanguage::C:
+    return INDEXSTOREDB_LANGUAGE_C;
+  case IndexStoreDB::SymbolLanguage::ObjC:
+    return INDEXSTOREDB_LANGUAGE_OBJC;
+  case IndexStoreDB::SymbolLanguage::CXX:
+    return INDEXSTOREDB_LANGUAGE_CXX;
+  case IndexStoreDB::SymbolLanguage::Swift:
+    return INDEXSTOREDB_LANGUAGE_SWIFT;
+  }
+}
+
 const char *
 indexstoredb_symbol_name(indexstoredb_symbol_t symbol) {
   auto value = (Symbol *)symbol;
@@ -549,6 +564,20 @@ const char *
 indexstoredb_unit_info_unit_name(indexstoredb_unit_info_t info) {
   auto obj = (const StoreUnitInfo *)info;
   return obj->UnitName.c_str();
+}
+
+indexstoredb_symbol_provider_kind_t
+indexstoredb_unit_info_symbol_provider_kind(_Nonnull indexstoredb_unit_info_t info) {
+  auto obj = (const StoreUnitInfo *)info;
+  if (!obj->SymProviderKind) {
+    return INDEXSTOREDB_SYMBOL_PROVIDER_KIND_UNKNOWN;
+  }
+  switch (*obj->SymProviderKind) {
+  case IndexStoreDB::SymbolProviderKind::Clang:
+    return INDEXSTOREDB_SYMBOL_PROVIDER_KIND_CLANG;
+  case IndexStoreDB::SymbolProviderKind::Swift:
+    return INDEXSTOREDB_SYMBOL_PROVIDER_KIND_SWIFT;
+  }
 }
 
 bool
