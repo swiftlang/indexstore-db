@@ -32,8 +32,8 @@ struct StoreUnitInfo {
   StoreUnitInfo() = default;
   StoreUnitInfo(std::string unitName, CanonicalFilePath mainFilePath,
                 StringRef outFileIdentifier, bool hasTestSymbols,
-                llvm::sys::TimePoint<> modTime, Optional
-                <SymbolProviderKind> SymProviderKind)
+                llvm::sys::TimePoint<> modTime,
+                Optional<SymbolProviderKind> SymProviderKind)
       : UnitName(unitName),
         MainFilePath(mainFilePath),
         OutFileIdentifier(outFileIdentifier),
