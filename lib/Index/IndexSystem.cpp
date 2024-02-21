@@ -98,17 +98,19 @@ private:
                                OutOfDateFileTriggerRef trigger,
                                bool synchronous) override {
     if (synchronous) {
-      Queue.dispatchSync([&]{
-        for (auto &other : Others)
-          other->unitIsOutOfDate(std::move(unitInfo), trigger, true);
-      });
+      Queue.dispatchSync(
+          [this, unitInfo = std::move(unitInfo), trigger = std::move(trigger)] {
+            for (auto &other : Others)
+              other->unitIsOutOfDate(unitInfo, trigger, /*synchronous*/ true);
+          });
       return;
     }
 
-    Queue.dispatch([=]{
-      for (auto &other : Others)
-        other->unitIsOutOfDate(std::move(unitInfo), trigger, false);
-    });
+    Queue.dispatch(
+        [this, unitInfo = std::move(unitInfo), trigger = std::move(trigger)] {
+          for (auto &other : Others)
+            other->unitIsOutOfDate(unitInfo, trigger, /*synchronous*/ false);
+        });
   }
 
 public:
