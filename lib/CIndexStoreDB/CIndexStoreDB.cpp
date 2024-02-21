@@ -80,17 +80,18 @@ public:
     callback(&event);
   }
 
-  void unitIsOutOfDate(StoreUnitInfo unitInfo,
-                       llvm::sys::TimePoint<> outOfDateModTime,
-                       OutOfDateTriggerHintRef hint,
+  void unitIsOutOfDate(StoreUnitInfo unitInfo, OutOfDateFileTriggerRef trigger,
                        bool synchronous) override {
-    DelegateEvent event{INDEXSTOREDB_EVENT_UNIT_OUT_OF_DATE, 0,
-      &unitInfo,
-      (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(outOfDateModTime.time_since_epoch()).count(),
-      hint->originalFileTrigger(),
-      hint->description(),
-      synchronous
-    };
+    DelegateEvent event{
+        INDEXSTOREDB_EVENT_UNIT_OUT_OF_DATE,
+        0,
+        &unitInfo,
+        (uint64_t)std::chrono::duration_cast<std::chrono::nanoseconds>(
+            trigger->getModTime().time_since_epoch())
+            .count(),
+        trigger->getPath(),
+        trigger->description(),
+        synchronous};
     callback(&event);
   }
 };

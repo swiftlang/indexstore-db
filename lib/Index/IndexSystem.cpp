@@ -95,20 +95,19 @@ private:
   }
 
   virtual void unitIsOutOfDate(StoreUnitInfo unitInfo,
-                               llvm::sys::TimePoint<> outOfDateModTime,
-                               OutOfDateTriggerHintRef hint,
+                               OutOfDateFileTriggerRef trigger,
                                bool synchronous) override {
     if (synchronous) {
       Queue.dispatchSync([&]{
         for (auto &other : Others)
-          other->unitIsOutOfDate(std::move(unitInfo), outOfDateModTime, hint, true);
+          other->unitIsOutOfDate(std::move(unitInfo), trigger, true);
       });
       return;
     }
 
     Queue.dispatch([=]{
       for (auto &other : Others)
-        other->unitIsOutOfDate(std::move(unitInfo), outOfDateModTime, hint, false);
+        other->unitIsOutOfDate(std::move(unitInfo), trigger, false);
     });
   }
 
@@ -630,27 +629,6 @@ bool IndexSystemImpl::foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRe
 //===----------------------------------------------------------------------===//
 // IndexSystem
 //===----------------------------------------------------------------------===//
-
-void OutOfDateTriggerHint::_anchor() {}
-
-std::string DependentFileOutOfDateTriggerHint::originalFileTrigger() {
-  return FilePath;
-}
-
-std::string DependentFileOutOfDateTriggerHint::description() {
-  return FilePath;
-}
-
-std::string DependentUnitOutOfDateTriggerHint::originalFileTrigger() {
-  return DepHint->originalFileTrigger();
-}
-
-std::string DependentUnitOutOfDateTriggerHint::description() {
-  std::string desc;
-  llvm::raw_string_ostream OS(desc);
-  OS << "unit(" << UnitName << ") -> " << DepHint->description();
-  return desc;
-}
 
 void IndexSystemDelegate::anchor() {}
 

@@ -20,49 +20,36 @@
 
 namespace IndexStoreDB {
 namespace index {
-  struct StoreUnitInfo;
+struct StoreUnitInfo;
+class OutOfDateFileTrigger;
 
-/// Used to document why a unit was considered out-of-date.
-/// Primarily used for logging/debugging purposes.
-class OutOfDateTriggerHint {
-public:
-  virtual ~OutOfDateTriggerHint() {}
-  virtual std::string originalFileTrigger() = 0;
-  virtual std::string description() = 0;
+typedef std::shared_ptr<OutOfDateFileTrigger> OutOfDateFileTriggerRef;
 
-private:
-  virtual void _anchor();
-};
-typedef std::shared_ptr<OutOfDateTriggerHint> OutOfDateTriggerHintRef;
-
-class DependentFileOutOfDateTriggerHint : public OutOfDateTriggerHint {
+/// Records a known out-of-date file path for a unit, along with its
+/// modification time. This is used to provide IndexDelegate with information
+/// about the file that triggered the unit to become out-of-date.
+class OutOfDateFileTrigger final {
   std::string FilePath;
+  llvm::sys::TimePoint<> ModTime;
 
 public:
-  explicit DependentFileOutOfDateTriggerHint(StringRef filePath) : FilePath(filePath) {}
+  explicit OutOfDateFileTrigger(StringRef filePath,
+                                llvm::sys::TimePoint<> modTime)
+      : FilePath(filePath), ModTime(modTime) {}
 
-  static OutOfDateTriggerHintRef create(StringRef filePath) {
-    return std::make_shared<DependentFileOutOfDateTriggerHint>(filePath);
+  static OutOfDateFileTriggerRef create(StringRef filePath,
+                                        llvm::sys::TimePoint<> modTime) {
+    return std::make_shared<OutOfDateFileTrigger>(filePath, modTime);
   }
 
-  virtual std::string originalFileTrigger() override;
-  virtual std::string description() override;
-};
+  llvm::sys::TimePoint<> getModTime() const { return ModTime; }
 
-class DependentUnitOutOfDateTriggerHint : public OutOfDateTriggerHint {
-  std::string UnitName;
-  OutOfDateTriggerHintRef DepHint;
+  /// Returns a reference to the stored file path. Note this has the same
+  /// lifetime as the trigger.
+  StringRef getPathRef() const { return FilePath; }
 
-public:
-  DependentUnitOutOfDateTriggerHint(StringRef unitName, OutOfDateTriggerHintRef depHint)
-  : UnitName(unitName), DepHint(std::move(depHint)) {}
-
-  static OutOfDateTriggerHintRef create(StringRef unitName, OutOfDateTriggerHintRef depHint) {
-    return std::make_shared<DependentUnitOutOfDateTriggerHint>(unitName, std::move(depHint));
-  }
-
-  virtual std::string originalFileTrigger() override;
-  virtual std::string description() override;
+  std::string getPath() const { return FilePath; }
+  std::string description() { return FilePath; }
 };
 
 class INDEXSTOREDB_EXPORT IndexSystemDelegate {
@@ -78,8 +65,7 @@ public:
   virtual void processedStoreUnit(StoreUnitInfo unitInfo) {}
 
   virtual void unitIsOutOfDate(StoreUnitInfo unitInfo,
-                               llvm::sys::TimePoint<> outOfDateModTime,
-                               OutOfDateTriggerHintRef hint,
+                               OutOfDateFileTriggerRef trigger,
                                bool synchronous = false) {}
 
 private:
