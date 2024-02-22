@@ -27,6 +27,7 @@
 #include "IndexStoreDB/Support/Logging.h"
 #include "indexstore/IndexStoreCXX.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -147,8 +148,7 @@ public:
   void removeUnitMonitor(IDCode unitCode);
 
   void onUnitOutOfDate(IDCode unitCode, StringRef unitName,
-                       sys::TimePoint<> outOfDateModTime,
-                       OutOfDateTriggerHintRef hint,
+                       OutOfDateFileTriggerRef trigger,
                        bool synchronous = false);
   void onFSEvent(std::vector<std::string> parentPaths);
   void checkUnitContainingFileIsOutOfDate(StringRef file);
@@ -184,23 +184,20 @@ public:
 };
 
 class UnitMonitor {
-  struct OutOfDateTrigger {
-    OutOfDateTriggerHintRef hint;
-    sys::TimePoint<> outOfDateModTime;
-
-    std::string getTriggerFilePath() const {
-      return hint->originalFileTrigger();
-    }
-  };
-
   std::weak_ptr<StoreUnitRepo> UnitRepo;
   IDCode UnitCode;
   std::string UnitName;
   sys::TimePoint<> ModTime;
 
   mutable llvm::sys::Mutex StateMtx;
-  /// Map of out-of-date file path to its associated info.
-  StringMap<OutOfDateTrigger> OutOfDateTriggers;
+
+  /// Map of out-of-date file paths to their associated info. Note that the
+  /// StringRef key references the string in the trigger, so must not outlive
+  /// it. Access to this map should be guarded by \c StateMtx.
+  llvm::DenseMap<StringRef, OutOfDateFileTriggerRef> OutOfDateTriggers;
+
+  /// Retrieves an unordered list of out-of-date trigger files.
+  std::vector<OutOfDateFileTriggerRef> getUnorderedOutOfDateTriggers() const;
 
 public:
   UnitMonitor(std::shared_ptr<StoreUnitRepo> unitRepo);
@@ -217,10 +214,8 @@ public:
   StringRef getUnitName() const { return UnitName; }
   sys::TimePoint<> getModTime() const { return ModTime; }
 
-  std::vector<OutOfDateTrigger> getOutOfDateTriggers() const;
-
   void checkForOutOfDate(sys::TimePoint<> outOfDateModTime, StringRef filePath, bool synchronous=false);
-  void markOutOfDate(sys::TimePoint<> outOfDateModTime, OutOfDateTriggerHintRef hint, bool synchronous=false);
+  void markOutOfDate(OutOfDateFileTriggerRef trigger, bool synchronous = false);
 
   static std::pair<StringRef, sys::TimePoint<>> getMostRecentModTime(ArrayRef<StringRef> filePaths);
   static sys::TimePoint<> getModTimeForOutOfDateCheck(StringRef filePath);
@@ -826,8 +821,7 @@ void StoreUnitRepo::removeUnitMonitor(IDCode unitCode) {
 }
 
 void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
-                                    sys::TimePoint<> outOfDateModTime,
-                                    OutOfDateTriggerHintRef hint,
+                                    OutOfDateFileTriggerRef trigger,
                                     bool synchronous) {
   CanonicalFilePath MainFilePath;
   std::string OutFileIdentifier;
@@ -859,15 +853,13 @@ void StoreUnitRepo::onUnitOutOfDate(IDCode unitCode, StringRef unitName,
       CurrModTime,
       SymProviderKind
     };
-    Delegate->unitIsOutOfDate(unitInfo, outOfDateModTime, hint, synchronous);
+    Delegate->unitIsOutOfDate(unitInfo, trigger, synchronous);
   }
 
   for (IDCode depUnit : dependentUnits) {
     if (auto monitor = getUnitMonitor(depUnit)) {
-      if (monitor->getModTime() < outOfDateModTime)
-        monitor->markOutOfDate(outOfDateModTime,
-                               DependentUnitOutOfDateTriggerHint::create(unitName, hint),
-                               synchronous);
+      if (monitor->getModTime() < trigger->getModTime())
+        monitor->markOutOfDate(trigger, synchronous);
     }
   }
 }
@@ -957,12 +949,9 @@ void UnitMonitor::initialize(IDCode unitCode,
   this->ModTime = modTime;
   for (IDCode unitDepCode : userUnitDepends) {
     if (auto depMonitor = unitRepo->getUnitMonitor(unitDepCode)) {
-      for (const auto &trigger : depMonitor->getOutOfDateTriggers()) {
-        if (trigger.outOfDateModTime > modTime) {
-          markOutOfDate(trigger.outOfDateModTime,
-                        DependentUnitOutOfDateTriggerHint::create(depMonitor->getUnitName(),
-                                                                  trigger.hint));
-        }
+      for (const auto &trigger : depMonitor->getUnorderedOutOfDateTriggers()) {
+        if (trigger->getModTime() > modTime)
+          markOutOfDate(trigger);
       }
     }
   }
@@ -975,43 +964,63 @@ void UnitMonitor::initialize(IDCode unitCode,
     }
     auto mostRecentFileAndTime = getMostRecentModTime(filePaths);
     if (mostRecentFileAndTime.second > modTime) {
-      markOutOfDate(mostRecentFileAndTime.second, DependentFileOutOfDateTriggerHint::create(mostRecentFileAndTime.first));
+      auto trigger = OutOfDateFileTrigger::create(mostRecentFileAndTime.first,
+                                                  mostRecentFileAndTime.second);
+      markOutOfDate(trigger);
     }
   }
 }
 
 UnitMonitor::~UnitMonitor() {}
 
-std::vector<UnitMonitor::OutOfDateTrigger> UnitMonitor::getOutOfDateTriggers() const {
+std::vector<OutOfDateFileTriggerRef>
+UnitMonitor::getUnorderedOutOfDateTriggers() const {
   sys::ScopedLock L(StateMtx);
-  std::vector<OutOfDateTrigger> triggers;
+  std::vector<OutOfDateFileTriggerRef> triggers;
   for (const auto &entry : OutOfDateTriggers) {
-    triggers.push_back(entry.getValue());
+    triggers.push_back(entry.second);
   }
   return triggers;
 }
 
-void UnitMonitor::checkForOutOfDate(sys::TimePoint<> outOfDateModTime, StringRef filePath, bool synchronous) {
+void UnitMonitor::checkForOutOfDate(sys::TimePoint<> outOfDateModTime,
+                                    StringRef filePath, bool synchronous) {
   sys::ScopedLock L(StateMtx);
   auto findIt = OutOfDateTriggers.find(filePath);
-  if (findIt != OutOfDateTriggers.end() && findIt->getValue().outOfDateModTime >= outOfDateModTime) {
+  if (findIt != OutOfDateTriggers.end() &&
+      findIt->second->getModTime() >= outOfDateModTime) {
     return; // already marked as out-of-date related to this trigger file.
   }
-  if (ModTime < outOfDateModTime)
-    markOutOfDate(outOfDateModTime, DependentFileOutOfDateTriggerHint::create(filePath), synchronous);
+  if (ModTime < outOfDateModTime) {
+    markOutOfDate(OutOfDateFileTrigger::create(filePath, outOfDateModTime),
+                  synchronous);
+  }
 }
 
-void UnitMonitor::markOutOfDate(sys::TimePoint<> outOfDateModTime, OutOfDateTriggerHintRef hint, bool synchronous) {
+void UnitMonitor::markOutOfDate(OutOfDateFileTriggerRef trigger,
+                                bool synchronous) {
   {
+    // Note we have to be careful with the memory management here since the
+    // key for OutOfDateTriggers is a reference into the stored trigger value.
     sys::ScopedLock L(StateMtx);
-    OutOfDateTrigger trigger{ hint, outOfDateModTime};
-    auto &entry = OutOfDateTriggers[trigger.getTriggerFilePath()];
-    if (entry.outOfDateModTime >= outOfDateModTime)
-      return; // already marked as out-of-date related to this trigger file.
-    entry = trigger;
+    auto iterAndInserted =
+        OutOfDateTriggers.try_emplace(trigger->getPathRef(), trigger);
+    if (!iterAndInserted.second) {
+      // If we have the same or newer mod time for this trigger already stored,
+      // we've seen it before, and have already informed the delegate that the
+      // unit is out of date.
+      auto iter = iterAndInserted.first;
+      if (iter->second->getModTime() >= trigger->getModTime())
+        return;
+
+      // We have a newer mod time for the file, update our trigger, and inform
+      // the delegate that the unit is out of date. Note we need to overwrite
+      // the key as well since it references the path stored in the trigger.
+      *iter = {trigger->getPathRef(), trigger};
+    }
   }
   if (auto localUnitRepo = UnitRepo.lock())
-    localUnitRepo->onUnitOutOfDate(UnitCode, UnitName, outOfDateModTime, hint, synchronous);
+    localUnitRepo->onUnitOutOfDate(UnitCode, UnitName, trigger, synchronous);
 }
 
 std::pair<StringRef, sys::TimePoint<>> UnitMonitor::getMostRecentModTime(ArrayRef<StringRef> filePaths) {
