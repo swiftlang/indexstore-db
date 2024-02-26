@@ -1003,13 +1003,12 @@ void UnitMonitor::markOutOfDate(OutOfDateFileTriggerRef trigger,
     // Note we have to be careful with the memory management here since the
     // key for OutOfDateTriggers is a reference into the stored trigger value.
     sys::ScopedLock L(StateMtx);
-    auto iterAndInserted =
+    auto [iter, inserted] =
         OutOfDateTriggers.try_emplace(trigger->getPathRef(), trigger);
-    if (!iterAndInserted.second) {
+    if (!inserted) {
       // If we have the same or newer mod time for this trigger already stored,
       // we've seen it before, and have already informed the delegate that the
       // unit is out of date.
-      auto iter = iterAndInserted.first;
       if (iter->second->getModTime() >= trigger->getModTime())
         return;
 
