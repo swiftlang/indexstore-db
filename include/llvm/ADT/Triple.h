@@ -180,6 +180,7 @@ public:
     ELFIAMCU,
     TvOS,       // Apple tvOS
     WatchOS,    // Apple watchOS
+    XROS,       // Apple XROS
     Mesa3D,
     Contiki,
     AMDPAL,     // AMD PAL Runtime
@@ -472,9 +473,12 @@ public:
     return getSubArch() == Triple::ARMSubArch_v7k;
   }
 
-  /// isOSDarwin - Is this a "Darwin" OS (OS X, iOS, or watchOS).
+  /// Is this an Apple XROS triple.
+  bool isXROS() const { return getOS() == Triple::XROS; }
+
+  /// isOSDarwin - Is this a "Darwin" OS (OS X, iOS, watchOS, or XROS).
   bool isOSDarwin() const {
-    return isMacOSX() || isiOS() || isWatchOS();
+    return isMacOSX() || isiOS() || isWatchOS() || isXROS();
   }
 
   bool isSimulatorEnvironment() const {

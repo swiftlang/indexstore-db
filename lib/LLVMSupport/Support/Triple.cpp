@@ -202,6 +202,7 @@ StringRef Triple::getOSTypeName(OSType Kind) {
   case ELFIAMCU: return "elfiamcu";
   case TvOS: return "tvos";
   case WatchOS: return "watchos";
+  case XROS: return "xros";
   case Mesa3D: return "mesa3d";
   case Contiki: return "contiki";
   case AMDPAL: return "amdpal";
@@ -501,6 +502,8 @@ static Triple::OSType parseOS(StringRef OSName) {
     .StartsWith("elfiamcu", Triple::ELFIAMCU)
     .StartsWith("tvos", Triple::TvOS)
     .StartsWith("watchos", Triple::WatchOS)
+    .StartsWith("xros", Triple::XROS)
+    .StartsWith("visionos", Triple::XROS)
     .StartsWith("mesa3d", Triple::Mesa3D)
     .StartsWith("contiki", Triple::Contiki)
     .StartsWith("amdpal", Triple::AMDPAL)
@@ -1051,6 +1054,8 @@ void Triple::getOSVersion(unsigned &Major, unsigned &Minor,
     OSName = OSName.substr(OSTypeName.size());
   else if (getOS() == MacOSX)
     OSName.consume_front("macos");
+  else if (OSName.startswith("visionos"))
+    OSName.consume_front("visionos");
 
   parseVersionFromName(OSName, Major, Minor, Micro);
 }
@@ -1092,6 +1097,8 @@ bool Triple::getMacOSXVersion(unsigned &Major, unsigned &Minor,
     Minor = 4;
     Micro = 0;
     break;
+  case XROS:
+    llvm_unreachable("OSX version isn't relevant for xrOS");
   }
   return true;
 }
@@ -1119,6 +1126,12 @@ void Triple::getiOSVersion(unsigned &Major, unsigned &Minor,
     break;
   case WatchOS:
     llvm_unreachable("conflicting triple info");
+  case XROS: {
+    // xrOS 1 is aligned with iOS 17.
+    getOSVersion(Major, Minor, Micro);
+    Major += 16;
+    break;
+  }
   }
 }
 
@@ -1143,6 +1156,8 @@ void Triple::getWatchOSVersion(unsigned &Major, unsigned &Minor,
     break;
   case IOS:
     llvm_unreachable("conflicting triple info");
+  case XROS:
+    llvm_unreachable("watchOS version isn't relevant for xrOS");
   }
 }
 
