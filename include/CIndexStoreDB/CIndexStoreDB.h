@@ -577,6 +577,14 @@ indexstoredb_index_unit_tests(
   _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver
 );
 
+/// Returns a Unix timestamp (seconds since 1/1/1970) of the latest unit that contains the given source file.
+/// 
+/// If no unit containing the given source file exists, returns 0.
+INDEXSTOREDB_PUBLIC double
+indexstoredb_timestamp_of_latest_unit_for_file(
+  _Nonnull indexstoredb_index_t index,
+  const char *_Nonnull fileName
+);
 
 INDEXSTOREDB_END_DECLS
 

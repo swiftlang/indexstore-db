@@ -233,6 +233,11 @@ public:
   ///
   ///  \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
   bool foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver);
+
+  /// Returns the latest modification date of a unit that contains the given source file.
+  /// 
+  /// If no unit containing the given source file exists, returns `None`.
+  llvm::Optional<llvm::sys::TimePoint<>> timestampOfLatestUnitForFile(StringRef filePath);
 };
 
 } // anonymous namespace
@@ -627,6 +632,11 @@ bool IndexSystemImpl::foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRe
   return SymIndex->foreachUnitTestSymbol(std::move(receiver));
 }
 
+llvm::Optional<llvm::sys::TimePoint<>> IndexSystemImpl::timestampOfLatestUnitForFile(StringRef filePath) {
+  auto canonFilePath = PathIndex->getCanonicalPath(filePath);
+  return SymIndex->timestampOfLatestUnitForFile(canonFilePath);
+}
+
 //===----------------------------------------------------------------------===//
 // IndexSystem
 //===----------------------------------------------------------------------===//
@@ -843,4 +853,8 @@ bool IndexSystem::foreachUnitTestSymbolReferencedByMainFiles(
 
 bool IndexSystem::foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver) {
   return IMPL->foreachUnitTestSymbol(std::move(receiver));
+}
+
+llvm::Optional<llvm::sys::TimePoint<>> IndexSystem::timestampOfLatestUnitForFile(StringRef filePath) {
+  return IMPL->timestampOfLatestUnitForFile(filePath);
 }

@@ -99,6 +99,11 @@ public:
   /// \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
   bool foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver);
 
+  /// Returns the latest modification date of a unit that contains the given source file.
+  /// 
+  /// If no unit containing the given source file exists, returns `None`.
+  llvm::Optional<sys::TimePoint<>> timestampOfLatestUnitForFile(CanonicalFilePathRef filePath);
+
 private:
   /// Returns all the providers in the index that contain test cases and satisfy `unitFilter`.
   std::vector<SymbolDataProviderRef> providersContainingTestCases(ReadTransaction &reader, function_ref<bool(const UnitInfo &)> unitFilter);
@@ -597,6 +602,26 @@ bool SymbolIndexImpl::foreachUnitTestSymbolOccurrence(const std::vector<SymbolDa
   return true;
 }
 
+llvm::Optional<sys::TimePoint<>> SymbolIndexImpl::timestampOfLatestUnitForFile(CanonicalFilePathRef filePath) {
+  llvm::Optional<sys::TimePoint<>> result;
+
+  ReadTransaction reader(DBase);
+  IDCode filePathCode = reader.getFilePathCode(filePath);
+  reader.foreachUnitContainingFile(filePathCode, [&](ArrayRef<IDCode> idCodes) -> bool {
+    for (IDCode idCode : idCodes) {
+      UnitInfo unitInfo = reader.getUnitInfo(idCode);
+      if (!result) {
+        result = unitInfo.ModTime;
+      } else if (*result < unitInfo.ModTime) {
+        result = unitInfo.ModTime;
+      }
+    }
+    return true;
+  });
+  return result;
+}
+
+
 //===----------------------------------------------------------------------===//
 // SymbolIndex
 //===----------------------------------------------------------------------===//
@@ -695,4 +720,8 @@ bool SymbolIndex::foreachUnitTestSymbolReferencedByMainFiles(
 
 bool SymbolIndex::foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver) {
   return IMPL->foreachUnitTestSymbol(std::move(receiver));
+}
+
+llvm::Optional<llvm::sys::TimePoint<>> SymbolIndex::timestampOfLatestUnitForFile(CanonicalFilePathRef filePath) {
+  return IMPL->timestampOfLatestUnitForFile(filePath);
 }
