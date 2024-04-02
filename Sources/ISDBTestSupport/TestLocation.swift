@@ -51,6 +51,7 @@ extension SymbolLocation {
   public init(_ loc: TestLocation, moduleName: String = TestLocation.unknownModuleName, isSystem: Bool = false) {
     self.init(
       path: loc.url.path,
+      timestamp: Date(),
       moduleName: moduleName,
       isSystem: isSystem,
       line: loc.line,

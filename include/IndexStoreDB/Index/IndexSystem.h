@@ -177,6 +177,10 @@ public:
   ///  \returns `false` if the receiver returned `false` to stop receiving symbols, `true` otherwise.
   bool foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver);
 
+  /// Returns the latest modification date of a unit that contains the given source file.
+  /// 
+  /// If no unit containing the given source file exists, returns `None`.
+  llvm::Optional<llvm::sys::TimePoint<>> timestampOfLatestUnitForFile(StringRef filePath);
 private:
   IndexSystem(void *Impl) : Impl(Impl) {}
 

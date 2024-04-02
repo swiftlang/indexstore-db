@@ -12,6 +12,7 @@
 
 @_implementationOnly
 import CIndexStoreDB
+import Foundation
 
 // For `strdup`
 #if canImport(Glibc)
@@ -447,6 +448,19 @@ public final class IndexStoreDB {
       return true
     }
     return result
+  }
+
+  /// Returns the latest modification date of a unit that contains the given source file.
+  /// 
+  /// If no unit containing the given source file exists, returns `nil`.
+  public func dateOfLatestUnitFor(filePath: String) -> Date? {
+    let timestamp = filePath.withCString { filePathCString in
+      indexstoredb_timestamp_of_latest_unit_for_file(impl, filePathCString)
+    }
+    if timestamp == 0 {
+      return nil
+    }
+    return Date(timeIntervalSince1970: timestamp)
   }
 }
 

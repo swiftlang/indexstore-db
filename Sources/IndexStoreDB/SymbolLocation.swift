@@ -12,16 +12,20 @@
 
 @_implementationOnly
 import CIndexStoreDB
+import Foundation
 
 public struct SymbolLocation: Equatable {
   public var path: String
+  /// The date at which the unit file that contains a symbol has last been modified.
+  public var timestamp: Date
   public var moduleName: String
   public var isSystem: Bool
   public var line: Int
   public var utf8Column: Int
 
-  public init(path: String, moduleName: String, isSystem: Bool = false, line: Int, utf8Column: Int) {
+  public init(path: String, timestamp: Date, moduleName: String, isSystem: Bool = false, line: Int, utf8Column: Int) {
     self.path = path
+    self.timestamp = timestamp
     self.moduleName = moduleName
     self.isSystem = isSystem
     self.line = line
@@ -47,6 +51,7 @@ extension SymbolLocation: CustomStringConvertible {
 extension SymbolLocation {
   internal init(_ loc: indexstoredb_symbol_location_t) {
     path = String(cString: indexstoredb_symbol_location_path(loc))
+    timestamp = Date(timeIntervalSince1970: indexstoredb_symbol_location_timestamp(loc))
     moduleName = String(cString: indexstoredb_symbol_location_module_name(loc))
     isSystem = indexstoredb_symbol_location_is_system(loc)
     line = Int(indexstoredb_symbol_location_line(loc))
