@@ -375,6 +375,12 @@ INDEXSTOREDB_PUBLIC
 const char * _Nonnull
 indexstoredb_symbol_location_path(_Nonnull indexstoredb_symbol_location_t);
 
+/// Returns a Unix timestamp (seconds since 1/1/1970) at which the unit file that contains a symbol has last been 
+/// modified.
+INDEXSTOREDB_PUBLIC
+double
+indexstoredb_symbol_location_timestamp(_Nonnull indexstoredb_symbol_location_t loc);
+
 /// Returns the module name of the given symbol location.
 ///
 /// The string has the same lifetime as the \c indexstoredb_symbol_location_t.
@@ -571,6 +577,14 @@ indexstoredb_index_unit_tests(
   _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver
 );
 
+/// Returns a Unix timestamp (seconds since 1/1/1970) of the latest unit that contains the given source file.
+/// 
+/// If no unit containing the given source file exists, returns 0.
+INDEXSTOREDB_PUBLIC double
+indexstoredb_timestamp_of_latest_unit_for_file(
+  _Nonnull indexstoredb_index_t index,
+  const char *_Nonnull fileName
+);
 
 INDEXSTOREDB_END_DECLS
 
