@@ -52,7 +52,7 @@ public enum Language: Hashable {
   case swift
 }
 
-public struct Symbol: Equatable {
+public struct Symbol: Hashable {
 
   public var usr: String
   public var name: String
