@@ -448,7 +448,7 @@ indexstoredb_symbol_location_path(indexstoredb_symbol_location_t loc) {
 double
 indexstoredb_symbol_location_timestamp(indexstoredb_symbol_location_t loc) {
   auto obj = (SymbolLocation *)loc;
-  // Up until C++20 the reference date of time_since_epoch is undefined but according to 
+  // Up until C++20 the reference date of time_since_epoch is undefined but according to
   // https://en.cppreference.com/w/cpp/chrono/system_clock most implementations use Unix Time.
   // Since C++20, system_clock is defined to measure time since 1/1/1970.
   // We rely on `time_since_epoch` always returning the nanoseconds since 1/1/1970.
@@ -676,13 +676,14 @@ indexstoredb_timestamp_of_latest_unit_for_file(
   auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
   llvm::Optional<llvm::sys::TimePoint<>> timePoint = obj->value->timestampOfLatestUnitForFile(fileName);
   if (timePoint) {
-    // Up until C++20 the reference date of time_since_epoch is undefined but according to 
+    // Up until C++20 the reference date of time_since_epoch is undefined but according to
     // https://en.cppreference.com/w/cpp/chrono/system_clock most implementations use Unix Time.
     // Since C++20, system_clock is defined to measure time since 1/1/1970.
     // We rely on `time_since_epoch` always returning the nanoseconds since 1/1/1970.
-    return timePoint->time_since_epoch().count();
+    auto nanosecondsSinceEpoch = timePoint->time_since_epoch().count();
+    return static_cast<double>(nanosecondsSinceEpoch) / 1000 / 1000 / 1000;
   }
   return 0;
-} 
+}
 
 ObjectBase::~ObjectBase() {}
