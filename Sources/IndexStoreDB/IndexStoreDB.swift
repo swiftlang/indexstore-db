@@ -451,7 +451,7 @@ public final class IndexStoreDB {
   }
 
   /// Returns the latest modification date of a unit that contains the given source file.
-  /// 
+  ///
   /// If no unit containing the given source file exists, returns `nil`.
   public func dateOfLatestUnitFor(filePath: String) -> Date? {
     let timestamp = filePath.withCString { filePathCString in
@@ -460,7 +460,7 @@ public final class IndexStoreDB {
     if timestamp == 0 {
       return nil
     }
-    return Date(timeIntervalSince1970: timestamp)
+    return Date(timeIntervalSince1970: Double(timestamp) / 1_000_000_000)
   }
 }
 
