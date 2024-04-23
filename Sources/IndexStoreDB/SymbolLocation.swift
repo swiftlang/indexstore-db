@@ -51,7 +51,7 @@ extension SymbolLocation: CustomStringConvertible {
 extension SymbolLocation {
   internal init(_ loc: indexstoredb_symbol_location_t) {
     path = String(cString: indexstoredb_symbol_location_path(loc))
-    timestamp = Date(timeIntervalSince1970: indexstoredb_symbol_location_timestamp(loc))
+    timestamp = Date(timeIntervalSince1970: Double(indexstoredb_symbol_location_timestamp(loc)) / 1_000_000_000)
     moduleName = String(cString: indexstoredb_symbol_location_module_name(loc))
     isSystem = indexstoredb_symbol_location_is_system(loc)
     line = Int(indexstoredb_symbol_location_line(loc))

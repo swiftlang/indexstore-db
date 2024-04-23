@@ -320,7 +320,7 @@ indexstoredb_index_related_symbol_occurrences_by_usr(
     _Nonnull indexstoredb_symbol_occurrence_receiver_t);
 
 /// Iterates over all the symbols contained in \p path
-/// 
+///
 /// The symbol passed to the receiver is only valid for the duration of the
 /// receiver call.
 INDEXSTOREDB_PUBLIC bool
@@ -375,10 +375,10 @@ INDEXSTOREDB_PUBLIC
 const char * _Nonnull
 indexstoredb_symbol_location_path(_Nonnull indexstoredb_symbol_location_t);
 
-/// Returns a Unix timestamp (seconds since 1/1/1970) at which the unit file that contains a symbol has last been 
+/// Returns a Unix timestamp (nanoseconds since 1/1/1970) at which the unit file that contains a symbol has last been
 /// modified.
 INDEXSTOREDB_PUBLIC
-double
+uint64_t
 indexstoredb_symbol_location_timestamp(_Nonnull indexstoredb_symbol_location_t loc);
 
 /// Returns the module name of the given symbol location.
@@ -577,10 +577,10 @@ indexstoredb_index_unit_tests(
   _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver
 );
 
-/// Returns a Unix timestamp (seconds since 1/1/1970) of the latest unit that contains the given source file.
-/// 
+/// Returns a Unix timestamp (nanoseconds since 1/1/1970) of the latest unit that contains the given source file.
+///
 /// If no unit containing the given source file exists, returns 0.
-INDEXSTOREDB_PUBLIC double
+INDEXSTOREDB_PUBLIC uint64_t
 indexstoredb_timestamp_of_latest_unit_for_file(
   _Nonnull indexstoredb_index_t index,
   const char *_Nonnull fileName
