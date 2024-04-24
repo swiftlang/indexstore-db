@@ -679,8 +679,7 @@ indexstoredb_timestamp_of_latest_unit_for_file(
     // https://en.cppreference.com/w/cpp/chrono/system_clock most implementations use Unix Time.
     // Since C++20, system_clock is defined to measure time since 1/1/1970.
     // We rely on `time_since_epoch` always returning the nanoseconds since 1/1/1970.
-    auto nanosecondsSinceEpoch = timePoint->time_since_epoch().count();
-    return static_cast<double>(nanosecondsSinceEpoch) / 1000 / 1000 / 1000;
+    return timePoint->time_since_epoch().count();
   }
   return 0;
 }
