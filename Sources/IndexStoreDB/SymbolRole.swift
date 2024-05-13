@@ -13,7 +13,7 @@
 @_implementationOnly
 import CIndexStoreDB
 
-public struct SymbolRole: OptionSet, Hashable {
+public struct SymbolRole: OptionSet, Hashable, Sendable {
 
   public var rawValue: UInt64
 
