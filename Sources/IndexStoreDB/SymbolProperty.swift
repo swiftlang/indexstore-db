@@ -13,7 +13,7 @@
 @_implementationOnly
 import CIndexStoreDB
 
-public struct SymbolProperty: OptionSet, Hashable {
+public struct SymbolProperty: OptionSet, Hashable, Sendable {
   public var rawValue: UInt64
 
   public static let generic: SymbolProperty = SymbolProperty(rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_GENERIC)
