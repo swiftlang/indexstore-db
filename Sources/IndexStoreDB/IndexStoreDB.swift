@@ -159,9 +159,11 @@ public final class IndexStoreDB {
   /// Stop iteration if `body` returns `false`.
   /// - Returns: `false` if iteration was terminated by `body` returning `true` or `true` if iteration finished.
   @discardableResult
-  public func forEachSymbolOccurrence(byUSR usr: String, roles: SymbolRole, _ body: @escaping (SymbolOccurrence) -> Bool) -> Bool {
-    return indexstoredb_index_symbol_occurrences_by_usr(impl, usr, roles.rawValue) { occur in
-      return body(SymbolOccurrence(occur))
+  public func forEachSymbolOccurrence(byUSR usr: String, roles: SymbolRole, _ body: (SymbolOccurrence) -> Bool) -> Bool {
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_symbol_occurrences_by_usr(impl, usr, roles.rawValue) { occur in
+        return body(SymbolOccurrence(occur))
+      }
     }
   }
 
@@ -176,9 +178,12 @@ public final class IndexStoreDB {
   }
 
   @discardableResult
-  public func forEachRelatedSymbolOccurrence(byUSR usr: String, roles: SymbolRole, _ body: @escaping (SymbolOccurrence) -> Bool) -> Bool {
-    return indexstoredb_index_related_symbol_occurrences_by_usr(impl, usr, roles.rawValue) { occur in
-      return body(SymbolOccurrence(occur))
+  public func forEachRelatedSymbolOccurrence(byUSR usr: String, roles: SymbolRole, _ body: (SymbolOccurrence) -> Bool) -> Bool {
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_related_symbol_occurrences_by_usr(impl, usr, roles.rawValue) {
+        occur in
+        return body(SymbolOccurrence(occur))
+      }
     }
   }
 
@@ -191,9 +196,11 @@ public final class IndexStoreDB {
     return result
   }
 
-  @discardableResult public func forEachCanonicalSymbolOccurrence(byName: String, body: @escaping (SymbolOccurrence) -> Bool) -> Bool {
-    return indexstoredb_index_canonical_symbol_occurences_by_name(impl, byName) { occur in
-      return body(SymbolOccurrence(occur))
+  @discardableResult public func forEachCanonicalSymbolOccurrence(byName: String, body: (SymbolOccurrence) -> Bool) -> Bool {
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_canonical_symbol_occurences_by_name(impl, byName) { occur in
+        return body(SymbolOccurrence(occur))
+      }
     }
   }
 
@@ -212,17 +219,19 @@ public final class IndexStoreDB {
     anchorEnd: Bool,
     subsequence: Bool,
     ignoreCase: Bool,
-    body: @escaping (SymbolOccurrence) -> Bool
+    body: (SymbolOccurrence) -> Bool
   ) -> Bool {
-    return indexstoredb_index_canonical_symbol_occurences_containing_pattern(
-      impl,
-      pattern,
-      anchorStart,
-      anchorEnd,
-      subsequence,
-      ignoreCase
-    ) { occur in
-      body(SymbolOccurrence(occur))
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_canonical_symbol_occurences_containing_pattern(
+        impl,
+        pattern,
+        anchorStart,
+        anchorEnd,
+        subsequence,
+        ignoreCase
+      ) { occur in
+        body(SymbolOccurrence(occur))
+      }
     }
   }
 
@@ -248,15 +257,19 @@ public final class IndexStoreDB {
   }
 
   @discardableResult
-  public func forEachMainFileContainingFile(path: String, crossLanguage: Bool, body: @escaping (String) -> Bool) -> Bool {
+  public func forEachMainFileContainingFile(
+    path: String, crossLanguage: Bool, body: (String) -> Bool
+  ) -> Bool {
     let fromSwift = path.hasSuffix(".swift")
-    return indexstoredb_index_units_containing_file(impl, path) { unit in
-      let mainFileStr = String(cString: indexstoredb_unit_info_main_file_path(unit))
-      let toSwift = mainFileStr.hasSuffix(".swift")
-      if !crossLanguage && fromSwift != toSwift {
-        return true // continue
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_units_containing_file(impl, path) { unit in
+        let mainFileStr = String(cString: indexstoredb_unit_info_main_file_path(unit))
+        let toSwift = mainFileStr.hasSuffix(".swift")
+        if !crossLanguage && fromSwift != toSwift {
+          return true  // continue
+        }
+        return body(mainFileStr)
       }
-      return body(mainFileStr)
     }
   }
 
@@ -270,10 +283,12 @@ public final class IndexStoreDB {
   }
 
   @discardableResult
-  public func forEachUnitNameContainingFile(path: String, body: @escaping (String) -> Bool) -> Bool {
-    return indexstoredb_index_units_containing_file(impl, path) { unit in
-      let unitName = String(cString: indexstoredb_unit_info_unit_name(unit))
-      return body(unitName)
+  public func forEachUnitNameContainingFile(path: String, body: (String) -> Bool) -> Bool {
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_units_containing_file(impl, path) { unit in
+        let unitName = String(cString: indexstoredb_unit_info_unit_name(unit))
+        return body(unitName)
+      }
     }
   }
 
@@ -322,10 +337,12 @@ public final class IndexStoreDB {
   }
 
   @discardableResult
-  public func foreachFileIncludedByFile(path: String, body: @escaping (String) -> Bool) -> Bool {
-    return indexstoredb_index_files_included_by_file(impl, path) { targetPath, line in
+  public func foreachFileIncludedByFile(path: String, body: (String) -> Bool) -> Bool {
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_files_included_by_file(impl, path) { targetPath, line in
         let targetPathStr = String(cString: targetPath)
         return body(targetPathStr)
+      }
     }
   }
     
@@ -339,10 +356,12 @@ public final class IndexStoreDB {
   }
     
   @discardableResult
-  public func foreachFileIncludingFile(path: String, body: @escaping (String) -> Bool) -> Bool {
-    return indexstoredb_index_files_including_file(impl, path) { sourcePath, line in
+  public func foreachFileIncludingFile(path: String, body: (String) -> Bool) -> Bool {
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_files_including_file(impl, path) { sourcePath, line in
         let sourcePathStr = String(cString: sourcePath)
         return body(sourcePathStr)
+      }
     }
   }
       
@@ -373,11 +392,14 @@ public final class IndexStoreDB {
 
   /// Iterates over recorded `#include`s of a unit.
   @discardableResult
-  public func forEachIncludeOfUnit(unitName: String, body: @escaping (UnitIncludeEntry) -> Bool) -> Bool {
-    return indexstoredb_index_includes_of_unit(impl, unitName) { sourcePath, targetPath, line in
-      let sourcePathStr = String(cString: sourcePath)
-      let targetPathStr = String(cString: targetPath)
-      return body(UnitIncludeEntry(sourcePath: sourcePathStr, targetPath: targetPathStr, line: line))
+  public func forEachIncludeOfUnit(unitName: String, body: (UnitIncludeEntry) -> Bool) -> Bool {
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_includes_of_unit(impl, unitName) { sourcePath, targetPath, line in
+        let sourcePathStr = String(cString: sourcePath)
+        let targetPathStr = String(cString: targetPath)
+        return body(
+          UnitIncludeEntry(sourcePath: sourcePathStr, targetPath: targetPathStr, line: line))
+      }
     }
   }
 
@@ -396,9 +418,11 @@ public final class IndexStoreDB {
   /// - Parameter body: A closure to be called for each symbol. The closure should return true to
   /// continue iterating.
   @discardableResult
-  public func forEachSymbolName(body: @escaping (String) -> Bool) -> Bool {
-    return indexstoredb_index_symbol_names(impl) { name in
-      body(String(cString: name))
+  public func forEachSymbolName(body: (String) -> Bool) -> Bool {
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_symbol_names(impl) { name in
+        body(String(cString: name))
+      }
     }
   }
 
@@ -422,9 +446,11 @@ public final class IndexStoreDB {
   }
 
   @discardableResult
-  func forEachSymbol(inFilePath filePath: String, body: @escaping (Symbol) -> Bool) -> Bool {
-    return indexstoredb_index_symbols_contained_in_file_path(impl, filePath) { symbol in
-      return body(Symbol(symbol))
+  func forEachSymbol(inFilePath filePath: String, body: (Symbol) -> Bool) -> Bool {
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_symbols_contained_in_file_path(impl, filePath) { symbol in
+        return body(Symbol(symbol))
+      }
     }
   }
 
