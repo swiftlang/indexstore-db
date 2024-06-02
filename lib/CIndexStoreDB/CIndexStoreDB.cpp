@@ -427,6 +427,18 @@ indexstoredb_symbol_occurrence_relations(indexstoredb_symbol_occurrence_t occurr
   return true;
 }
 
+indexstoredb_symbol_provider_kind_t
+indexstoredb_symbol_occurrence_symbol_provider_kind(indexstoredb_symbol_occurrence_t occur) {
+  auto value = (SymbolOccurrence *)occur;
+  SymbolProviderKind symbolProvider = value->getSymbolProviderKind();
+  switch (value->getSymbolProviderKind()) {
+  case IndexStoreDB::SymbolProviderKind::Clang:
+    return INDEXSTOREDB_SYMBOL_PROVIDER_KIND_CLANG;
+  case IndexStoreDB::SymbolProviderKind::Swift:
+    return INDEXSTOREDB_SYMBOL_PROVIDER_KIND_SWIFT;
+  }
+}
+
 uint64_t
 indexstoredb_symbol_occurrence_roles(indexstoredb_symbol_occurrence_t occur) {
   auto value = (SymbolOccurrence *)occur;
