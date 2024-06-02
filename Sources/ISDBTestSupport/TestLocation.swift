@@ -62,8 +62,8 @@ extension SymbolLocation {
 extension Symbol {
 
   /// Returns a SymbolOccurrence with the given location and roles.
-  public func at(_ location: TestLocation, moduleName: String = TestLocation.unknownModuleName, roles: SymbolRole) -> SymbolOccurrence {
-    return self.at(SymbolLocation(location, moduleName: moduleName), roles: roles)
+  public func at(_ location: TestLocation, moduleName: String = TestLocation.unknownModuleName, roles: SymbolRole, symbolProvider: SymbolProviderKind) -> SymbolOccurrence {
+    return self.at(SymbolLocation(location, moduleName: moduleName), symbolProvider: symbolProvider, roles: roles)
   }
 }
 
