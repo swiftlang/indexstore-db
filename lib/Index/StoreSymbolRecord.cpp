@@ -289,6 +289,20 @@ bool StoreSymbolRecord::foreachCoreSymbolData(function_ref<bool(StringRef USR,
   return !Err && Finished;
 }
 
+bool StoreSymbolRecord::foreachSymbolOccurrence(function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
+  bool Finished;
+  bool Err = doForData([&](IndexRecordReader &Reader) {
+      // Return all occurrences.
+    auto Pred = [](IndexRecordOccurrence) -> bool { return true; };
+    PredOccurrenceConverter Converter(*this, Pred, Receiver);
+    Finished = Reader.foreachOccurrence(/*symbolsFilter=*/None,
+                                        /*relatedSymbolsFilter=*/None,
+                                        Converter);
+  });
+
+  return !Err && Finished;
+}
+
 static void searchDeclsByUSR(IndexRecordReader &Reader,
                              ArrayRef<db::IDCode> USRs,
            SmallVectorImpl<IndexRecordSymbol> &FoundDecls) {

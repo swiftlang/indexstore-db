@@ -68,6 +68,9 @@ public:
   bool foreachSymbolInFilePath(CanonicalFilePathRef filePath,
                                function_ref<bool(SymbolRef Occur)> Receiver);
 
+  bool foreachSymbolOccurrenceInFilePath(CanonicalFilePathRef filePath,
+                                         function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
+
   bool foreachCanonicalSymbolOccurrenceContainingPattern(StringRef Pattern,
                                                 bool AnchorStart,
                                                 bool AnchorEnd,
@@ -104,7 +107,7 @@ public:
   bool foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver);
 
   /// Returns the latest modification date of a unit that contains the given source file.
-  /// 
+  ///
   /// If no unit containing the given source file exists, returns `None`.
   llvm::Optional<llvm::sys::TimePoint<>> timestampOfLatestUnitForFile(CanonicalFilePathRef filePath);
 private:

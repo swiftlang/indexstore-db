@@ -76,6 +76,9 @@ public:
   bool foreachSymbolInFilePath(CanonicalFilePathRef filePath,
                                function_ref<bool(SymbolRef Symbol)> Receiver);
 
+  bool foreachSymbolOccurrenceInFilePath(CanonicalFilePathRef filePath,
+                                         function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
+
   bool foreachSymbolName(function_ref<bool(StringRef name)> receiver);
 
   bool foreachCanonicalSymbolOccurrenceByUSR(StringRef USR,
@@ -100,7 +103,7 @@ public:
   bool foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver);
 
   /// Returns the latest modification date of a unit that contains the given source file.
-  /// 
+  ///
   /// If no unit containing the given source file exists, returns `None`.
   llvm::Optional<sys::TimePoint<>> timestampOfLatestUnitForFile(CanonicalFilePathRef filePath);
 
@@ -481,13 +484,40 @@ bool SymbolIndexImpl::foreachSymbolInFilePath(CanonicalFilePathRef filePath,
                                                                   SymbolInfo info,
                                                                   SymbolRoleSet roles,
                                                                   SymbolRoleSet relatedRoles) -> bool {
-                      
+
                       if (roles.containsAny(SymbolRoleSet(SymbolRole::Definition) | SymbolRole::Declaration)) {
                         return Receiver(std::make_shared<Symbol>(info, name, usr));
                       } else {
                         return true;
                       }
                     });
+
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    });
+
+    return didFinish;
+}
+
+bool SymbolIndexImpl::foreachSymbolOccurrenceInFilePath(CanonicalFilePathRef filePath,
+                                                        function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
+    bool didFinish = true;
+    ReadTransaction reader(DBase);
+
+    IDCode filePathCode = reader.getFilePathCode(filePath);
+    reader.foreachUnitContainingFile(filePathCode, [&](ArrayRef<IDCode> idCodes) -> bool {
+        for (IDCode idCode : idCodes) {
+            UnitInfo unitInfo = reader.getUnitInfo(idCode);
+
+            for (UnitInfo::Provider provider : unitInfo.ProviderDepends) {
+                IDCode providerCode = provider.ProviderCode;
+                if (provider.FileCode == filePathCode) {
+                    auto record = createVisibleProviderForCode(providerCode, reader);
+                    didFinish = record->foreachSymbolOccurrence(Receiver);
 
                     return false;
                 }
@@ -704,6 +734,11 @@ bool SymbolIndex::foreachCanonicalSymbolOccurrenceByKind(SymbolKind symKind, boo
 bool SymbolIndex::foreachSymbolInFilePath(CanonicalFilePathRef filePath,
                                           function_ref<bool(SymbolRef Occur)> Receiver) {
   return IMPL->foreachSymbolInFilePath(filePath, std::move(Receiver));
+}
+
+bool SymbolIndex::foreachSymbolOccurrenceInFilePath(CanonicalFilePathRef filePath,
+                                                    function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
+  return IMPL->foreachSymbolOccurrenceInFilePath(filePath, std::move(Receiver));
 }
 
 bool SymbolIndex::foreachUnitTestSymbolReferencedByOutputPaths(ArrayRef<CanonicalFilePathRef> FilePaths,

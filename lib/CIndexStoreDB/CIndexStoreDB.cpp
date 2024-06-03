@@ -314,6 +314,16 @@ indexstoredb_index_symbols_contained_in_file_path(_Nonnull indexstoredb_index_t 
   });
 }
 
+bool
+indexstoredb_index_symbol_occurrences_in_file_path(_Nonnull indexstoredb_index_t index,
+                                                    const char *_Nonnull path,
+                                                    _Nonnull indexstoredb_symbol_occurrence_receiver_t receiver) {
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
+  return obj->value->foreachSymbolOccurrenceInFilePath(path, [&](SymbolOccurrenceRef Occur) -> bool {
+    return receiver((indexstoredb_symbol_occurrence_t)Occur.get());
+  });
+}
+
 const char *
 indexstoredb_symbol_usr(indexstoredb_symbol_t symbol) {
   auto value = (Symbol *)symbol;

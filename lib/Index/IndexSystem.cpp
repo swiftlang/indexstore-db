@@ -160,11 +160,14 @@ public:
 
   void addDelegate(std::shared_ptr<IndexSystemDelegate> Delegate);
 
-    bool foreachSymbolInFilePath(StringRef filePath,
-                                 function_ref<bool(const SymbolRef &symbol)> receiver);
-    
-    bool foreachSymbolOccurrenceByUSR(StringRef USR, SymbolRoleSet RoleSet,
-                        function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
+  bool foreachSymbolInFilePath(StringRef filePath,
+                               function_ref<bool(const SymbolRef &symbol)> receiver);
+
+  bool foreachSymbolOccurrenceInFilePath(StringRef filePath,
+                                         function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
+
+  bool foreachSymbolOccurrenceByUSR(StringRef USR, SymbolRoleSet RoleSet,
+                                    function_ref<bool(SymbolOccurrenceRef Occur)> Receiver);
 
   bool foreachCanonicalSymbolOccurrenceContainingPattern(StringRef Pattern,
                                                 bool AnchorStart,
@@ -236,7 +239,7 @@ public:
   bool foreachUnitTestSymbol(function_ref<bool(SymbolOccurrenceRef Occur)> receiver);
 
   /// Returns the latest modification date of a unit that contains the given source file.
-  /// 
+  ///
   /// If no unit containing the given source file exists, returns `None`.
   llvm::Optional<llvm::sys::TimePoint<>> timestampOfLatestUnitForFile(StringRef filePath);
 };
@@ -579,6 +582,12 @@ bool IndexSystemImpl::foreachSymbolInFilePath(StringRef filePath,
     return SymIndex->foreachSymbolInFilePath(canonPath, std::move(receiver));
 }
 
+bool IndexSystemImpl::foreachSymbolOccurrenceInFilePath(StringRef filePath,
+                                                        function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
+  auto canonPath = PathIndex->getCanonicalPath(filePath);
+  return SymIndex->foreachSymbolOccurrenceInFilePath(canonPath, std::move(Receiver));
+}
+
 bool IndexSystemImpl::foreachFileOfUnit(StringRef unitName,
                                         bool followDependencies,
                                         function_ref<bool(CanonicalFilePathRef filePath)> receiver) {
@@ -776,6 +785,11 @@ bool IndexSystem::foreachCanonicalSymbolOccurrenceByKind(SymbolKind symKind, boo
 bool IndexSystem::foreachSymbolInFilePath(StringRef FilePath,
                                           function_ref<bool(SymbolRef Symbol)> Receiver) {
     return IMPL->foreachSymbolInFilePath(FilePath, std::move(Receiver));
+}
+
+bool IndexSystem::foreachSymbolOccurrenceInFilePath(StringRef FilePath,
+                                                    function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
+  return IMPL->foreachSymbolOccurrenceInFilePath(FilePath, std::move(Receiver));
 }
 
 bool IndexSystem::isKnownFile(StringRef filePath) {

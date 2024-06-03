@@ -328,6 +328,15 @@ indexstoredb_index_symbols_contained_in_file_path(_Nonnull indexstoredb_index_t 
                                                   const char *_Nonnull path,
                                                   _Nonnull indexstoredb_symbol_receiver_t);
 
+/// Iterates over all the symbol occurrences contained in \p path
+///
+/// The occurrence passed to the receiver is only valid for the duration of the
+/// receiver call.
+INDEXSTOREDB_PUBLIC bool
+indexstoredb_index_symbol_occurrences_in_file_path(_Nonnull indexstoredb_index_t index,
+                                                   const char *_Nonnull path,
+                                                   _Nonnull indexstoredb_symbol_occurrence_receiver_t);
+
 /// Returns the USR of the given symbol.
 ///
 /// The string has the same lifetime as the \c indexstoredb_symbol_t.

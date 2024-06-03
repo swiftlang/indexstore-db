@@ -48,6 +48,8 @@ public:
                                                        SymbolRoleSet Roles,
                                                        SymbolRoleSet RelatedRoles)> Receiver) = 0;
 
+  virtual bool foreachSymbolOccurrence(function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) = 0;
+
   virtual bool foreachSymbolOccurrenceByUSR(ArrayRef<db::IDCode> USRs,
                                             SymbolRoleSet RoleSet,
                         function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) = 0;

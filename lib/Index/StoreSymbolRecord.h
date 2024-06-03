@@ -75,6 +75,8 @@ public:
                                                        SymbolRoleSet Roles,
                                                        SymbolRoleSet RelatedRoles)> Receiver) override;
 
+  virtual bool foreachSymbolOccurrence(function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) override;
+
   virtual bool foreachSymbolOccurrenceByUSR(ArrayRef<db::IDCode> USRs,
                                             SymbolRoleSet RoleSet,
                function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) override;
