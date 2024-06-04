@@ -498,9 +498,6 @@ indexstoredb_unit_info_main_file_path(_Nonnull indexstoredb_unit_info_t);
 INDEXSTOREDB_PUBLIC const char *_Nonnull
 indexstoredb_unit_info_unit_name(_Nonnull indexstoredb_unit_info_t);
 
-INDEXSTOREDB_PUBLIC indexstoredb_symbol_provider_kind_t
-indexstoredb_unit_info_symbol_provider_kind(_Nonnull indexstoredb_unit_info_t info);
-
 /// Iterates over the compilation units that contain \p path and return their units.
 ///
 /// This can be used to find information for units that include a given header.

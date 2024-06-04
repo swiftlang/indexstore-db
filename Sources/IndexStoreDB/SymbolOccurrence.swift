@@ -74,8 +74,7 @@ extension SymbolOccurrence {
       symbol: Symbol(indexstoredb_symbol_occurrence_symbol(value)),
       location: SymbolLocation(indexstoredb_symbol_occurrence_location(value)),
       roles: SymbolRole(rawValue: indexstoredb_symbol_occurrence_roles(value)),
-      // Force unwrap is OK because `indexstoredb_symbol_occurrence_symbol_provider_kind` never returns `INDEXSTOREDB_SYMBOL_PROVIDER_KIND_UNKNOWN`
-      symbolProvider: SymbolProviderKind(indexstoredb_symbol_occurrence_symbol_provider_kind(value))!,
+      symbolProvider: SymbolProviderKind(indexstoredb_symbol_occurrence_symbol_provider_kind(value)),
       relations: relations)
   }
 }
