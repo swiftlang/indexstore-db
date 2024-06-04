@@ -39,6 +39,19 @@ public struct PathMapping {
 public enum SymbolProviderKind {
   case clang
   case swift
+
+  init?(_ cKind: indexstoredb_symbol_provider_kind_t) {
+    switch cKind {
+    case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_SWIFT:
+      self = .swift
+    case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_CLANG:
+      self = .clang
+    case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_UNKNOWN:
+      return nil
+    default:
+      preconditionFailure("Unknown enum case in indexstoredb_symbol_provider_kind_t")
+    }
+  }
 }
 
 /// IndexStoreDB index.
@@ -304,16 +317,7 @@ public final class IndexStoreDB {
   public func symbolProvider(for sourceFilePath: String) -> SymbolProviderKind? {
     var result: SymbolProviderKind? = nil
     indexstoredb_index_units_containing_file(impl, sourceFilePath) { unit in
-      let providerKind: SymbolProviderKind? = switch indexstoredb_unit_info_symbol_provider_kind(unit) {
-      case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_SWIFT:
-        .swift
-      case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_CLANG:
-        .clang
-      case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_UNKNOWN:
-        nil
-      default:
-        preconditionFailure("Unknown enum case in indexstoredb_symbol_provider_kind_t")
-      }
+      let providerKind = SymbolProviderKind(indexstoredb_unit_info_symbol_provider_kind(unit))
 
       let mainFilePath = String(cString: indexstoredb_unit_info_main_file_path(unit))
       if providerKind == .swift && mainFilePath != sourceFilePath {

@@ -110,8 +110,8 @@ extension Symbol {
   }
 
   /// Returns a SymbolOccurrence with the given location and roles.
-  public func at(_ location: SymbolLocation, roles: SymbolRole) -> SymbolOccurrence {
-    return SymbolOccurrence(symbol: self, location: location, roles: roles)
+  public func at(_ location: SymbolLocation, symbolProvider: SymbolProviderKind, roles: SymbolRole) -> SymbolOccurrence {
+    return SymbolOccurrence(symbol: self, location: location, roles: roles, symbolProvider: symbolProvider)
   }
 }
 

@@ -17,12 +17,14 @@ public struct SymbolOccurrence: Equatable {
   public var symbol: Symbol
   public var location: SymbolLocation
   public var roles: SymbolRole
+  public var symbolProvider: SymbolProviderKind
   public var relations: [SymbolRelation]
 
-  public init(symbol: Symbol, location: SymbolLocation, roles: SymbolRole, relations: [SymbolRelation] = []) {
+  public init(symbol: Symbol, location: SymbolLocation, roles: SymbolRole, symbolProvider: SymbolProviderKind, relations: [SymbolRelation] = []) {
     self.symbol = symbol
     self.location = location
     self.roles = roles
+    self.symbolProvider = symbolProvider
     self.relations = relations
   }
 }
@@ -72,6 +74,8 @@ extension SymbolOccurrence {
       symbol: Symbol(indexstoredb_symbol_occurrence_symbol(value)),
       location: SymbolLocation(indexstoredb_symbol_occurrence_location(value)),
       roles: SymbolRole(rawValue: indexstoredb_symbol_occurrence_roles(value)),
+      // Force unwrap is OK because `indexstoredb_symbol_occurrence_symbol_provider_kind` never returns `INDEXSTOREDB_SYMBOL_PROVIDER_KIND_UNKNOWN`
+      symbolProvider: SymbolProviderKind(indexstoredb_symbol_occurrence_symbol_provider_kind(value))!,
       relations: relations)
   }
 }
