@@ -13,7 +13,6 @@
 #ifndef INDEXSTOREDB_INDEX_STOREUNITINFO_H
 #define INDEXSTOREDB_INDEX_STOREUNITINFO_H
 
-#include "IndexStoreDB/Core/Symbol.h"
 #include "IndexStoreDB/Support/Path.h"
 #include "llvm/Support/Chrono.h"
 #include <string>
@@ -27,18 +26,16 @@ struct StoreUnitInfo {
   std::string OutFileIdentifier;
   bool HasTestSymbols = false;
   llvm::sys::TimePoint<> ModTime;
-  Optional<SymbolProviderKind> SymProviderKind;
 
   StoreUnitInfo() = default;
   StoreUnitInfo(std::string unitName, CanonicalFilePath mainFilePath,
                 StringRef outFileIdentifier, bool hasTestSymbols,
-                llvm::sys::TimePoint<> modTime,
-                Optional<SymbolProviderKind> SymProviderKind)
+                llvm::sys::TimePoint<> modTime)
       : UnitName(unitName),
         MainFilePath(mainFilePath),
         OutFileIdentifier(outFileIdentifier),
         HasTestSymbols(hasTestSymbols),
-        ModTime(modTime), SymProviderKind(SymProviderKind) {}
+        ModTime(modTime) {}
 };
 
 } // namespace index

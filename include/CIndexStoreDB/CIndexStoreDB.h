@@ -490,6 +490,9 @@ INDEXSTOREDB_PUBLIC bool
 indexstoredb_symbol_occurrence_relations(_Nonnull indexstoredb_symbol_occurrence_t,
                                          bool(^ _Nonnull applier)(indexstoredb_symbol_relation_t _Nonnull ));
 
+INDEXSTOREDB_PUBLIC indexstoredb_symbol_provider_kind_t
+indexstoredb_symbol_occurrence_symbol_provider_kind(indexstoredb_symbol_occurrence_t occur);
+
 /// Returns the kind of the given symbol.
 INDEXSTOREDB_PUBLIC indexstoredb_symbol_kind_t
 indexstoredb_symbol_kind(_Nonnull indexstoredb_symbol_t);
@@ -503,9 +506,6 @@ indexstoredb_unit_info_main_file_path(_Nonnull indexstoredb_unit_info_t);
 /// Returns the unit name of a unit info object.
 INDEXSTOREDB_PUBLIC const char *_Nonnull
 indexstoredb_unit_info_unit_name(_Nonnull indexstoredb_unit_info_t);
-
-INDEXSTOREDB_PUBLIC indexstoredb_symbol_provider_kind_t
-indexstoredb_unit_info_symbol_provider_kind(_Nonnull indexstoredb_unit_info_t info);
 
 /// Iterates over the compilation units that contain \p path and return their units.
 ///

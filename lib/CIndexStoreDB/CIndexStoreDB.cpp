@@ -437,6 +437,18 @@ indexstoredb_symbol_occurrence_relations(indexstoredb_symbol_occurrence_t occurr
   return true;
 }
 
+indexstoredb_symbol_provider_kind_t
+indexstoredb_symbol_occurrence_symbol_provider_kind(indexstoredb_symbol_occurrence_t occur) {
+  auto value = (SymbolOccurrence *)occur;
+  SymbolProviderKind symbolProvider = value->getSymbolProviderKind();
+  switch (value->getSymbolProviderKind()) {
+  case IndexStoreDB::SymbolProviderKind::Clang:
+    return INDEXSTOREDB_SYMBOL_PROVIDER_KIND_CLANG;
+  case IndexStoreDB::SymbolProviderKind::Swift:
+    return INDEXSTOREDB_SYMBOL_PROVIDER_KIND_SWIFT;
+  }
+}
+
 uint64_t
 indexstoredb_symbol_occurrence_roles(indexstoredb_symbol_occurrence_t occur) {
   auto value = (SymbolOccurrence *)occur;
@@ -585,20 +597,6 @@ const char *
 indexstoredb_unit_info_unit_name(indexstoredb_unit_info_t info) {
   auto obj = (const StoreUnitInfo *)info;
   return obj->UnitName.c_str();
-}
-
-indexstoredb_symbol_provider_kind_t
-indexstoredb_unit_info_symbol_provider_kind(_Nonnull indexstoredb_unit_info_t info) {
-  auto obj = (const StoreUnitInfo *)info;
-  if (!obj->SymProviderKind) {
-    return INDEXSTOREDB_SYMBOL_PROVIDER_KIND_UNKNOWN;
-  }
-  switch (*obj->SymProviderKind) {
-  case IndexStoreDB::SymbolProviderKind::Clang:
-    return INDEXSTOREDB_SYMBOL_PROVIDER_KIND_CLANG;
-  case IndexStoreDB::SymbolProviderKind::Swift:
-    return INDEXSTOREDB_SYMBOL_PROVIDER_KIND_SWIFT;
-  }
 }
 
 bool
