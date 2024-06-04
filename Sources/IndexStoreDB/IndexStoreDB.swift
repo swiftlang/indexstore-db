@@ -311,7 +311,7 @@ public final class IndexStoreDB {
     }
     return result
   }
-  
+
   public func symbolProvider(for sourceFilePath: String) -> SymbolProviderKind? {
     var result: SymbolProviderKind? = nil
     indexstoredb_index_units_containing_file(impl, sourceFilePath) { unit in
