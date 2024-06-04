@@ -40,14 +40,12 @@ public enum SymbolProviderKind {
   case clang
   case swift
 
-  init?(_ cKind: indexstoredb_symbol_provider_kind_t) {
+  init(_ cKind: indexstoredb_symbol_provider_kind_t) {
     switch cKind {
     case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_SWIFT:
       self = .swift
     case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_CLANG:
       self = .clang
-    case INDEXSTOREDB_SYMBOL_PROVIDER_KIND_UNKNOWN:
-      return nil
     default:
       preconditionFailure("Unknown enum case in indexstoredb_symbol_provider_kind_t")
     }
@@ -309,32 +307,6 @@ public final class IndexStoreDB {
     var result: [String] = []
     forEachUnitNameContainingFile(path: path) { unitName in
       result.append(unitName)
-      return true
-    }
-    return result
-  }
-    
-  public func symbolProvider(for sourceFilePath: String) -> SymbolProviderKind? {
-    var result: SymbolProviderKind? = nil
-    indexstoredb_index_units_containing_file(impl, sourceFilePath) { unit in
-      let providerKind = SymbolProviderKind(indexstoredb_unit_info_symbol_provider_kind(unit))
-
-      let mainFilePath = String(cString: indexstoredb_unit_info_main_file_path(unit))
-      if providerKind == .swift && mainFilePath != sourceFilePath {
-        // We have a unit that is "included" from Swift. This happens for header
-        // files that Swift files depend on. But Swift doesn't have includes and
-        // we shouldn't infer the header file's language to Swift based on this unit.
-        // Ignore it.
-        return true
-      }
-
-      if result == nil {
-        result = providerKind
-      } else if result != providerKind {
-        // Found two conflicting provider kinds. Return nil as we don't know the provider in this case.
-        result = nil
-        return false
-      }
       return true
     }
     return result
