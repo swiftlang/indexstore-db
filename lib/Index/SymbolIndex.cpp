@@ -505,29 +505,29 @@ bool SymbolIndexImpl::foreachSymbolInFilePath(CanonicalFilePathRef filePath,
 
 bool SymbolIndexImpl::foreachSymbolOccurrenceInFilePath(CanonicalFilePathRef filePath,
                                                         function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
-    bool didFinish = true;
-    ReadTransaction reader(DBase);
+  bool didFinish = true;
+  ReadTransaction reader(DBase);
 
-    IDCode filePathCode = reader.getFilePathCode(filePath);
-    reader.foreachUnitContainingFile(filePathCode, [&](ArrayRef<IDCode> idCodes) -> bool {
-        for (IDCode idCode : idCodes) {
-            UnitInfo unitInfo = reader.getUnitInfo(idCode);
+  IDCode filePathCode = reader.getFilePathCode(filePath);
+  reader.foreachUnitContainingFile(filePathCode, [&](ArrayRef<IDCode> idCodes) -> bool {
+    for (IDCode idCode : idCodes) {
+      UnitInfo unitInfo = reader.getUnitInfo(idCode);
 
-            for (UnitInfo::Provider provider : unitInfo.ProviderDepends) {
-                IDCode providerCode = provider.ProviderCode;
-                if (provider.FileCode == filePathCode) {
-                    auto record = createVisibleProviderForCode(providerCode, reader);
-                    didFinish = record->foreachSymbolOccurrence(Receiver);
+      for (UnitInfo::Provider provider : unitInfo.ProviderDepends) {
+        IDCode providerCode = provider.ProviderCode;
+        if (provider.FileCode == filePathCode) {
+          auto record = createVisibleProviderForCode(providerCode, reader);
+          didFinish = record->foreachSymbolOccurrence(Receiver);
 
-                    return false;
-                }
-            }
+          return false;
         }
+      }
+    }
 
-        return true;
-    });
+    return true;
+  });
 
-    return didFinish;
+  return didFinish;
 }
 
 bool SymbolIndexImpl::foreachCanonicalSymbolOccurrenceByKind(SymbolKind symKind, bool workspaceOnly,

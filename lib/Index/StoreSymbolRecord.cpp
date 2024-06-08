@@ -292,7 +292,7 @@ bool StoreSymbolRecord::foreachCoreSymbolData(function_ref<bool(StringRef USR,
 bool StoreSymbolRecord::foreachSymbolOccurrence(function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
   bool Finished;
   bool Err = doForData([&](IndexRecordReader &Reader) {
-      // Return all occurrences.
+    // Return all occurrences.
     auto Pred = [](IndexRecordOccurrence) -> bool { return true; };
     PredOccurrenceConverter Converter(*this, Pred, Receiver);
     Finished = Reader.foreachOccurrence(/*symbolsFilter=*/None,
