@@ -328,7 +328,7 @@ indexstoredb_index_symbols_contained_in_file_path(_Nonnull indexstoredb_index_t 
                                                   const char *_Nonnull path,
                                                   _Nonnull indexstoredb_symbol_receiver_t);
 
-/// Iterates over all the symbol occurrences contained in \p path
+/// Iterates over all the symbol occurrences contained in the source file at \p path
 ///
 /// The occurrence passed to the receiver is only valid for the duration of the
 /// receiver call.
