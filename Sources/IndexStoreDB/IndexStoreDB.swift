@@ -321,7 +321,7 @@ public final class IndexStoreDB {
       }
     }
   }
-    
+
   public func filesIncludedByFile(path: String) -> [String] {
     var result: [String] = []
     foreachFileIncludedByFile(path: path) { targetPath in
@@ -330,7 +330,7 @@ public final class IndexStoreDB {
     }
     return result
   }
-    
+
   @discardableResult
   public func foreachFileIncludingFile(path: String, body: (String) -> Bool) -> Bool {
     return withoutActuallyEscaping(body) { body in
@@ -340,7 +340,7 @@ public final class IndexStoreDB {
       }
     }
   }
-      
+
   public func filesIncludingFile(path: String) -> [String] {
     var result: [String] = []
     foreachFileIncludingFile(path: path) { targetPath in
@@ -421,11 +421,29 @@ public final class IndexStoreDB {
     return result
   }
 
+  public func symbolOccurrences(inFilePath path: String) -> [SymbolOccurrence] {
+    var result: [SymbolOccurrence] = []
+    forEachSymbolOccurrence(inFilePath: path) { occur in
+      result.append(occur)
+      return true
+    }
+    return result
+  }
+
   @discardableResult
   func forEachSymbol(inFilePath filePath: String, body: (Symbol) -> Bool) -> Bool {
     return withoutActuallyEscaping(body) { body in
       return indexstoredb_index_symbols_contained_in_file_path(impl, filePath) { symbol in
         return body(Symbol(symbol))
+      }
+    }
+  }
+
+  @discardableResult
+  func forEachSymbolOccurrence(inFilePath filePath: String, body: (SymbolOccurrence) -> Bool) -> Bool {
+    return withoutActuallyEscaping(body) { body in
+      return indexstoredb_index_symbol_occurrences_in_file_path(impl, filePath) { occur in
+        return body(SymbolOccurrence(occur))
       }
     }
   }
