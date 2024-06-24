@@ -48,8 +48,6 @@ code of conduct defined by the Contributor Covenant. This document is used
 across many open source communities, and we think it articulates our values
 well. For more, see the [Code of Conduct](https://swift.org/code-of-conduct/).
 
-
-
 ## Development
 
 For more information about developing IndexStoreDB, see [Development](Documentation/Development.md).
