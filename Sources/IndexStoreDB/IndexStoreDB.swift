@@ -19,6 +19,8 @@ import Foundation
 import Glibc
 #elseif os(Windows)
 import ucrt
+#elseif canImport(Android)
+import Android
 #else
 import Darwin.POSIX
 #endif
