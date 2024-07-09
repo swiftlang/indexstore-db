@@ -19,6 +19,8 @@ import Foundation
 import Glibc
 #elseif os(Windows)
 import ucrt
+#elseif canImport(Bionic)
+import Bionic
 #else
 import Darwin.POSIX
 #endif
