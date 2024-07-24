@@ -304,7 +304,7 @@ extension XCTestCase {
   }()
 
   /// The path to the built products directory.
-  public static var productsDirectory: URL = {
+  public static let productsDirectory: URL = {
     #if os(macOS)
       return testBundle.bundleURL.deletingLastPathComponent()
     #else
