@@ -14,7 +14,7 @@
 import CIndexStoreDB
 import Foundation
 
-public struct SymbolLocation: Equatable {
+public struct SymbolLocation: Equatable, Sendable {
   public var path: String
   /// The date at which the unit file that contains a symbol has last been modified.
   public var timestamp: Date

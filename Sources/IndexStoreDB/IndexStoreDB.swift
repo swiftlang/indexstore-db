@@ -38,7 +38,7 @@ public struct PathMapping {
   }
 }
 
-public enum SymbolProviderKind {
+public enum SymbolProviderKind: Sendable {
   case clang
   case swift
 
