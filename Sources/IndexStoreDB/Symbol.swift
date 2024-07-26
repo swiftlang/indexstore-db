@@ -13,7 +13,7 @@
 @_implementationOnly
 import CIndexStoreDB
 
-public enum IndexSymbolKind: Hashable {
+public enum IndexSymbolKind: Hashable, Sendable {
   case unknown
   case module
   case namespace
@@ -45,14 +45,14 @@ public enum IndexSymbolKind: Hashable {
   case commentTag
 }
 
-public enum Language: Hashable {
+public enum Language: Hashable, Sendable {
   case c
   case cxx
   case objc
   case swift
 }
 
-public struct Symbol: Hashable {
+public struct Symbol: Hashable, Sendable {
 
   public var usr: String
   public var name: String
