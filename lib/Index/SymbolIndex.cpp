@@ -152,7 +152,7 @@ void SymbolIndexImpl::importSymbols(ImportTransaction &import, SymbolDataProvide
     std::uninitialized_copy(Name.begin(), Name.end(), copiedStr);
     StringRef copiedName = StringRef(copiedStr, Name.size());
     // FIXME: Make this part of the compiler indexing output. E.g. a C++-like 'struct' should be a 'class' kind.
-    if (Info.isClassLike())
+    if (Info.Kind == SymbolKind::Struct && Info.Lang == SymbolLanguage::CXX)
       Info.Kind = SymbolKind::Class;
     auto pair = CoreSymbols.insert(std::make_pair(USR, CoreSymbolData{copiedName, Info, Roles, RelatedRoles}));
     bool wasInserted = pair.second;
