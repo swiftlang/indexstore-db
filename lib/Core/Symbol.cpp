@@ -33,20 +33,6 @@ bool SymbolInfo::isCallable() const {
   }
 }
 
-bool SymbolInfo::isClassLike() const {
-  switch (Kind) {
-    case SymbolKind::Class:
-    case SymbolKind::Struct:
-      return Lang != SymbolLanguage::C;
-    default:
-      return false;
-  }
-}
-
-bool SymbolInfo::isClassLikeOrExtension() const {
-  return isClassLike() || Kind == SymbolKind::Extension;
-}
-
 bool SymbolInfo::preferDeclarationAsCanonical() const {
   if (Lang == SymbolLanguage::ObjC) {
     return Kind == SymbolKind::Class ||

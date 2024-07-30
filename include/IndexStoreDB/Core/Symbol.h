@@ -203,8 +203,6 @@ public:
   SymbolLanguage getLanguage() const { return SymInfo.Lang; }
 
   bool isCallable() const { return SymInfo.isCallable(); }
-  bool isClassLike() const { return SymInfo.isClassLike(); }
-  bool isClassLikeOrExtension() const { return SymInfo.isClassLikeOrExtension(); }
 
   void print(raw_ostream &OS) const;
 };

@@ -86,7 +86,7 @@ IDCode ImportTransaction::Implementation::addSymbolInfo(IDCode provider, StringR
     if (symInfo.Properties.contains(SymbolProperty::UnitTest) &&
         roles.contains(SymbolRole::Definition)) {
       Optional<GlobalSymbolKind> unitTestGlobalKind;
-      if (symInfo.isClassLikeOrExtension())
+      if (symInfo.Kind == SymbolKind::Class || symInfo.Kind == SymbolKind::Extension)
         unitTestGlobalKind = GlobalSymbolKind::TestClassOrExtension;
       else if (symInfo.Kind == SymbolKind::InstanceMethod)
         unitTestGlobalKind = GlobalSymbolKind::TestMethod;
