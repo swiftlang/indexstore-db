@@ -59,7 +59,7 @@ typedef void *indexstoredb_symbol_location_t;
 typedef void *indexstoredb_symbol_relation_t;
 typedef void *indexstoredb_unit_info_t;
 
-typedef enum {
+typedef enum : uint64_t {
   INDEXSTOREDB_SYMBOL_ROLE_DECLARATION = 1 << 0,
   INDEXSTOREDB_SYMBOL_ROLE_DEFINITION  = 1 << 1,
   INDEXSTOREDB_SYMBOL_ROLE_REFERENCE   = 1 << 2,
@@ -82,7 +82,7 @@ typedef enum {
   INDEXSTOREDB_SYMBOL_ROLE_REL_IBTYPEOF    = 1 << 17,
   INDEXSTOREDB_SYMBOL_ROLE_REL_SPECIALIZATIONOF = 1 << 18,
 
-  INDEXSTOREDB_SYMBOL_ROLE_CANONICAL = 1 << 63,
+  INDEXSTOREDB_SYMBOL_ROLE_CANONICAL = (uint64_t)1 << 63,
 } indexstoredb_symbol_role_t;
 
 typedef enum {
