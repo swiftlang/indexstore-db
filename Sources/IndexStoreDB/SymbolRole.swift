@@ -42,9 +42,7 @@ public struct SymbolRole: OptionSet, Hashable, Sendable {
 
   // MARK: Additional IndexStoreDB index roles
 
-  // Note: the imported constant INDEXSTOREDB_SYMBOL_ROLE_CANONICAL is signed by default and
-  // fails to construct in Swift.
-  public static let canonical: SymbolRole = SymbolRole(rawValue: 1 << 63)
+  public static let canonical: SymbolRole = SymbolRole(rawValue: INDEXSTOREDB_SYMBOL_ROLE_CANONICAL)
 
   public static let all: SymbolRole = SymbolRole(rawValue: ~0)
 
