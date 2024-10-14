@@ -155,7 +155,7 @@ Database::Implementation::create(StringRef path, bool readonly, Optional<size_t>
       return nullptr;
 
     // This succeeds for moving to an empty directory, like the newly constructed `uniqueDirPath`.
-    if (llvm::sys::fs::rename(savedPathBuf, uniqueDirPath)) {
+    if (!llvm::sys::fs::exists(savedPathBuf) || llvm::sys::fs::rename(savedPathBuf, uniqueDirPath)) {
       // No existing database, just use the new directory.
       existingDB = false;
     }
