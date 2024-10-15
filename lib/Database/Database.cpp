@@ -19,13 +19,16 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/Errc.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Mutex.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/WindowsError.h"
 #if defined(_WIN32)
 #define NOMINMAX
 #include "Windows.h"
+#include "winbase.h"
 #endif
 
 #if defined(_WIN32)
@@ -45,6 +48,31 @@ using namespace IndexStoreDB::db;
 const unsigned Database::DATABASE_FORMAT_VERSION = 13;
 
 static const char *DeadProcessDBSuffix = "-dead";
+
+static std::error_code renameDirectory(const Twine &from, const Twine &to) {
+  // llvm::sys::fs::rename is not able to rename directories on Windows. Use `MoveFile` directly.
+  #if defined(_WIN32)
+  if (!llvm::sys::fs::exists(from)) {
+    return make_error_code(llvm::errc::no_such_file_or_directory);
+  }
+  // MoveFileW does not override an existing directory. Remove the destination if it exists.
+  llvm::sys::fs::remove_directories(to, /*IgnoreErrors=*/true);
+  SmallVector<wchar_t, 128> wideFrom;
+  if (std::error_code ec = llvm::sys::path::widenPath(from, wideFrom)) {
+    return ec;
+  }
+  SmallVector<wchar_t, 128> wideTo;
+  if (std::error_code ec = llvm::sys::path::widenPath(to, wideTo)) {
+    return ec;
+  }
+  if (!::MoveFileW(wideFrom.begin(), wideTo.begin())) {
+    return llvm::mapWindowsError(GetLastError());
+  }
+  return std::error_code();
+  #else
+  return llvm::sys::fs::rename(from, to);
+  #endif
+}
 
 static int providersForUSR_compare(const MDB_val *a, const MDB_val *b) {
   assert(a->mv_size == sizeof(ProviderForUSRData));
@@ -93,8 +121,8 @@ Database::Implementation::~Implementation() {
     assert(!SavedPath.empty() && !UniquePath.empty());
     // In case some other process already created the 'saved' path, override it so
     // that the 'last one wins'.
-    llvm::sys::fs::rename(SavedPath, llvm::Twine(UniquePath)+"-saved"+DeadProcessDBSuffix);
-    if (std::error_code ec = llvm::sys::fs::rename(UniquePath, SavedPath)) {
+    renameDirectory(SavedPath, llvm::Twine(UniquePath)+"-saved"+DeadProcessDBSuffix);
+    if (std::error_code ec = renameDirectory(UniquePath, SavedPath)) {
       // If the database directory already got removed or some other process beat
       // us during the tiny window between the above 2 renames, then give-up,
       // and let the database to be discarded.
@@ -117,7 +145,7 @@ Database::Implementation::create(StringRef path, bool readonly, Optional<size_t>
   llvm::sys::path::append(savedPathBuf, "saved");
   SmallString<128> prefixPathBuf = versionPath;
 #if defined(WIN32)
-  llvm::raw_svector_ostream(prefixPathBuf) << "/p" << GetCurrentProcessId();
+  llvm::raw_svector_ostream(prefixPathBuf) << "\\p" << GetCurrentProcessId();
 #else
   llvm::raw_svector_ostream(prefixPathBuf) << "/p" << getpid();
 #endif
@@ -155,7 +183,7 @@ Database::Implementation::create(StringRef path, bool readonly, Optional<size_t>
       return nullptr;
 
     // This succeeds for moving to an empty directory, like the newly constructed `uniqueDirPath`.
-    if (llvm::sys::fs::rename(savedPathBuf, uniqueDirPath)) {
+    if (renameDirectory(savedPathBuf, uniqueDirPath)) {
       // No existing database, just use the new directory.
       existingDB = false;
     }
@@ -227,8 +255,8 @@ retry:
       // aside to a 'corrupted' path we can find it for analysis.
       SmallString<128> corruptedPathBuf = versionPath;
       llvm::sys::path::append(corruptedPathBuf, "corrupted");
-      llvm::sys::fs::rename(corruptedPathBuf, llvm::Twine(corruptedPathBuf)+DeadProcessDBSuffix);
-      llvm::sys::fs::rename(savedPathBuf, corruptedPathBuf);
+      renameDirectory(corruptedPathBuf, llvm::Twine(corruptedPathBuf)+DeadProcessDBSuffix);
+      renameDirectory(savedPathBuf, corruptedPathBuf);
       LOG_WARN_FUNC("failed opening database: " << err.description() << "\n"
                     "corrupted database saved at '" << corruptedPathBuf << "'\n"
                     "creating new database...");
