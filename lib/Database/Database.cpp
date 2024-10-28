@@ -55,8 +55,6 @@ static std::error_code renameDirectory(const Twine &from, const Twine &to) {
   if (!llvm::sys::fs::exists(from)) {
     return make_error_code(llvm::errc::no_such_file_or_directory);
   }
-  // MoveFileW does not override an existing directory. Remove the destination if it exists.
-  llvm::sys::fs::remove_directories(to, /*IgnoreErrors=*/true);
   SmallVector<wchar_t, 128> wideFrom;
   if (std::error_code ec = llvm::sys::path::widenPath(from, wideFrom)) {
     return ec;
@@ -65,6 +63,8 @@ static std::error_code renameDirectory(const Twine &from, const Twine &to) {
   if (std::error_code ec = llvm::sys::path::widenPath(to, wideTo)) {
     return ec;
   }
+  // MoveFileW does not override an existing directory. Remove the destination if it is an empty directory.
+  ::RemoveDirectoryW(wideTo.begin());
   if (!::MoveFileW(wideFrom.begin(), wideTo.begin())) {
     return llvm::mapWindowsError(GetLastError());
   }
