@@ -230,7 +230,13 @@ def main() -> None:
         handle_invocation(swift_exec, args)
 
         # Linux ubsan disabled: https://bugs.swift.org/browse/SR-12550
-        if platform.system() != 'Linux':
+        #
+        # ubsan disabled on macOS because building indexstore-db using a new, just-built clang with ubsan enabled but
+        # with an Xcode 15.1 SDK causes C++ exception to not be catchable with `try {} catch {}` blocks and
+        # indexstore-db relies on exception catching, possibly related to
+        # https://stackoverflow.com/questions/51673343/clang-with-libc-exceptions.
+        # Re-enable when Xcode on CI nodes has been updated to Xcode 16 (rdar://139647872)
+        if platform.system() != 'Linux' and False:
             print('=== %s indexstore-db with ubsan ===' % args.action)
             args.sanitize = ['undefined']
             args.build_path = os.path.join(base, 'test-ubsan')
