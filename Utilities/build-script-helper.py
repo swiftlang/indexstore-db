@@ -41,6 +41,8 @@ def check_call(cmd: List[str], additional_env: Dict[str, str] = {}, verbose: boo
     if verbose:
         print_cmd(cmd=cmd, additional_env=additional_env)
 
+    sys.stdout.flush()
+    sys.stderr.flush()
     subprocess.check_call(cmd, env=env_with_additional_env(additional_env), stderr=subprocess.STDOUT)
 
 
@@ -51,6 +53,8 @@ def check_output(cmd: List[str], additional_env: Dict[str, str] = {}, capture_st
         stderr = subprocess.STDOUT
     else:
         stderr = subprocess.DEVNULL
+    sys.stdout.flush()
+    sys.stderr.flush()
     return subprocess.check_output(cmd, env=env_with_additional_env(additional_env), stderr=stderr, encoding='utf-8')
 
 # -----------------------------------------------------------------------------
@@ -150,8 +154,14 @@ def run_tests(swift_exec: str, args: argparse.Namespace) -> None:
     print('Cleaning ' + tests)
     shutil.rmtree(tests, ignore_errors=True)
 
-    cmd = [swift_exec, 'test', '--parallel', '--test-product', 'IndexStoreDBPackageTests'] + swiftpm_args
-    check_call(cmd, additional_env=additional_env, verbose=args.verbose)
+    cmd = [swift_exec, 'test', '--test-product', 'IndexStoreDBPackageTests'] + swiftpm_args
+    try:
+        check_call(cmd + ['--parallel'], additional_env=additional_env, verbose=args.verbose)
+    except:
+        print('--- Running tests in parallel failed. Re-running tests serially to capture more actionable output.')
+        check_call(cmd, additional_env=additional_env, verbose=args.verbose)
+        # Return with non-zero exit code even if serial test execution succeeds.
+        raise SystemExit(1)
 
 
 def handle_invocation(swift_exec: str, args: argparse.Namespace) -> None:
