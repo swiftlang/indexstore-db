@@ -13,6 +13,8 @@
 import Foundation
 #if os(Windows)
 import WinSDK
+#elseif canImport(Android)
+import Android
 #endif
 
 /// The set of commandline tools used to build a tibs project.
