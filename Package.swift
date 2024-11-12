@@ -18,7 +18,9 @@ let package = Package(
       name: "tibs",
       targets: ["tibs"])
   ],
-  dependencies: [],
+  dependencies: [
+    .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main"),
+  ],
   targets: [
 
     // MARK: Swift interface
@@ -81,12 +83,13 @@ let package = Package(
     // The lmdb database layer.
     .target(
       name: "IndexStoreDB_Database",
-      dependencies: ["IndexStoreDB_Core"],
+      dependencies: [
+        "IndexStoreDB_Core",
+        .product(name: "CLMDB", package: "swift-lmdb"),
+      ],
       path: "lib/Database",
       exclude: [
         "CMakeLists.txt",
-        "lmdb/LICENSE",
-        "lmdb/COPYRIGHT",
       ],
       cSettings: [
         .define("MDB_USE_POSIX_MUTEX", to: "1",
