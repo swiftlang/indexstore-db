@@ -1,6 +1,27 @@
 // swift-tools-version:5.5
 
+import Foundation
 import PackageDescription
+
+func hasEnvironmentVariable(_ name: String) -> Bool {
+  return ProcessInfo.processInfo.environment[name] != nil
+}
+
+/// Assume that all the package dependencies are checked out next to indexstore-db and use that instead of fetching a
+/// remote dependency.
+var useLocalDependencies: Bool { hasEnvironmentVariable("SWIFTCI_USE_LOCAL_DEPS") }
+
+var dependencies: [Package.Dependency] {
+  if useLocalDependencies {
+    return [
+      .package(path: "../swift-lmdb"),
+    ]
+  } else {
+    return [
+      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main"),
+    ]
+  }
+}
 
 let package = Package(
   name: "IndexStoreDB",
@@ -18,9 +39,7 @@ let package = Package(
       name: "tibs",
       targets: ["tibs"])
   ],
-  dependencies: [
-    .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main"),
-  ],
+  dependencies: dependencies,
   targets: [
 
     // MARK: Swift interface
