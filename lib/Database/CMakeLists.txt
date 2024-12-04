@@ -2,9 +2,7 @@ add_library(Database STATIC
   Database.cpp
   DatabaseError.cpp
   ImportTransaction.cpp
-  ReadTransaction.cpp
-  lmdb/mdb.c
-  lmdb/midl.c)
+  ReadTransaction.cpp)
 target_compile_definitions(Database PRIVATE
   _CRT_NONSTDC_NO_WARNINGS
   _CRT_SECURE_NO_WARNINGS)
@@ -13,6 +11,7 @@ target_compile_options(Database PRIVATE
 target_include_directories(Database PRIVATE
   include)
 target_link_libraries(Database PRIVATE
+  LMDB::CLMDB
   Core
   LLVMSupport)
 if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)

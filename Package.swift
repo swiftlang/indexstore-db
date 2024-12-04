@@ -1,6 +1,27 @@
 // swift-tools-version:5.5
 
+import Foundation
 import PackageDescription
+
+func hasEnvironmentVariable(_ name: String) -> Bool {
+  return ProcessInfo.processInfo.environment[name] != nil
+}
+
+/// Assume that all the package dependencies are checked out next to indexstore-db and use that instead of fetching a
+/// remote dependency.
+var useLocalDependencies: Bool { hasEnvironmentVariable("SWIFTCI_USE_LOCAL_DEPS") }
+
+var dependencies: [Package.Dependency] {
+  if useLocalDependencies {
+    return [
+      .package(path: "../swift-lmdb"),
+    ]
+  } else {
+    return [
+      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main"),
+    ]
+  }
+}
 
 let package = Package(
   name: "IndexStoreDB",
@@ -18,7 +39,7 @@ let package = Package(
       name: "tibs",
       targets: ["tibs"])
   ],
-  dependencies: [],
+  dependencies: dependencies,
   targets: [
 
     // MARK: Swift interface
@@ -81,18 +102,13 @@ let package = Package(
     // The lmdb database layer.
     .target(
       name: "IndexStoreDB_Database",
-      dependencies: ["IndexStoreDB_Core"],
+      dependencies: [
+        "IndexStoreDB_Core",
+        .product(name: "CLMDB", package: "swift-lmdb"),
+      ],
       path: "lib/Database",
       exclude: [
         "CMakeLists.txt",
-        "lmdb/LICENSE",
-        "lmdb/COPYRIGHT",
-      ],
-      cSettings: [
-        .define("MDB_USE_POSIX_MUTEX", to: "1",
-                // Windows does not use POSIX mutex
-                .when(platforms: [.linux, .macOS])),
-        .define("MDB_USE_ROBUST", to: "0"),
       ]),
 
     // Core index types.
