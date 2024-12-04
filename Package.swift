@@ -109,12 +109,6 @@ let package = Package(
       path: "lib/Database",
       exclude: [
         "CMakeLists.txt",
-      ],
-      cSettings: [
-        .define("MDB_USE_POSIX_MUTEX", to: "1",
-                // Windows does not use POSIX mutex
-                .when(platforms: [.linux, .macOS])),
-        .define("MDB_USE_ROBUST", to: "0"),
       ]),
 
     // Core index types.
