@@ -13,6 +13,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE YES)
 
 find_package(dispatch CONFIG)
 find_package(Foundation CONFIG)
+find_package(LMDB CONFIG)
 
 include(SwiftSupport)
 
