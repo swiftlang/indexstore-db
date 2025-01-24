@@ -1,3 +1,0 @@
-module CIndexStoreDB {
-  header "CIndexStoreDB.h"
-}

@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_implementationOnly import CIndexStoreDB
+@_implementationOnly import IndexStoreDB_CIndexStoreDB
 
 public struct StoreUnitInfo {
   public let mainFilePath: String

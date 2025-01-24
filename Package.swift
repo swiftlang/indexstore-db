@@ -86,7 +86,6 @@ let package = Package(
     .target(
       name: "IndexStoreDB_Index",
       dependencies: ["IndexStoreDB_Database"],
-      path: "lib/Index",
       exclude: [
         "CMakeLists.txt",
         "indexstore_functions.def",
@@ -96,7 +95,6 @@ let package = Package(
     .target(
       name: "IndexStoreDB_CIndexStoreDB",
       dependencies: ["IndexStoreDB_Index"],
-      path: "lib/CIndexStoreDB",
       exclude: ["CMakeLists.txt"]),
 
     // The lmdb database layer.
@@ -106,7 +104,6 @@ let package = Package(
         "IndexStoreDB_Core",
         .product(name: "CLMDB", package: "swift-lmdb"),
       ],
-      path: "lib/Database",
       exclude: [
         "CMakeLists.txt",
       ]),
@@ -115,21 +112,18 @@ let package = Package(
     .target(
       name: "IndexStoreDB_Core",
       dependencies: ["IndexStoreDB_Support"],
-      path: "lib/Core",
       exclude: ["CMakeLists.txt"]),
 
     // Support code that is generally useful to the C++ implementation.
     .target(
       name: "IndexStoreDB_Support",
       dependencies: ["IndexStoreDB_LLVMSupport"],
-      path: "lib/Support",
       exclude: ["CMakeLists.txt"]),
 
     // Copy of a subset of llvm's ADT and Support libraries.
     .target(
       name: "IndexStoreDB_LLVMSupport",
       dependencies: [],
-      path: "lib/LLVMSupport",
       exclude: [
         "LICENSE.TXT",
         "CMakeLists.txt",

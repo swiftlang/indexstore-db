@@ -1,1 +1,7 @@
+add_subdirectory(IndexStoreDB_LLVMSupport)
+add_subdirectory(IndexStoreDB_Support)
+add_subdirectory(IndexStoreDB_Core)
+add_subdirectory(IndexStoreDB_Database)
+add_subdirectory(IndexStoreDB_Index)
+add_subdirectory(IndexStoreDB_CIndexStoreDB)
 add_subdirectory(IndexStoreDB)

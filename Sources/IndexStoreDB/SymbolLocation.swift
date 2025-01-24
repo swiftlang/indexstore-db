@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 @_implementationOnly
-import CIndexStoreDB
+import IndexStoreDB_CIndexStoreDB
 import Foundation
 
 public struct SymbolLocation: Equatable, Sendable {

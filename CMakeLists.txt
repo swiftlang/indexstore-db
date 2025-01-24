@@ -17,6 +17,5 @@ find_package(LMDB CONFIG)
 
 include(SwiftSupport)
 
-add_subdirectory(lib)
 add_subdirectory(Sources)
 add_subdirectory(cmake/modules)
