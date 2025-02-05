@@ -55,6 +55,8 @@ public:
 
   bool hasPrefixMappings() const { return !prefixMap.empty(); }
 
+  const std::vector<std::pair<std::string, std::string>> &getPrefixMap() const { return prefixMap; }
+
   /// Convert this into a `indexstore_creation_options_t` that the caller
   /// owns and is responsible for disposing.
   indexstore_creation_options_t createOptions(const indexstore_functions_t &api) const {

@@ -224,6 +224,12 @@ indexstoredb_index_create(const char * _Nonnull storePath,
                   indexstoredb_creation_options_t _Nonnull options,
                   indexstoredb_error_t _Nullable * _Nullable);
 
+/// Create an `indexstoredb_index_t` from an existing `std::shared_ptr<IndexSystem>`.
+///
+/// `opaqueIndexSystem` must be a `std::shared_ptr<IndexSystem> *`.
+INDEXSTOREDB_PUBLIC _Nonnull indexstoredb_index_t
+indexstoredb_index_create_from_existing(void *_Nonnull opaqueIndexSystem);
+
 /// Add an additional delegate to the given index.
 INDEXSTOREDB_PUBLIC void
 indexstoredb_index_add_delegate(_Nonnull indexstoredb_index_t index,
