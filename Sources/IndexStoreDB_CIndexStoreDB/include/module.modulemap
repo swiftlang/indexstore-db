@@ -1,0 +1,4 @@
+module IndexStoreDB_CIndexStoreDB {
+  header "IndexStoreDB_CIndexStoreDB/CIndexStoreDB.h"
+  header "IndexStoreDB_CIndexStoreDB/indexstore_functions.h"
+}

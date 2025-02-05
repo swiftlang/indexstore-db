@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 @_implementationOnly
-import CIndexStoreDB
+import IndexStoreDB_CIndexStoreDB
 
 public struct SymbolRole: OptionSet, Hashable, Sendable {
 
