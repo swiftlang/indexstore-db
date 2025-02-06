@@ -705,14 +705,6 @@ inline std::error_code setLastAccessAndModificationTime(int FD,
 /// @returns True if status() != status_error.
 bool status_known(const basic_file_status &s);
 
-/// Is status available?
-///
-/// @param path Input path.
-/// @param result Set to true if status() != status_error.
-/// @returns errc::success if result has been successfully set, otherwise a
-///          platform-specific error_code.
-std::error_code status_known(const Twine &path, bool &result);
-
 enum CreationDisposition : unsigned {
   /// CD_CreateAlways - When opening a file:
   ///   * If it already exists, truncate it.
@@ -1185,10 +1177,6 @@ public:
 
   bool operator==(const directory_entry& RHS) const { return Path == RHS.Path; }
   bool operator!=(const directory_entry& RHS) const { return !(*this == RHS); }
-  bool operator< (const directory_entry& RHS) const;
-  bool operator<=(const directory_entry& RHS) const;
-  bool operator> (const directory_entry& RHS) const;
-  bool operator>=(const directory_entry& RHS) const;
 };
 
 namespace detail {

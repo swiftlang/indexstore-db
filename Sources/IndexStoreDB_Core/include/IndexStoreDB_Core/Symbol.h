@@ -171,8 +171,6 @@ struct SymbolInfo {
   : Kind(kind), SubKind(subKind), Properties(properties), Lang(lang) {}
 
   bool isCallable() const;
-  bool isClassLike() const;
-  bool isClassLikeOrExtension() const;
 
   /// \returns true if we should lookup declaration occurrences as 'canonical'
   /// for this kind of symbol.

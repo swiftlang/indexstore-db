@@ -151,7 +151,6 @@ enum ArchFeatureKind : uint32_t {
 
 StringRef getArchNameAMDGCN(GPUKind AK);
 StringRef getArchNameR600(GPUKind AK);
-StringRef getCanonicalArchName(StringRef Arch);
 GPUKind parseArchAMDGCN(StringRef CPU);
 GPUKind parseArchR600(StringRef CPU);
 unsigned getArchAttrAMDGCN(GPUKind AK);

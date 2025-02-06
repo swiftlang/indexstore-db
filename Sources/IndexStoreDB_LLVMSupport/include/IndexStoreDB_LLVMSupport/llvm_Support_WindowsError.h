@@ -11,10 +11,13 @@
 
 #include <IndexStoreDB_LLVMSupport/llvm_Config_indexstoredb-prefix.h>
 
+#ifdef _WIN32
+
 #include <system_error>
 
 namespace llvm {
 std::error_code mapWindowsError(unsigned EV);
 }
+#endif
 
 #endif
