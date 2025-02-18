@@ -497,7 +497,7 @@ indexstoredb_symbol_occurrence_relations(_Nonnull indexstoredb_symbol_occurrence
                                          bool(^ _Nonnull applier)(indexstoredb_symbol_relation_t _Nonnull ));
 
 INDEXSTOREDB_PUBLIC indexstoredb_symbol_provider_kind_t
-indexstoredb_symbol_occurrence_symbol_provider_kind(indexstoredb_symbol_occurrence_t occur);
+indexstoredb_symbol_occurrence_symbol_provider_kind(_Nonnull indexstoredb_symbol_occurrence_t occur);
 
 /// Returns the kind of the given symbol.
 INDEXSTOREDB_PUBLIC indexstoredb_symbol_kind_t
