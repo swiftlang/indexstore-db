@@ -13,7 +13,7 @@
 @_implementationOnly
 import IndexStoreDB_CIndexStoreDB
 
-import protocol Foundation.LocalizedError
+import Foundation
 
 public enum IndexStoreDBError: Error {
   case create(String)
