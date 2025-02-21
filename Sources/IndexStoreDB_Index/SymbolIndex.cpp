@@ -479,6 +479,9 @@ bool SymbolIndexImpl::foreachSymbolInFilePath(CanonicalFilePathRef filePath,
                 IDCode providerCode = provider.ProviderCode;
                 if (provider.FileCode == filePathCode) {
                     auto record = createVisibleProviderForCode(providerCode, reader);
+                    if (!record) {
+                        continue;
+                    }
                     didFinish = record->foreachCoreSymbolData([&](StringRef usr,
                                                                   StringRef name,
                                                                   SymbolInfo info,
@@ -517,6 +520,9 @@ bool SymbolIndexImpl::foreachSymbolOccurrenceInFilePath(CanonicalFilePathRef fil
         IDCode providerCode = provider.ProviderCode;
         if (provider.FileCode == filePathCode) {
           auto record = createVisibleProviderForCode(providerCode, reader);
+          if (!record) {
+            continue;
+          }
           didFinish = record->foreachSymbolOccurrence(Receiver);
 
           return false;
