@@ -146,7 +146,11 @@ public final class IndexStoreDB {
     indexstoredb_release(impl)
   }
 
-  /// *For Testing* Poll for any changes to units and wait until they have been registered.
+  /// Poll for any changes to units and wait until they have been registered.
+  ///
+  /// This scans through all unit files on the file system and is thus a fairly costly operation. It should primarily
+  /// be used for testing or in situations where having an up-to-date indexstore-db can avoid significant other work,
+  /// such as if the indexstore-db is used to decide whether files need to be re-indexed.
   public func pollForUnitChangesAndWait(isInitialScan: Bool = false) {
     indexstoredb_index_poll_for_unit_changes_and_wait(impl, isInitialScan)
   }
