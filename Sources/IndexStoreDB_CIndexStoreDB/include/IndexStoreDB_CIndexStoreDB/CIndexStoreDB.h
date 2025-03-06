@@ -601,6 +601,15 @@ indexstoredb_timestamp_of_latest_unit_for_file(
   const char *_Nonnull fileName
 );
 
+/// Returns a Unix timestamp (nanoseconds since 1/1/1970) of the unit that has the given output path.
+///
+/// If no unit with this output paths exits, returns 0.
+INDEXSTOREDB_PUBLIC uint64_t
+indexstoredb_timestamp_of_unit_for_output_path(
+  _Nonnull indexstoredb_index_t index,
+  const char *_Nonnull unitOutputPath
+);
+
 INDEXSTOREDB_END_DECLS
 
 #endif

@@ -698,4 +698,21 @@ indexstoredb_timestamp_of_latest_unit_for_file(
   return 0;
 }
 
+INDEXSTOREDB_PUBLIC uint64_t
+indexstoredb_timestamp_of_unit_for_output_path(
+  _Nonnull indexstoredb_index_t index,
+  const char *_Nonnull unitOutputPath
+) {
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
+  llvm::Optional<llvm::sys::TimePoint<>> timePoint = obj->value->timestampOfUnitForOutputPath(unitOutputPath);
+  if (timePoint) {
+    // Up until C++20 the reference date of time_since_epoch is undefined but according to
+    // https://en.cppreference.com/w/cpp/chrono/system_clock most implementations use Unix Time.
+    // Since C++20, system_clock is defined to measure time since 1/1/1970.
+    // We rely on `time_since_epoch` always returning the nanoseconds since 1/1/1970.
+    return timePoint->time_since_epoch().count();
+  }
+  return 0;
+}
+
 ObjectBase::~ObjectBase() {}

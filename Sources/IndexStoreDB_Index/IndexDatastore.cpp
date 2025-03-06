@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "IndexDatastore.h"
+#include "IndexStoreDB_LLVMSupport/llvm_ADT_None.h"
 #include "StoreSymbolRecord.h"
 #include <IndexStoreDB_Core/Symbol.h>
 #include <IndexStoreDB_Index/FilePathIndex.h>
@@ -172,6 +173,7 @@ public:
 
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
   bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);
+  llvm::Optional<sys::TimePoint<>> timestampOfUnitForOutputPath(StringRef unitOutputPath);
   void checkUnitContainingFileIsOutOfDate(StringRef file);
 
   void addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
@@ -1101,16 +1103,23 @@ bool IndexDatastoreImpl::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<Stri
 }
 
 bool IndexDatastoreImpl::isUnitOutOfDate(StringRef unitOutputPath, sys::TimePoint<> outOfDateModTime) {
+  auto unitModTime = timestampOfUnitForOutputPath(unitOutputPath);
+  if (!unitModTime) {
+    return true;
+  }
+  return outOfDateModTime > unitModTime;
+}
+
+llvm::Optional<sys::TimePoint<>> IndexDatastoreImpl::timestampOfUnitForOutputPath(StringRef unitOutputPath) {
   SmallString<128> nameBuf;
   IdxStore->getUnitNameFromOutputPath(unitOutputPath, nameBuf);
   StringRef unitName = nameBuf.str();
   std::string error;
   auto optUnitModTime = IdxStore->getUnitModificationTime(unitName, error);
   if (!optUnitModTime)
-    return true;
+    return llvm::None;
 
-  auto unitModTime = toTimePoint(optUnitModTime.getValue());
-  return outOfDateModTime > unitModTime;
+  return toTimePoint(optUnitModTime.getValue());
 }
 
 void IndexDatastoreImpl::checkUnitContainingFileIsOutOfDate(StringRef file) {
@@ -1167,6 +1176,10 @@ bool IndexDatastore::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRe
 
 bool IndexDatastore::isUnitOutOfDate(StringRef unitOutputPath, sys::TimePoint<> outOfDateModTime) {
   return IMPL->isUnitOutOfDate(unitOutputPath, outOfDateModTime);
+}
+
+llvm::Optional<sys::TimePoint<>> IndexDatastore::timestampOfUnitForOutputPath(StringRef unitOutputPath) {
+  return IMPL->timestampOfUnitForOutputPath(unitOutputPath);
 }
 
 void IndexDatastore::checkUnitContainingFileIsOutOfDate(StringRef file) {

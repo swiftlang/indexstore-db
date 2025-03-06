@@ -488,6 +488,19 @@ public final class IndexStoreDB {
     }
     return Date(timeIntervalSince1970: Double(timestamp) / 1_000_000_000)
   }
+
+  /// Returns a modification date of the latest unit that contains the given source file.
+  ///
+  /// If no unit containing the given source file exists, returns `nil`
+  public func dateOfUnitFor(outputPath: String) -> Date? {
+    let timestamp = outputPath.withCString { outputPathCString in
+      indexstoredb_timestamp_of_unit_for_output_path(impl, outputPathCString)
+    }
+    if timestamp == 0 {
+      return nil
+    }
+    return Date(timeIntervalSince1970: Double(timestamp) / 1_000_000_000)
+  }
 }
 
 public protocol IndexStoreLibraryProvider {
