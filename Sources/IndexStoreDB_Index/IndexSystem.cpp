@@ -141,6 +141,7 @@ public:
 
   bool isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> dirtyFiles);
   bool isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime);
+  llvm::Optional<llvm::sys::TimePoint<>> timestampOfUnitForOutputPath(StringRef unitOutputPath);
   void checkUnitContainingFileIsOutOfDate(StringRef file);
 
   void registerMainFiles(ArrayRef<StringRef> filePaths, StringRef productName);
@@ -303,6 +304,10 @@ bool IndexSystemImpl::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringR
 
 bool IndexSystemImpl::isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime) {
   return IndexStore->isUnitOutOfDate(unitOutputPath, outOfDateModTime);
+}
+
+llvm::Optional<llvm::sys::TimePoint<>> IndexSystemImpl::timestampOfUnitForOutputPath(StringRef unitOutputPath) {
+  return IndexStore->timestampOfUnitForOutputPath(unitOutputPath);
 }
 
 void IndexSystemImpl::checkUnitContainingFileIsOutOfDate(StringRef file) {
@@ -684,6 +689,10 @@ bool IndexSystem::isUnitOutOfDate(StringRef unitOutputPath, ArrayRef<StringRef> 
 
 bool IndexSystem::isUnitOutOfDate(StringRef unitOutputPath, llvm::sys::TimePoint<> outOfDateModTime) {
   return IMPL->isUnitOutOfDate(unitOutputPath, outOfDateModTime);
+}
+
+llvm::Optional<llvm::sys::TimePoint<>> IndexSystem::timestampOfUnitForOutputPath(StringRef unitOutputPath) {
+  return IMPL->timestampOfUnitForOutputPath(unitOutputPath);
 }
 
 void IndexSystem::checkUnitContainingFileIsOutOfDate(StringRef file) {
