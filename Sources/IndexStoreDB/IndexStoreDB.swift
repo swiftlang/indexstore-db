@@ -155,6 +155,13 @@ public final class IndexStoreDB {
     indexstoredb_index_poll_for_unit_changes_and_wait(impl, isInitialScan)
   }
 
+  /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
+  public func processUnitsForOutputPathsAndWait(_ outputPaths: some Collection<String>) {
+    let cOutputPaths: [UnsafePointer<CChar>] = outputPaths.map { UnsafePointer($0.withCString(strdup)!) }
+    defer { for cOutputPath in cOutputPaths { free(UnsafeMutablePointer(mutating: cOutputPath)) } }
+    indexstoredb_index_process_units_for_output_paths_and_wait(impl, cOutputPaths, cOutputPaths.count)
+  }
+
   /// Add output filepaths for the set of unit files that index data should be loaded from.
   /// Only has an effect if `useExplicitOutputUnits` was set to true at initialization.
   public func addUnitOutFilePaths(_ paths: [String], waitForProcessing: Bool) {

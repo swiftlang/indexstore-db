@@ -256,6 +256,12 @@ indexstoredb_store_version(_Nonnull indexstoredb_indexstore_library_t lib);
 INDEXSTOREDB_PUBLIC void
 indexstoredb_index_poll_for_unit_changes_and_wait(_Nonnull indexstoredb_index_t index, bool isInitialScan);
 
+/// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
+INDEXSTOREDB_PUBLIC void
+indexstoredb_index_process_units_for_output_paths_and_wait(_Nonnull indexstoredb_index_t index,
+                                                           const char *_Nonnull const *_Nonnull outputPaths,
+                                                           size_t count);
+
 /// Add output filepaths for the set of unit files that index data should be loaded from.
 /// Only has an effect if `useExplicitOutputUnits` was set to true for `indexstoredb_index_create`.
 INDEXSTOREDB_PUBLIC void

@@ -91,6 +91,9 @@ public:
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait(bool isInitialScan);
 
+  /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
+  void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
+
   void printStats(raw_ostream &OS);
 
   void dumpProviderFileAssociations(raw_ostream &OS);

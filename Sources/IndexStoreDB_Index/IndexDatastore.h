@@ -60,6 +60,9 @@ public:
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait(bool isInitialScan);
 
+  /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
+  void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
+
 private:
   IndexDatastore(void *Impl) : Impl(Impl) {}
 
