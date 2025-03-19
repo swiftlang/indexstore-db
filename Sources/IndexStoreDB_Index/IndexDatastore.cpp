@@ -136,6 +136,9 @@ public:
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait(bool isInitialScan);
 
+  /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
+  void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
+
   std::shared_ptr<UnitProcessingSession> makeUnitProcessingSession();
 
   void addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
@@ -183,6 +186,9 @@ public:
 
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait(bool isInitialScan);
+
+  /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
+  void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
 };
 
 class UnitMonitor {
@@ -739,6 +745,19 @@ void StoreUnitRepo::purgeStaleData() {
   // IdxStore->purgeStaleRecords(ActiveRecNames);
 }
 
+void StoreUnitRepo::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
+  // Technically, we don't know if the unit has been added or modified, but we handle `Modified` and `Added` the same
+  // way anyway, so using `Modified` here should be fine.
+  SmallString<128> nameBuf;
+  std::vector<UnitEventInfo> events;
+  for (StringRef outputPath : outputPaths) {
+    IdxStore->getUnitNameFromOutputPath(outputPath, nameBuf);
+    events.emplace_back(IndexStore::UnitEvent::Kind::Modified, nameBuf.str(), /*isInitialScan=*/false);
+  }
+  auto session = makeUnitProcessingSession();
+  session->process(std::move(events), /*waitForProcessing=*/true);
+}
+
 void StoreUnitRepo::pollForUnitChangesAndWait(bool isInitialScan) {
   sys::ScopedLock L(pollUnitsState.pollMtx);
   std::vector<UnitEventInfo> events;
@@ -1142,6 +1161,10 @@ void IndexDatastoreImpl::pollForUnitChangesAndWait(bool isInitialScan) {
   UnitRepo->pollForUnitChangesAndWait(isInitialScan);
 }
 
+void IndexDatastoreImpl::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
+  UnitRepo->processUnitsForOutputPathsAndWait(outputPaths);
+}
+
 //===----------------------------------------------------------------------===//
 // IndexDatastore
 //===----------------------------------------------------------------------===//
@@ -1200,4 +1223,8 @@ void IndexDatastore::purgeStaleData() {
 
 void IndexDatastore::pollForUnitChangesAndWait(bool isInitialScan) {
   return IMPL->pollForUnitChangesAndWait(isInitialScan);
+}
+
+void IndexDatastore::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
+  return IMPL->processUnitsForOutputPathsAndWait(outputPaths);
 }

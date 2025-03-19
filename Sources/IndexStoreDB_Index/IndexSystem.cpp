@@ -155,6 +155,9 @@ public:
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait(bool isInitialScan);
 
+  /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
+  void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
+
   void printStats(raw_ostream &OS);
 
   void dumpProviderFileAssociations(raw_ostream &OS);
@@ -339,6 +342,10 @@ void IndexSystemImpl::purgeStaleData() {
 void IndexSystemImpl::pollForUnitChangesAndWait(bool isInitialScan) {
   IndexStore->pollForUnitChangesAndWait(isInitialScan);
   DelegateWrap->_wait();
+}
+
+void IndexSystemImpl::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
+  IndexStore->processUnitsForOutputPathsAndWait(outputPaths);
 }
 
 void IndexSystemImpl::printStats(raw_ostream &OS) {
@@ -721,6 +728,10 @@ void IndexSystem::purgeStaleData() {
 
 void IndexSystem::pollForUnitChangesAndWait(bool isInitialScan) {
   IMPL->pollForUnitChangesAndWait(isInitialScan);
+}
+
+void IndexSystem::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
+  IMPL->processUnitsForOutputPathsAndWait(outputPaths);
 }
 
 void IndexSystem::printStats(raw_ostream &OS) {

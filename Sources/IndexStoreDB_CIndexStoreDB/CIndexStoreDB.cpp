@@ -220,6 +220,17 @@ void indexstoredb_index_poll_for_unit_changes_and_wait(indexstoredb_index_t inde
   obj->value->pollForUnitChangesAndWait(isInitialScan);
 }
 
+void indexstoredb_index_process_units_for_output_paths_and_wait(indexstoredb_index_t index,
+                                                                const char *const *outputPaths,
+                                                                size_t count) {
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
+  SmallVector<StringRef, 32> strVec;
+  strVec.reserve(count);
+  for (unsigned i = 0; i != count; ++i)
+    strVec.push_back(outputPaths[i]);
+  obj->value->processUnitsForOutputPathsAndWait(strVec);
+}
+
 void indexstoredb_index_add_unit_out_file_paths(indexstoredb_index_t index,
                                                 const char *const *paths, size_t count,
                                                 bool waitForProcessing) {
