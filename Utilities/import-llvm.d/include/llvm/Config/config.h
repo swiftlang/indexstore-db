@@ -180,7 +180,11 @@
 #define HAVE_PTHREAD_RWLOCK_INIT 1
 
 /* Define to 1 if you have the `sbrk' function. */
+#if defined(__FreeBSD__) && defined(__aarch64__)
+#undef HAVE_SBRK
+#else
 #define HAVE_SBRK 1
+#endif
 
 /* Define to 1 if you have the `setenv' function. */
 #define HAVE_SETENV 1
