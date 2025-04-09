@@ -1,4 +1,4 @@
-// swift-tools-version:5.5
+// swift-tools-version:5.6
 
 import Foundation
 import PackageDescription
@@ -51,7 +51,9 @@ let package = Package(
 
     .testTarget(
       name: "IndexStoreDBTests",
-      dependencies: ["IndexStoreDB", "ISDBTestSupport"]),
+      dependencies: ["IndexStoreDB", "ISDBTestSupport"],
+      linkerSettings: [.linkedLibrary("execinfo", .when(platforms: [.custom("freebsd")]))]
+    ),
 
     // MARK: Swift Test Infrastructure
 
