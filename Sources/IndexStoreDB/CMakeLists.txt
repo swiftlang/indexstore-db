@@ -24,13 +24,9 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
     Foundation)
 endif()
 
-get_swift_host_arch(swift_arch)
 install(TARGETS IndexStoreDB
   ARCHIVE DESTINATION lib/swift$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:_static>/$<LOWER_CASE:${CMAKE_SYSTEM_NAME}>
   LIBRARY DESTINATION lib/swift$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:_static>/$<LOWER_CASE:${CMAKE_SYSTEM_NAME}>
   RUNTIME DESTINATION bin)
-install(FILES
-  ${CMAKE_BINARY_DIR}/swift/IndexStoreDB.swiftdoc
-  ${CMAKE_BINARY_DIR}/swift/IndexStoreDB.swiftmodule
-  DESTINATION lib/swift$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:_static>/$<LOWER_CASE:${CMAKE_SYSTEM_NAME}>/${swift_arch})
+install_swiftmodule(IndexStoreDB)
 set_property(GLOBAL APPEND PROPERTY IndexStoreDB_EXPORTS IndexStoreDB)
