@@ -13,7 +13,7 @@
 @_implementationOnly
 import IndexStoreDB_CIndexStoreDB
 
-public struct SymbolRole: OptionSet, Hashable, Sendable {
+public struct SymbolRole: OptionSet, Hashable, Sendable, Codable {
 
   public var rawValue: UInt64
 
