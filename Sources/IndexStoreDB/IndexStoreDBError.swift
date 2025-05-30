@@ -15,7 +15,7 @@ import IndexStoreDB_CIndexStoreDB
 
 import Foundation
 
-public enum IndexStoreDBError: Error {
+public enum IndexStoreDBError: Error, Codable {
   case create(String)
   case loadIndexStore(String)
 }

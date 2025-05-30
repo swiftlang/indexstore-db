@@ -675,4 +675,46 @@ final class IndexTests: XCTestCase {
       largeType.at(ws.testLoc("LargeType:ref"), roles: .reference, symbolProvider: .swift),
     ])
   }
+    
+    // Validate automatic synthesized codable for our types
+    func testCodable() throws {
+        
+        let encoder: JSONEncoder = JSONEncoder()
+        let decoder: JSONDecoder = JSONDecoder()
+        
+        // C-family symbol with no properties
+        let largeType = Symbol(usr: "c:@CT@LargeType", name: "LargeType", kind: .concept, properties: [], language: .c)
+        
+        let encodedLargeType = try encoder.encode(largeType)
+        let decodedLargeType = try decoder.decode(Symbol.self, from: encodedLargeType)
+        
+        XCTAssertNotNil(encodedLargeType)
+        XCTAssertEqual(decodedLargeType, largeType)
+        
+        // Swift Symbol with properties
+        let main = Symbol(usr: "s:4main1ayyF", name: "a()", kind: .instanceMethod, properties: [.unitTest], language: .swift)
+        let encodedMain = try encoder.encode(main)
+        let decodedMain = try decoder.decode(Symbol.self, from: encodedMain)
+        XCTAssertNotNil(encodedMain)
+        XCTAssertEqual(decodedMain, main)
+        
+        guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
+
+        let usr = "s:4main1cyyF"
+        let csym = Symbol(usr: usr, name: "c()", kind: .function, language: .swift)
+
+        // Symbol occurrence case
+        let ccanon = SymbolOccurrence(
+          symbol: csym,
+          location: SymbolLocation(ws.testLoc("c"), moduleName: "main"),
+          roles: [.definition, .canonical],
+          symbolProvider: .clang,
+          relations: [])
+        
+        let encodedCCanon = try encoder.encode(ccanon)
+        let decodedCCanon = try decoder.decode(SymbolOccurrence.self, from: encodedCCanon)
+        
+        XCTAssertNotNil(encodedCCanon)
+        XCTAssertEqual(decodedCCanon, ccanon)
+    }
 }
