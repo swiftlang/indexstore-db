@@ -60,7 +60,7 @@ public final class IndexStoreDB {
   let delegate: IndexDelegate?
   let impl: UnsafeMutableRawPointer // indexstoredb_index_t
 
-  /// Create or open an IndexStoreDB at the givin `databasePath`.
+  /// Create or open an IndexStoreDB at the given `databasePath`.
   ///
   /// * Parameters:
   ///   * storePath: Path to the index store.
