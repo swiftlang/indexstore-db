@@ -25,7 +25,7 @@ import Bionic
 import Darwin.POSIX
 #endif
 
-public struct PathMapping: Equatable {
+public struct PathMapping: Equatable, Sendable {
   /// Path prefix to be replaced, typically the canonical or hermetic path.
   public let original: String
 
@@ -55,7 +55,7 @@ public enum SymbolProviderKind: Sendable {
 }
 
 /// IndexStoreDB index.
-public final class IndexStoreDB {
+public final class IndexStoreDB: @unchecked Sendable {
 
   let delegate: IndexDelegate?
   let impl: UnsafeMutableRawPointer // indexstoredb_index_t

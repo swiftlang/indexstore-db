@@ -13,7 +13,7 @@
 @_implementationOnly
 import IndexStoreDB_CIndexStoreDB
 
-public struct SymbolOccurrence: Equatable {
+public struct SymbolOccurrence: Equatable, Sendable {
   public var symbol: Symbol
   public var location: SymbolLocation
   public var roles: SymbolRole
@@ -48,7 +48,7 @@ extension SymbolOccurrence: CustomStringConvertible {
   }
 }
 
-public struct SymbolRelation: Equatable {
+public struct SymbolRelation: Equatable, Sendable {
   public var symbol: Symbol
   public var roles: SymbolRole
 
