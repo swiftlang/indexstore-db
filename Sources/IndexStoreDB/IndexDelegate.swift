@@ -12,13 +12,13 @@
 
 @_implementationOnly import IndexStoreDB_CIndexStoreDB
 
-public struct StoreUnitInfo {
+public struct StoreUnitInfo: Sendable {
   public let mainFilePath: String
   public let unitName: String
 }
 
 /// Delegate for index events.
-public protocol IndexDelegate: AnyObject {
+public protocol IndexDelegate: AnyObject, Sendable {
 
   /// The index will process `count` unit files.
   func processingAddedPending(_ count: Int)
