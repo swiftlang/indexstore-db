@@ -55,7 +55,7 @@ public enum SymbolProviderKind: Sendable {
 }
 
 /// IndexStoreDB index.
-public final class IndexStoreDB: @unchecked Sendable {
+public final class IndexStoreDB {
 
   let delegate: IndexDelegate?
   let impl: UnsafeMutableRawPointer // indexstoredb_index_t

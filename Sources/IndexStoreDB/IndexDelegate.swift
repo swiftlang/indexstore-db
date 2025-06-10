@@ -18,7 +18,7 @@ public struct StoreUnitInfo: Sendable {
 }
 
 /// Delegate for index events.
-public protocol IndexDelegate: AnyObject, Sendable {
+public protocol IndexDelegate: AnyObject {
 
   /// The index will process `count` unit files.
   func processingAddedPending(_ count: Int)
