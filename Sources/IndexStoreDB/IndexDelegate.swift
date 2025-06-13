@@ -12,7 +12,7 @@
 
 @_implementationOnly import IndexStoreDB_CIndexStoreDB
 
-public struct StoreUnitInfo {
+public struct StoreUnitInfo: Sendable {
   public let mainFilePath: String
   public let unitName: String
 }

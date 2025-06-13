@@ -25,7 +25,7 @@ import Bionic
 import Darwin.POSIX
 #endif
 
-public struct PathMapping: Equatable {
+public struct PathMapping: Equatable, Sendable {
   /// Path prefix to be replaced, typically the canonical or hermetic path.
   public let original: String
 
