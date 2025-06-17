@@ -70,7 +70,7 @@ public final class IndexStoreDB {
   ///   * wait: If `true`, wait for the database to be populated from the
   ///     (current) contents of the index store at `storePath` before returning.
   ///   * readonly: If `true`, read an existing database, but do not create or modify.
-  ///   * enableOutOfDateFileWatching: If `true`, enables the mechanism for detecting out-of-date units and sending notications via a delegate event.
+  ///   * enableOutOfDateFileWatching: If `true`, enables the mechanism for detecting out-of-date units and sending notifications via a delegate event.
   ///   Note that this mechanism uses additional CPU & memory resources.
   ///   * listenToUnitEvents: Only `true` is supported outside unit tests. Setting to `false`
   ///     disables reading or updating from the index store unless `pollForUnitChangesAndWait()`
@@ -178,7 +178,7 @@ public final class IndexStoreDB {
     return indexstoredb_index_remove_unit_out_file_paths(impl, cPaths, cPaths.count, waitForProcessing)
   }
 
-  /// Invoke `body` with every occurrance of `usr` in one of the specified roles.
+  /// Invoke `body` with every occurrence of `usr` in one of the specified roles.
   ///
   /// Stop iteration if `body` returns `false`.
   /// - Returns: `false` if iteration was terminated by `body` returning `true` or `true` if iteration finished.
