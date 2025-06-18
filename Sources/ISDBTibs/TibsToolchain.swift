@@ -59,7 +59,7 @@ public final class TibsToolchain {
     // Check clang -help for index store support. It would be better to check
     // that `clang -index-store-path /dev/null --version` does not produce an
     // error, but unfortunately older versions of clang accepted
-    // `-index-store-path` due to the existince of a `-i` option that has since
+    // `-index-store-path` due to the existence of a `-i` option that has since
     // been removed. While we could check a full compile command, I have not
     // found a robust command that detects index support without also doing I/O
     // in the index directory when it succeeds. To avoid I/O, we check -help.

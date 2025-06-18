@@ -368,7 +368,7 @@ bool ReadTransaction::Implementation::findFilenamesContaining(StringRef pattern,
     StringRef fileName;
     std::tie(dirCode, fileName) = decomposeFilePathValue(value);
 
-    // FIXME: When adding a path in the database mark it explicitely whether it
+    // FIXME: When adding a path in the database mark it explicitly whether it
     // should be searchable or not. For now workaround the issue by excluding
     // output filenames.
     StringRef ext = llvm::sys::path::extension(fileName);
