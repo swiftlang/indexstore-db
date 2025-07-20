@@ -26,7 +26,8 @@ $ swift build -Xcxx -I<path_to_swift_toolchain>/usr/lib/swift -Xcxx -I<path_to_s
 ## Some Example Users
 
 [**Pecker**](https://github.com/woshiccm/Pecker): a tool to detect unused code based on [SwiftSyntax](https://github.com/swiftlang/swift-syntax.git) and [IndexStoreDB](https://github.com/swiftlang/indexstore-db.git).
-
+[**xcresultowners**](https://github.com/sdidla/xcresultowners): a tool and library to locate failing tests and their respective owners. Uses [github.com's](https://github.com)[`CODEOWNERS`](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners) for ownership look-ups and [IndexStoreDB](https://github.com/swiftlang/indexstore-db.git) for test case look-ups.
+  
 ## Contributing to Swift
 
 Contributions to indexstore-db are welcomed and encouraged! Please see the
