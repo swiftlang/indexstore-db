@@ -18,7 +18,7 @@ var dependencies: [Package.Dependency] {
     ]
   } else {
     return [
-      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "release/6.2"),
+      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "release/6.2.1"),
     ]
   }
 }
