@@ -1,4 +1,4 @@
-// swift-tools-version:5.6
+// swift-tools-version: 6.0
 
 import Foundation
 import PackageDescription
@@ -25,6 +25,7 @@ var dependencies: [Package.Dependency] {
 
 let package = Package(
   name: "IndexStoreDB",
+  platforms: [.macOS(.v14)],
   products: [
     .library(
       name: "IndexStoreDB",
@@ -37,10 +38,36 @@ let package = Package(
       targets: ["ISDBTestSupport"]),
     .executable(
       name: "tibs",
-      targets: ["tibs"])
+      targets: ["tibs"]),
+    .library(
+      name: "IndexStore",
+      targets: ["IndexStore"]),
   ],
   dependencies: dependencies,
   targets: [
+    // MARK: Swift interface to read a raw index store
+
+    .target(
+      name: "IndexStore",
+      dependencies: ["IndexStoreDB_CIndexStoreDB"],
+      swiftSettings: [
+        .enableUpcomingFeature("ExistentialAny"),
+        .enableUpcomingFeature("InternalImportsByDefault"),
+        .enableUpcomingFeature("MemberImportVisibility"),
+        .enableUpcomingFeature("InferIsolatedConformances"),
+        .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+        .enableExperimentalFeature("Lifetimes"),
+        .swiftLanguageMode(.v6)
+      ]
+    ),
+
+    .testTarget(
+      name: "IndexStoreTests",
+      dependencies: [
+        "IndexStore",
+        "ISDBTibs",
+      ]
+    ),
 
     // MARK: Swift interface
 
@@ -153,6 +180,6 @@ let package = Package(
         "Windows/Watchdog.inc",
       ]),
   ],
-
+  swiftLanguageModes: [.v5],
   cxxLanguageStandard: .cxx17
 )
