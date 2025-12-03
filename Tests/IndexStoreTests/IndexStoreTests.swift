@@ -16,7 +16,7 @@ struct IndexStoreTests {
       let unitName = try #require(unitNames.only)
       #expect(unitName.hasPrefix("test.o"))
 
-      let unit = try IndexStoreStringRef.withStringRef(unitName) { try indexStore.unit(named: $0) }
+      let unit = try indexStore.unit(named: unitName)
       #expect(unit.isSystemUnit == false)
       #expect(unit.isModuleUnit == false)
       #expect(unit.isDebugCompilation == true)
@@ -45,7 +45,7 @@ struct IndexStoreTests {
 
       let recordName = try #require(recordNames.only)
 
-      let record = try IndexStoreStringRef.withStringRef(recordName) { try indexStore.record(named: $0) }
+      let record = try indexStore.record(named: recordName)
       record.symbols.forEach { symbol in
         #expect(symbol.language == .swift)
         #expect(symbol.kind == .function)
@@ -159,9 +159,7 @@ struct IndexStoreTests {
     let project = TestProject(swiftFiles: ["test.swift": ""])
     try await project.withIndexStore { indexStore in
       #expect(throws: (any Error).self) {
-        try IndexStoreStringRef.withStringRef("does-not-exist") { name in
-          try indexStore.unit(named: name)
-        }
+        try indexStore.unit(named: "does-not-exist")
       }
     }
     await #expect(throws: (any Error).self) {

@@ -48,7 +48,20 @@ public final class IndexStore: Sendable {
   }
 
   @inlinable
+  public func unit(named unitName: String) throws -> IndexStoreUnit {
+    return try IndexStoreStringRef.withStringRef(unitName) { unitName in
+      return try self.unit(named: unitName)
+    }
+  }
+
+  @inlinable
   public func record(named recordName: IndexStoreStringRef) throws -> IndexStoreRecord {
     return try IndexStoreRecord(store: self, recordName: recordName, library: self.library)
+  }
+ @inlinable
+  public func record(named recordName: String) throws -> IndexStoreRecord {
+    return try IndexStoreStringRef.withStringRef(recordName) { recordName in
+      return try self.record(named: recordName)
+    }
   }
 }
