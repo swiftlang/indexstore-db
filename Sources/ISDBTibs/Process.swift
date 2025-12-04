@@ -20,7 +20,7 @@ extension Process {
   }
 
   /// Runs a subprocess and returns its output as a String if it has a zero exit.
-  static func tibs_checkNonZeroExit(
+  package static func tibs_checkNonZeroExit(
     arguments: [String],
     environment: [String: String]? = nil
   ) throws -> String {
