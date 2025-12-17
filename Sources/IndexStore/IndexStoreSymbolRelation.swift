@@ -23,12 +23,17 @@ public struct IndexStoreSymbolRelation: ~Escapable, Sendable {
     self.library = library
   }
 
+  /// The role with which this symbol is related to the base symbol.
+  ///
+  /// Read this as *the base symbol is \<role\> the related symbol*, eg, the base symbol is contained by the related
+  /// symbol.
   @inlinable
   public var roles: IndexStoreSymbolRoles {
     IndexStoreSymbolRoles(rawValue: self.library.api.symbol_relation_get_roles(relation))
   }
 
   // swift-format-ignore: UseSingleLinePropertyGetter, https://github.com/swiftlang/swift-format/issues/1102
+  /// The symbol to which the base symbol is related using the above role.
   @inlinable
   public var symbol: IndexStoreSymbol {
     @_lifetime(borrow self)

@@ -24,7 +24,7 @@ struct TestProject {
         try indexSwiftFile(at: fileUrl, indexDir: indexDir)
       }
       let library = try await IndexStoreLibrary.at(dylibPath: libIndexStore)
-      let indexStore = try library.indexStore(at: indexDir.filePath)
+      let indexStore = try library.indexStore(at: indexDir)
       try await body(indexStore)
     }
   }

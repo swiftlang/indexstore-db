@@ -10,6 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+import Foundation
 public import IndexStoreDB_CIndexStoreDB
 
 /// An entire index store, ie. a directory containing the unit and record files.
@@ -17,9 +18,9 @@ public final class IndexStore: Sendable {
   @usableFromInline nonisolated(unsafe) let store: indexstore_t
   @usableFromInline let library: IndexStoreLibrary
 
-  init(at path: String, library: IndexStoreLibrary) throws {
+  init(at path: URL, library: IndexStoreLibrary) throws {
     self.library = library
-    store = try path.withCString { path in
+    store = try path.withUnsafeFileSystemRepresentation { path in
       try library.capturingError { error in
         library.api.store_create(path, &error)
       }
@@ -42,11 +43,13 @@ public final class IndexStore: Sendable {
     }
   }
 
+  /// Retrieve a handle to read the contents of a unit file with the given name.
   @inlinable
   public func unit(named unitName: IndexStoreStringRef) throws -> IndexStoreUnit {
     return try IndexStoreUnit(store: self, unitName: unitName, library: self.library)
   }
 
+  /// Retrieve a handle to read the contents of a unit file with the given name.
   @inlinable
   public func unit(named unitName: String) throws -> IndexStoreUnit {
     return try IndexStoreStringRef.withStringRef(unitName) { unitName in
@@ -54,11 +57,14 @@ public final class IndexStore: Sendable {
     }
   }
 
+  /// Retrieve a handle to read the contents of a record file with the given name.
   @inlinable
   public func record(named recordName: IndexStoreStringRef) throws -> IndexStoreRecord {
     return try IndexStoreRecord(store: self, recordName: recordName, library: self.library)
   }
- @inlinable
+
+  /// Retrieve a handle to read the contents of a record file with the given name.
+  @inlinable
   public func record(named recordName: String) throws -> IndexStoreRecord {
     return try IndexStoreStringRef.withStringRef(recordName) { recordName in
       return try self.record(named: recordName)

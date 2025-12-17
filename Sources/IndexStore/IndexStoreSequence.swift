@@ -17,6 +17,11 @@ public enum IterationContinuationBehavior {
   case stop
 }
 
+/// A sequence that yields non-`Escapable` types to the consumer.
+///
+/// The yielded values are non-Escapable because they are backed by stack allocated memory inside `libIndexStore`.
+/// When needed, use `map` or `compactMap` to extract all pieces of information that are relevant from this sequence
+/// into an escapable array.
 public struct IndexStoreSequence<Element: ~Escapable> {
   @usableFromInline let iterate: ((Element) -> IterationContinuationBehavior) -> Void
 
@@ -25,6 +30,7 @@ public struct IndexStoreSequence<Element: ~Escapable> {
     self.iterate = iterate
   }
 
+  /// Iterate through all elements in this sequence until `.stop` is returned from the closure or an error is thrown.
   @inlinable
   public func forEach<Error>(_ body: (Element) throws(Error) -> IterationContinuationBehavior) throws(Error) {
     var caughtError: Error? = nil
@@ -95,6 +101,8 @@ func iterateWithClosureAsContextToCFunctionPointer<Result>(
   }
 }
 
+/// Same as the function above just using `UnsafeMutableRawPointer` instead of `indexstore_string_ref_t` as the result
+/// type.
 @usableFromInline
 func iterateWithClosureAsContextToCFunctionPointer<Result>(
   perform: (

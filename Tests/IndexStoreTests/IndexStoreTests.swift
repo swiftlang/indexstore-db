@@ -49,7 +49,7 @@ struct IndexStoreTests {
       record.symbols.forEach { symbol in
         #expect(symbol.language == .swift)
         #expect(symbol.kind == .function)
-        #expect(symbol.subkind == .none)
+        #expect(symbol.subKind == .none)
         #expect(symbol.properties == [.swiftAsync])
         #expect(symbol.roles == [.definition])
         #expect(symbol.relatedRoles == [])
@@ -176,6 +176,37 @@ struct IndexStoreTests {
         try indexStore.unitNames(sorted: false).forEach { _ in
           throw MyError()
         }
+      }
+    }
+  }
+
+  @Test
+  func rolesOfSymbolCaptureAllPossibleRolesInTheSourceFile() async throws {
+    let project = TestProject(swiftFiles: [
+      "test.swift": """
+      func bar() {
+        bar()
+      }
+      """
+    ])
+    try await project.withIndexStore { indexStore in
+      let record = try indexStore.onlyRecord
+      record.symbols.forEach { symbol in
+        guard symbol.name.string == "bar()" else {
+          return .continue
+        }
+        #expect(symbol.roles == [.definition, .reference, .call, .calledBy, .containedBy])
+        #expect(symbol.relatedRoles == [.calledBy, .containedBy])
+        return .continue
+      }
+
+      record.occurrences.forEach { occurrence in
+        guard occurrence.symbol.name.string == "bar()" else {
+          return .continue
+        }
+        #expect(occurrence.symbol.roles == [.definition, .reference, .call, .calledBy, .containedBy])
+        #expect(occurrence.symbol.relatedRoles == [.calledBy, .containedBy])
+        return .continue
       }
     }
   }

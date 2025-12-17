@@ -12,9 +12,13 @@
 
 public import IndexStoreDB_CIndexStoreDB
 
+/// A symbol, like a type declaration, function, property or global variable.
+///
+/// A symbol by itself does not have any source information associated with it. It just represents the declaration
+/// itself, `IndexStoreSymbolOccurrence` represents actual occurrences of symbols within a source file.
 public struct IndexStoreSymbol: ~Escapable, Sendable {
-  public struct Kind: Hashable, Sendable {
-    private let rawValue: indexstore_symbol_kind_t
+  public struct Kind: RawRepresentable, Hashable, Sendable {
+    public let rawValue: UInt16
 
     public static let unknown = Kind(INDEXSTORE_SYMBOL_KIND_UNKNOWN)
     public static let module = Kind(INDEXSTORE_SYMBOL_KIND_MODULE)
@@ -46,14 +50,19 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
     public static let concept = Kind(INDEXSTORE_SYMBOL_KIND_CONCEPT)
     public static let commentTag = Kind(INDEXSTORE_SYMBOL_KIND_COMMENTTAG)
 
-    @usableFromInline
-    init(_ rawValue: indexstore_symbol_kind_t) {
+    @inlinable
+    public init(rawValue: UInt16) {
       self.rawValue = rawValue
+    }
+
+    @usableFromInline
+    init(_ kind: indexstore_symbol_kind_t) {
+      self.rawValue = UInt16(kind.rawValue)
     }
   }
 
-  public struct SubKind: Hashable, Sendable {
-    private let rawValue: indexstore_symbol_subkind_t
+  public struct SubKind: RawRepresentable, Hashable, Sendable {
+    public let rawValue: UInt16
 
     public static let none = SubKind(INDEXSTORE_SYMBOL_SUBKIND_NONE)
     public static let cxxCopyConstructor = SubKind(INDEXSTORE_SYMBOL_SUBKIND_CXXCOPYCONSTRUCTOR)
@@ -79,9 +88,14 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
     public static let swiftAccessorRead = SubKind(INDEXSTORE_SYMBOL_SUBKIND_SWIFTACCESSORREAD)
     public static let swiftAccessorModify = SubKind(INDEXSTORE_SYMBOL_SUBKIND_SWIFTACCESSORMODIFY)
 
-    @usableFromInline
-    init(_ rawValue: indexstore_symbol_subkind_t) {
+    @inlinable
+    public init(rawValue: UInt16) {
       self.rawValue = rawValue
+    }
+
+    @usableFromInline
+    init(_ subKind: indexstore_symbol_subkind_t) {
+      self.rawValue = UInt16(subKind.rawValue)
     }
   }
 
@@ -120,37 +134,47 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
     self.library = library
   }
 
+  /// The language in which the symbol is defined.
+  ///
+  /// Note that eg. symbols defined in  C may be used in Swift source code, so this isn't necessarily the same as the
+  /// language of the unit in which this symbol occurs.
   @inlinable
   public var language: IndexStoreLanguage {
     IndexStoreLanguage(library.api.symbol_get_language(symbol))
   }
 
+  /// The kind of declaration this symbol represents.
   @inlinable
   public var kind: Kind {
     return Kind(library.api.symbol_get_kind(symbol))
   }
 
+  /// Some symbol kinds are further differentiated into sub-kinds, if this is such a symbol, the sub-kind.
   @inlinable
-  public var subkind: SubKind {
+  public var subKind: SubKind {
     return SubKind(library.api.symbol_get_subkind(symbol))
   }
 
+  /// Set of properties associated with this symbol.
   @inlinable
   public var properties: Properties {
     return Properties(rawValue: library.api.symbol_get_properties(symbol))
   }
 
+  /// The union of all roles with which the symbol occurs in the current record, including the relationship roles.
   @inlinable
   public var roles: IndexStoreSymbolRoles {
     return IndexStoreSymbolRoles(rawValue: library.api.symbol_get_roles(symbol))
   }
 
+  /// Only the relationship roles with which the symbol occurs in the current record.
   @inlinable
   public var relatedRoles: IndexStoreSymbolRoles {
     return IndexStoreSymbolRoles(rawValue: library.api.symbol_get_related_roles(symbol))
   }
 
   // swift-format-ignore: UseSingleLinePropertyGetter, https://github.com/swiftlang/swift-format/issues/1102
+  /// A human-readable name that identifies this symbol. This does not have to be unique.
   @inlinable
   public var name: IndexStoreStringRef {
     @_lifetime(borrow self)
@@ -161,6 +185,7 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
   }
 
   // swift-format-ignore: UseSingleLinePropertyGetter, https://github.com/swiftlang/swift-format/issues/1102
+  /// A USR that uniquely identifies this symbol.
   @inlinable
   public var usr: IndexStoreStringRef {
     @_lifetime(borrow self)
@@ -171,6 +196,8 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
   }
 
   // swift-format-ignore: UseSingleLinePropertyGetter, https://github.com/swiftlang/swift-format/issues/1102
+  /// The codegen name of this symbol, if it was recorded by clang by setting the `-index-record-codegen-name` command
+  /// line option.
   @inlinable
   public var codegenName: IndexStoreStringRef {
     @_lifetime(borrow self)

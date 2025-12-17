@@ -40,16 +40,20 @@ public struct IndexStoreUnitDependency: ~Escapable, Sendable {
     self.library = library
   }
 
+  /// Specifies the kind of dependency.
   @inlinable
   public var kind: Kind {
     Kind(library.api.unit_dependency_get_kind(dependency))
   }
 
+  /// Whether the file of this dependency is in the SDK (system) or is part of the user's project.
   @inlinable
   public var isSystem: Bool {
     library.api.unit_dependency_is_system(dependency)
   }
 
+  /// The path of the source file that represents the source file for a record dependency or that was used to generate a
+  /// module in case of a unit dependency.
   @inlinable
   public var filePath: IndexStoreStringRef {
     @_lifetime(borrow self)
@@ -59,6 +63,7 @@ public struct IndexStoreUnitDependency: ~Escapable, Sendable {
     }
   }
 
+  /// For Swift, the name of the module as part of which the dependency was compiled.
   @inlinable
   public var moduleName: IndexStoreStringRef {
     @_lifetime(borrow self)
@@ -68,6 +73,8 @@ public struct IndexStoreUnitDependency: ~Escapable, Sendable {
     }
   }
 
+  /// The name of the record file in case of a record dependency and the name of a unit file in case of a unit
+  /// dependency.
   @inlinable
   public var name: IndexStoreStringRef {
     @_lifetime(borrow self)

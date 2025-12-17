@@ -12,6 +12,7 @@
 
 public import IndexStoreDB_CIndexStoreDB
 
+/// Representation of a record file within the Index Store that can be used to read its contents.
 public final class IndexStoreRecord: Sendable {
   @usableFromInline nonisolated(unsafe) let recordReader: indexstore_record_reader_t
   @usableFromInline let library: IndexStoreLibrary
@@ -31,6 +32,39 @@ public final class IndexStoreRecord: Sendable {
     library.api.record_reader_dispose(recordReader)
   }
 
+  /// Iterate through all symbols that occur inside this record.
+  ///
+  /// Shorthand for `symbols(cache: true)`.
+  @inlinable
+  public var symbols: IndexStoreSequence<IndexStoreSymbol> {
+    return symbols(cache: true)
+  }
+
+  /// Iterate through all symbols that occur inside this record.
+  ///
+  /// When `cache` is set to `true`, the deserialized declarations are cached, which speeds up subsequent iterations.
+  /// If only the symbols of the record are iterated once, the cache has no benefit and `cache` should thus be set to
+  /// `false`.
+  @inlinable
+  public func symbols(cache: Bool) -> IndexStoreSequence<IndexStoreSymbol> {
+    return IndexStoreSequence { body in
+      _ = iterateWithClosureAsContextToCFunctionPointer { context, handleResult in
+        self.library.api.record_reader_symbols_apply_f(
+          self.recordReader,
+          /*nocache*/!cache,
+          UnsafeMutableRawPointer(mutating: context),
+          handleResult
+        )
+      } handleResult: { (result: indexstore_symbol_t?) in
+        return body(IndexStoreSymbol(symbol: result!, library: self.library))
+      }
+    }
+  }
+
+  /// A sequence that contains all symbols satisfying the given filter.
+  ///
+  /// This may be faster than iterating over  `symbols(allowCached:)` because symbols not matching the filter will not
+  /// be saved in the deserialization cache inside `libIndexStore`.
   @inlinable
   public func symbols(matching filter: @escaping (IndexStoreSymbol) -> Bool) -> IndexStoreSequence<IndexStoreSymbol> {
     return IndexStoreSequence { body in
@@ -73,27 +107,7 @@ public final class IndexStoreRecord: Sendable {
     }
   }
 
-  @inlinable
-  public var symbols: IndexStoreSequence<IndexStoreSymbol> {
-    return symbols(allowCached: true)
-  }
-
-  @inlinable
-  public func symbols(allowCached: Bool) -> IndexStoreSequence<IndexStoreSymbol> {
-    return IndexStoreSequence { body in
-      _ = iterateWithClosureAsContextToCFunctionPointer { context, handleResult in
-        self.library.api.record_reader_symbols_apply_f(
-          self.recordReader,
-          /*nocache*/!allowCached,
-          UnsafeMutableRawPointer(mutating: context),
-          handleResult
-        )
-      } handleResult: { (result: indexstore_symbol_t?) in
-        return body(IndexStoreSymbol(symbol: result!, library: self.library))
-      }
-    }
-  }
-
+  /// A sequence containing all symbol occurrences inside this record.
   @inlinable
   public var occurrences: IndexStoreSequence<IndexStoreOccurrence> {
     return IndexStoreSequence { body in

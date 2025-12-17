@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
-import IndexStoreDB_CIndexStoreDB
+public import IndexStoreDB_CIndexStoreDB
 
 /// An error thrown by the libIndexStore dynamic library.
 public final class IndexStoreError: Error, CustomStringConvertible, Sendable {
@@ -38,6 +38,7 @@ public final class IndexStoreError: Error, CustomStringConvertible, Sendable {
 }
 
 extension IndexStoreLibrary {
+  @usableFromInline
   func capturingError<T>(from body: (_ error: inout indexstore_error_t?) -> T?) throws -> T {
     var error: indexstore_error_t? = nil
     let result = body(&error)

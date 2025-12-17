@@ -13,6 +13,12 @@
 public import IndexStoreDB_CIndexStoreDB
 
 /// The occurrence of a symbol in a source file.
+///
+/// A symbol occurrence is a position (line:column) inside a source file at which an `IndexStoreSymbol` is defined,
+/// referenced or occurs in some other way. The occurrence’s `role` determines the type of the occurrence.
+///
+/// A symbol may also have related symbols. For example if this occurrence is inside a function declaration, than the
+/// occurrence will have the a `childOf` relation to that function's symbol.
 public struct IndexStoreOccurrence: ~Escapable, Sendable {
   @usableFromInline nonisolated(unsafe) let occurrence: indexstore_occurrence_t
   @usableFromInline let library: IndexStoreLibrary
@@ -24,6 +30,7 @@ public struct IndexStoreOccurrence: ~Escapable, Sendable {
   }
 
   // swift-format-ignore: UseSingleLinePropertyGetter, https://github.com/swiftlang/swift-format/issues/1102
+  /// The symbol that is referenced by this occurrence.
   @inlinable
   public var symbol: IndexStoreSymbol {
     @_lifetime(borrow self)
@@ -34,6 +41,8 @@ public struct IndexStoreOccurrence: ~Escapable, Sendable {
   }
 
   // swift-format-ignore: UseSingleLinePropertyGetter, https://github.com/swiftlang/swift-format/issues/1102
+  /// The symbols that this occurrence is related to, such as the function declaration that this occurrence is a child
+  /// of or the classes/protocols that are base types of a class definition.
   @inlinable
   public var relations: RelationsSequence {
     @_lifetime(borrow self)
@@ -42,11 +51,19 @@ public struct IndexStoreOccurrence: ~Escapable, Sendable {
     }
   }
 
+  /// The role identifies the types of this symbol occurrence, such as a definition, reference, call etc.
+  ///
+  /// A symbol occurrence may have multiple roles. For example a function call has both the `reference` and the `call`
+  /// role.
+  ///
+  /// In addition to the occurrences's own roles, this also contains all roles of the occurrence's related symbols.
   @inlinable
   public var roles: IndexStoreSymbolRoles {
     IndexStoreSymbolRoles(rawValue: self.library.api.occurrence_get_roles(occurrence))
   }
 
+  /// The position of this occurrence as a 1-based line, column pair. `column` identifies the UTF-8 byte offset of this
+  /// symbol from the first character in the line.
   @inlinable
   public var position: (line: Int, column: Int) {
     var line: UInt32 = 0
@@ -67,6 +84,7 @@ public struct IndexStoreOccurrence: ~Escapable, Sendable {
       self.producer = producer
     }
 
+    /// Iterate through all elements in this sequence until `.stop` is returned from the closure or an error is thrown.
     @inlinable
     public func forEach<Error>(
       _ body: (IndexStoreSymbolRelation) throws(Error) -> IterationContinuationBehavior
