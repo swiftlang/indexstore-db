@@ -12,6 +12,11 @@
 
 public import IndexStoreDB_CIndexStoreDB
 
+/// A role with which a symbol may occur in a source file or how it is related to another symbol.
+///
+/// The roles are generally divided into normal roles and relationship roles. Normal roles specify in which role a
+/// symbol occurs in a source file. For an occurrence's related symbols, the relationship roles specify how the
+/// occurrence is related to the related symbol.
 public struct IndexStoreSymbolRoles: OptionSet, Sendable {
   public let rawValue: UInt64
 

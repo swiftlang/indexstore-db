@@ -28,7 +28,7 @@ fileprivate actor IndexStoreLibraryRegistry {
   }
 }
 
-/// Represent a loaded `libIndexStore` dynamic library. This object hasn't opened a specific index store yet, it
+/// Represent a loaded `libIndexStore` dynamic library. This object hasn't opened a specific Index Store yet, it
 /// represents the loaded library and the functions within it themselves.
 public struct IndexStoreLibrary: Sendable {
   struct DlopenFailedError: Error, CustomStringConvertible {
@@ -43,6 +43,10 @@ public struct IndexStoreLibrary: Sendable {
   @usableFromInline
   let api: indexstore_functions_t
 
+  /// Open the `libIndexStore` dynamic library at the given path.
+  ///
+  /// Typically, this library is located in `usr/lib/libIndexStore.{dylib,so}` inside macOS or Linux toolchains or at
+  /// `usr/bin/libIndexStore.dll` inside Windows toolchains.
   public static func at(dylibPath: URL) async throws -> IndexStoreLibrary {
     return try await IndexStoreLibraryRegistry.shared.library(withDylibUrl: dylibPath)
   }
@@ -63,7 +67,10 @@ public struct IndexStoreLibrary: Sendable {
     self.api = try indexstore_functions_t(dlHandle: dlHandle)
   }
 
-  public func indexStore(at path: String) throws -> IndexStore {
+  /// Use this library to open an Index Store at the given path, ie. create a handle that can read the Index Store’s
+  /// contents. `path` should point to the directory that contains the `v5` directory. For example for SwiftPM packages,
+  /// the path could be `.build/debug/index/store`
+  public func indexStore(at path: URL) throws -> IndexStore {
     return try IndexStore(at: path, library: self)
   }
 }

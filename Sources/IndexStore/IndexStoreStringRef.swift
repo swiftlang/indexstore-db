@@ -13,16 +13,18 @@
 public import Foundation
 public import IndexStoreDB_CIndexStoreDB
 
+/// A potentially stack-allocated string yielded by the Index Store.
+///
+/// `IndexStore` uses this string type instead of `Swift.String` for two reasons:
+///  - Its reference of the stack-allocated memory is more efficient than copying the strings contents into heap memory
+///    that backs `Swift.String`.
+///  - In contrast to `Swift.String`, this type does not validate its contents for valid Unicode, saving additional
+///    performance overhead.
 public struct IndexStoreStringRef: ~Escapable, Sendable {
   /// It would be nice if this was a `Span<UInt8>` but indexstore-db talks in terms of `Span<CChar>` (aka. `Span<Int8>`)
   /// and converting between different spans of different element types is not possible.
   /// https://github.com/swiftlang/swift/issues/85763
   private let span: RawSpan
-
-  @_lifetime(borrow span)
-  public init(_ span: Span<CChar>) {
-    self.span = span.bytes
-  }
 
   @_lifetime(borrow span)
   public init(_ span: RawSpan) {
@@ -64,18 +66,22 @@ public struct IndexStoreStringRef: ~Escapable, Sendable {
     }
   }
 
+  /// The string as a native Swift String.
   public var string: String {
     return span.withUnsafeBytes { String(decoding: $0, as: UTF8.self) }
   }
 
+  /// The contents of the string as Foundation's `Data` type.
   public var data: Data {
-    span.withUnsafeBytes { buffer in Data(buffer) }
+    return span.withUnsafeBytes { buffer in Data(buffer) }
   }
 
+  /// The contents of the string as an array of bytes.
   public var byteArray: [UInt8] {
-    span.withUnsafeBytes { Array($0.assumingMemoryBound(to: UInt8.self)) }
+    return span.withUnsafeBytes { Array($0.assumingMemoryBound(to: UInt8.self)) }
   }
 
+  /// Execute the closure with an pointer to a null-terminated version of this string.
   func withCString<T>(_ body: (UnsafePointer<UInt8>) throws -> T) rethrows -> T {
     return try withUnsafeTemporaryAllocation(of: UInt8.self, capacity: span.byteCount + 1) { cString in
       let index = span.withUnsafeBytes { cString.initialize(fromContentsOf: $0) }

@@ -12,16 +12,29 @@
 
 public import IndexStoreDB_CIndexStoreDB
 
-public struct IndexStoreLanguage: Hashable, Sendable {
-  private let rawValue: indexstore_symbol_language_t
+/// The language of a source file that was processed by the Index Store.
+public struct IndexStoreLanguage: RawRepresentable, Hashable, Sendable {
+  public let rawValue: UInt8
 
+  /// C
   public static let c = IndexStoreLanguage(INDEXSTORE_SYMBOL_LANG_C)
+
+  /// Objective-C
   public static let objectiveC = IndexStoreLanguage(INDEXSTORE_SYMBOL_LANG_OBJC)
+
+  /// C++
   public static let cxx = IndexStoreLanguage(INDEXSTORE_SYMBOL_LANG_CXX)
+
+  /// Swift
   public static let swift = IndexStoreLanguage(INDEXSTORE_SYMBOL_LANG_SWIFT)
 
-  @usableFromInline
-  init(_ rawValue: indexstore_symbol_language_t) {
+  @inlinable
+  public init(rawValue: UInt8) {
     self.rawValue = rawValue
+  }
+
+  @usableFromInline
+  init(_ language: indexstore_symbol_language_t) {
+    self.rawValue = UInt8(language.rawValue)
   }
 }
