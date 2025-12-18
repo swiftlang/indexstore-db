@@ -93,7 +93,7 @@ public final class TestSources {
   /// * returns: The ChangeSet corresponding to these changes.
   /// * throws: Any file system errors seen while modifying the sources. If this happens, the state
   ///   of the source files is not defined.
-  public func edit(_ block: (_ builder: inout ChangeBuilder) throws -> ()) throws -> ChangeSet {
+  public func edit(_ block: (_ builder: inout ChangeBuilder) throws -> Void) throws -> ChangeSet {
     var builder = ChangeBuilder()
     try block(&builder)
     try apply(builder.changes)

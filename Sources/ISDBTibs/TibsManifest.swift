@@ -57,8 +57,8 @@ public struct TibsManifest: Equatable {
       clangFlags: [String]? = nil,
       sources: [String],
       bridgingHeader: String? = nil,
-      dependencies: [String]? = nil)
-    {
+      dependencies: [String]? = nil
+    ) {
       self.name = name
       self.swiftFlags = swiftFlags
       self.clangFlags = clangFlags

@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-import ISDBTibs
-import ISDBTestSupport
 import Foundation
+import ISDBTestSupport
+import ISDBTibs
 import XCTest
 
 final class TibsResolutionTests: XCTestCase {
@@ -21,7 +21,8 @@ final class TibsResolutionTests: XCTestCase {
     swiftc: URL(fileURLWithPath: "/swiftc"),
     clang: URL(fileURLWithPath: "/clang"),
     tibs: URL(fileURLWithPath: "/tibs"),
-    ninja: URL(fileURLWithPath: "/ninja"))
+    ninja: URL(fileURLWithPath: "/ninja")
+  )
 
   func testResolutionSingleSwiftModule() throws {
     let dir = projectDir("proj1")
@@ -49,11 +50,14 @@ final class TibsResolutionTests: XCTestCase {
     XCTAssertEqual(module.moduleDeps, [])
     XCTAssertEqual(module.importPaths, [])
     XCTAssertEqual(module.extraArgs, [])
-    XCTAssertEqual(module.sources, [
-      src.appendingPathComponent("a.swift", isDirectory: false),
-      src.appendingPathComponent("b.swift", isDirectory: false),
-      src.appendingPathComponent("rec/c.swift" , isDirectory: false),
-    ])
+    XCTAssertEqual(
+      module.sources,
+      [
+        src.appendingPathComponent("a.swift", isDirectory: false),
+        src.appendingPathComponent("b.swift", isDirectory: false),
+        src.appendingPathComponent("rec/c.swift", isDirectory: false),
+      ]
+    )
     #if os(macOS)
     XCTAssertNotNil(module.sdk)
     #else
@@ -82,46 +86,59 @@ final class TibsResolutionTests: XCTestCase {
     XCTAssertEqual(module.name, "main")
     XCTAssertEqual(module.emitModulePath, "main.swiftmodule")
     XCTAssertEqual(module.emitHeaderPath, "main-Swift.h")
-    XCTAssertEqual(module.bridgingHeader,
-                   src.appendingPathComponent("bridging-header.h", isDirectory: false))
+    XCTAssertEqual(
+      module.bridgingHeader,
+      src.appendingPathComponent("bridging-header.h", isDirectory: false)
+    )
     XCTAssertEqual(module.moduleDeps, [])
     XCTAssertEqual(module.importPaths, [])
     XCTAssertEqual(module.extraArgs, ["-Xcc", "-Wno-objc-root-class"])
-    XCTAssertEqual(module.sources, [
-      src.appendingPathComponent("a.swift", isDirectory: false),
-      src.appendingPathComponent("b.swift", isDirectory: false),
-    ])
+    XCTAssertEqual(
+      module.sources,
+      [
+        src.appendingPathComponent("a.swift", isDirectory: false),
+        src.appendingPathComponent("b.swift", isDirectory: false),
+      ]
+    )
 
     let clangTUs = target.clangTUs.sorted(by: { $0.outputPath < $1.outputPath })
     XCTAssertEqual(clangTUs.count, 4)
-    if let tu = clangTUs.count >= 2 ? clangTUs[0] : nil{
+    if let tu = clangTUs.count >= 2 ? clangTUs[0] : nil {
       XCTAssertEqual(tu.source, src.appendingPathComponent("b.c", isDirectory: false))
       XCTAssertEqual(tu.outputPath, "main-b.c.o")
       XCTAssertEqual(tu.generatedHeaderDep, "main.swiftmodule")
       XCTAssertEqual(tu.importPaths, [".", "/src"])
       XCTAssertEqual(tu.extraArgs, ["-Wno-objc-root-class"])
-    } else { XCTFail() }
+    } else {
+      XCTFail()
+    }
     if let tu = clangTUs.count >= 2 ? clangTUs[1] : nil {
       XCTAssertEqual(tu.source, src.appendingPathComponent("c.m", isDirectory: false))
       XCTAssertEqual(tu.outputPath, "main-c.m.o")
       XCTAssertEqual(tu.generatedHeaderDep, "main.swiftmodule")
       XCTAssertEqual(tu.importPaths, [".", "/src"])
       XCTAssertEqual(tu.extraArgs, ["-Wno-objc-root-class"])
-    } else { XCTFail() }
+    } else {
+      XCTFail()
+    }
     if let tu = clangTUs.count >= 3 ? clangTUs[2] : nil {
       XCTAssertEqual(tu.source, src.appendingPathComponent("d.cpp", isDirectory: false))
       XCTAssertEqual(tu.outputPath, "main-d.cpp.o")
       XCTAssertEqual(tu.generatedHeaderDep, "main.swiftmodule")
       XCTAssertEqual(tu.importPaths, [".", "/src"])
       XCTAssertEqual(tu.extraArgs, ["-Wno-objc-root-class"])
-    } else { XCTFail() }
+    } else {
+      XCTFail()
+    }
     if let tu = clangTUs.count >= 4 ? clangTUs[3] : nil {
       XCTAssertEqual(tu.source, src.appendingPathComponent("e.mm", isDirectory: false))
       XCTAssertEqual(tu.outputPath, "main-e.mm.o")
       XCTAssertEqual(tu.generatedHeaderDep, "main.swiftmodule")
       XCTAssertEqual(tu.importPaths, [".", "/src"])
       XCTAssertEqual(tu.extraArgs, ["-Wno-objc-root-class"])
-    } else { XCTFail() }
+    } else {
+      XCTFail()
+    }
   }
 
   func testResolutionSwiftModules() throws {
@@ -150,9 +167,12 @@ final class TibsResolutionTests: XCTestCase {
       XCTAssertEqual(module.moduleDeps, [])
       XCTAssertEqual(module.importPaths, [])
       XCTAssertEqual(module.extraArgs, [])
-      XCTAssertEqual(module.sources, [
-        src.appendingPathComponent("a.swift", isDirectory: false),
-      ])
+      XCTAssertEqual(
+        module.sources,
+        [
+          src.appendingPathComponent("a.swift", isDirectory: false)
+        ]
+      )
       XCTAssertEqual(target.clangTUs, [])
     }
 
@@ -171,9 +191,12 @@ final class TibsResolutionTests: XCTestCase {
       XCTAssertEqual(module.moduleDeps, ["A.swiftmodule"])
       XCTAssertEqual(module.importPaths, ["."])
       XCTAssertEqual(module.extraArgs, [])
-      XCTAssertEqual(module.sources, [
-        src.appendingPathComponent("b.swift", isDirectory: false),
-      ])
+      XCTAssertEqual(
+        module.sources,
+        [
+          src.appendingPathComponent("b.swift", isDirectory: false)
+        ]
+      )
       XCTAssertEqual(target.clangTUs, [])
     }
 
@@ -192,9 +215,12 @@ final class TibsResolutionTests: XCTestCase {
       XCTAssertEqual(module.moduleDeps, ["B.swiftmodule"])
       XCTAssertEqual(module.importPaths, ["."])
       XCTAssertEqual(module.extraArgs, [])
-      XCTAssertEqual(module.sources, [
-        src.appendingPathComponent("c.swift", isDirectory: false),
-      ])
+      XCTAssertEqual(
+        module.sources,
+        [
+          src.appendingPathComponent("c.swift", isDirectory: false)
+        ]
+      )
       XCTAssertEqual(target.clangTUs, [])
     }
   }

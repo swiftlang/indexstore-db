@@ -24,7 +24,7 @@ public final class TibsBuilder {
   public var indexstore: URL { buildRoot.appendingPathComponent("index", isDirectory: true) }
 
   public var indexOutputPaths: [URL] {
-    return targets.flatMap{ $0.indexOutputPaths }.map{ buildRoot.appendingPathComponent($0, isDirectory: false) }
+    return targets.flatMap { $0.indexOutputPaths }.map { buildRoot.appendingPathComponent($0, isDirectory: false) }
   }
 
   public enum Error: Swift.Error {
@@ -62,7 +62,8 @@ public final class TibsBuilder {
             object: "\(name)-\(basename).o",
             swiftmodule: "\(name)-\(basename).swiftmodule~partial",
             swiftdoc: "\(name)-\(basename).swiftdoc~partial",
-            dependencies: "\(name)-\(basename).d")
+            dependencies: "\(name)-\(basename).d"
+          )
         }
 
         swiftModule = TibsResolvedTarget.SwiftModule(
@@ -74,7 +75,8 @@ public final class TibsBuilder {
           outputFileMap: outputFileMap,
           bridgingHeader: bridgingHeader,
           moduleDeps: targetDesc.dependencies?.map { "\($0).swiftmodule" } ?? [],
-          sdk: TibsBuilder.defaultSDKPath)
+          sdk: TibsBuilder.defaultSDKPath
+        )
       }
 
       var clangTUs: [TibsResolvedTarget.ClangTU] = []
@@ -82,12 +84,13 @@ public final class TibsBuilder {
         let cu = TibsResolvedTarget.ClangTU(
           extraArgs: clangFlags,
           source: source,
-          importPaths: [/*buildRoot*/".", sourceRoot.path],
+          importPaths: [ /*buildRoot*/".", sourceRoot.path],
           // FIXME: this should be the -Swift.h file, but ninja doesn't support
           // having multiple output files when using gcc-style dependencies, so
           // use the .swiftmodule.
           generatedHeaderDep: swiftSources.isEmpty ? nil : "\(name).swiftmodule",
-          outputPath: "\(name)-\(source.lastPathComponent).o")
+          outputPath: "\(name)-\(source.lastPathComponent).o"
+        )
         clangTUs.append(cu)
       }
 
@@ -95,7 +98,8 @@ public final class TibsBuilder {
         name: name,
         swiftModule: swiftModule,
         clangTUs: clangTUs,
-        dependencies: targetDesc.dependencies ?? [])
+        dependencies: targetDesc.dependencies ?? []
+      )
 
       targets.append(target)
       if targetsByName.updateValue(target, forKey: name) != nil {
@@ -137,8 +141,8 @@ extension TibsBuilder {
 
     var result = Set<String>()
     while let range = out.range(of: "] Indexing ", range: rest) {
-      let srcEnd = out[range.upperBound...].firstIndex(where: {$0.isNewline}) ?? rest.upperBound
-      let target = String(out[range.upperBound ..< srcEnd])
+      let srcEnd = out[range.upperBound...].firstIndex(where: { $0.isNewline }) ?? rest.upperBound
+      let target = String(out[range.upperBound..<srcEnd])
       result.insert(target.trimmingCharacters(in: CharacterSet(charactersIn: "'\"")))
       rest = srcEnd..<rest.upperBound
     }
@@ -201,10 +205,13 @@ extension TibsBuilder {
           "-module-cache-path", "ModuleCache",
           "-c",
         ]
-        args += module.emitHeaderPath.map { [
-          "-emit-objc-header",
-          "-emit-objc-header-path", $0
-          ] } ?? []
+        args +=
+          module.emitHeaderPath.map {
+            [
+              "-emit-objc-header",
+              "-emit-objc-header-path", $0,
+            ]
+          } ?? []
         args += module.bridgingHeader.map { ["-import-objc-header", $0.path] } ?? []
         args += module.sdk.map { ["-sdk", $0] } ?? []
         args += module.extraArgs
@@ -213,10 +220,13 @@ extension TibsBuilder {
         args += ["-working-directory", buildRoot.path]
 
         module.sources.forEach { sourceFile in
-          commands.append(JSONCompilationDatabase.Command(
-            directory: buildRoot.path,
-            file: sourceFile.path,
-            arguments: args))
+          commands.append(
+            JSONCompilationDatabase.Command(
+              directory: buildRoot.path,
+              file: sourceFile.path,
+              arguments: args
+            )
+          )
         }
       }
 
@@ -224,7 +234,7 @@ extension TibsBuilder {
         var args = [
           toolchain.clang.path,
           "-fsyntax-only",
-          tu.source.path
+          tu.source.path,
         ]
         args += tu.importPaths.flatMap { ["-I", $0] }
         args += [
@@ -237,10 +247,13 @@ extension TibsBuilder {
         ]
         args += tu.extraArgs
 
-        commands.append(JSONCompilationDatabase.Command(
-          directory: buildRoot.path,
-          file: tu.source.path,
-          arguments: args))
+        commands.append(
+          JSONCompilationDatabase.Command(
+            directory: buildRoot.path,
+            file: tu.source.path,
+            arguments: args
+          )
+        )
       }
     }
 
@@ -251,7 +264,8 @@ extension TibsBuilder {
     try ninja.write(
       to: buildRoot.appendingPathComponent("build.ninja", isDirectory: false),
       atomically: false,
-      encoding: .utf8)
+      encoding: .utf8
+    )
 
     let encoder = JSONEncoder()
     if #available(macOS 10.13, iOS 11.0, watchOS 4.0, tvOS 11.0, *) {
@@ -260,12 +274,14 @@ extension TibsBuilder {
 
     let compdb = try encoder.encode(compilationDatabase)
     try compdb.write(
-      to: buildRoot.appendingPathComponent("compile_commands.json", isDirectory: false))
+      to: buildRoot.appendingPathComponent("compile_commands.json", isDirectory: false)
+    )
     for target in targets {
       if let module = target.swiftModule {
         let ofm = try encoder.encode(module.outputFileMap)
         try ofm.writeIfChanged(
-          to: buildRoot.appendingPathComponent(module.outputFileMapPath, isDirectory: false))
+          to: buildRoot.appendingPathComponent(module.outputFileMapPath, isDirectory: false)
+        )
       }
     }
   }
@@ -288,38 +304,43 @@ extension TibsBuilder {
   }
 
   public func writeNinjaHeader<Output: TextOutputStream>(to stream: inout Output) {
-    stream.write("""
+    stream.write(
+      """
       # Generated by tibs. DO NOT EDIT!
       ninja_required_version = 1.5
-      """)
+      """
+    )
   }
 
   public func writeNinjaRules<Output: TextOutputStream>(to stream: inout Output) {
-#if os(Windows)
+    #if os(Windows)
     let callCmd = "cmd.exe /C "
     let copyCmd = "copy NUL $out"
-#else
+    #else
     let callCmd = ""
     let copyCmd = "touch $out"
-#endif
+    #endif
     // FIXME: rdar://83355591 avoid -c, since we don't want to spend time writing .o files.
-    let swiftIndexCommand = callCmd + """
-      \(escapeCommand([toolchain.swiftc.path])) $in $IMPORT_PATHS -module-name $MODULE_NAME \
-       -index-store-path index -index-ignore-system-modules \
-       -output-file-map $OUTPUT_FILE_MAP \
-      -emit-module -emit-module-path $MODULE_PATH -emit-dependencies \
-      -pch-output-dir pch -module-cache-path ModuleCache \
-      -c \
-      $EMIT_HEADER $BRIDGING_HEADER $SDK $EXTRA_ARGS \
-      && \(toolchain.tibs.path) swift-deps-merge $out $DEP_FILES > $out.d
-      """
+    let swiftIndexCommand =
+      callCmd + """
+        \(escapeCommand([toolchain.swiftc.path])) $in $IMPORT_PATHS -module-name $MODULE_NAME \
+         -index-store-path index -index-ignore-system-modules \
+         -output-file-map $OUTPUT_FILE_MAP \
+        -emit-module -emit-module-path $MODULE_PATH -emit-dependencies \
+        -pch-output-dir pch -module-cache-path ModuleCache \
+        -c \
+        $EMIT_HEADER $BRIDGING_HEADER $SDK $EXTRA_ARGS \
+        && \(toolchain.tibs.path) swift-deps-merge $out $DEP_FILES > $out.d
+        """
 
-    let ccIndexCommand = callCmd + """
-      \(escapeCommand([toolchain.clang.path])) -fsyntax-only $in $IMPORT_PATHS -index-store-path index \
-      -index-ignore-system-symbols -fmodules -fmodules-cache-path=ModuleCache \
-      -MMD -MF $OUTPUT_NAME.d -o $out $EXTRA_ARGS && \(copyCmd)
+    let ccIndexCommand =
+      callCmd + """
+        \(escapeCommand([toolchain.clang.path])) -fsyntax-only $in $IMPORT_PATHS -index-store-path index \
+        -index-ignore-system-symbols -fmodules -fmodules-cache-path=ModuleCache \
+        -MMD -MF $OUTPUT_NAME.d -o $out $EXTRA_ARGS && \(copyCmd)
+        """
+    stream.write(
       """
-    stream.write("""
       rule swiftc_index
         description = Indexing Swift Module $MODULE_NAME
         command = \(swiftIndexCommand)
@@ -332,7 +353,8 @@ extension TibsBuilder {
         command = \(ccIndexCommand)
         depfile = $out.d
         deps = gcc
-      """)
+      """
+    )
   }
 
   public func writeNinjaSnippet<Output: TextOutputStream>(for target: TibsResolvedTarget, to stream: inout Output) {
@@ -347,18 +369,23 @@ extension TibsBuilder {
       outputs.append(contentsOf: out)
       stream.write("\n\n")
     }
-    stream.write("""
+    stream.write(
+      """
       build \(target.name): phony \(escapePath(path: outputs.joined(separator: " ")))
 
 
-      """)
+      """
+    )
   }
 
   /// - Returns: the list of outputs.
-  public func writeNinjaSnippet<Output: TextOutputStream>(for module: TibsResolvedTarget.SwiftModule, to stream: inout Output) -> [String] {
+  public func writeNinjaSnippet<Output: TextOutputStream>(
+    for module: TibsResolvedTarget.SwiftModule,
+    to stream: inout Output
+  ) -> [String] {
     // FIXME: the generated -Swift.h header should be considered an output, but ninja does not
     // support multiple outputs when using gcc-style .d files.
-    let outputs = [module.emitModulePath, /*module.emitHeaderPath*/]
+    let outputs = [module.emitModulePath /*module.emitHeaderPath*/]
     // FIXME: some of these are deleted by the compiler!?
     // outputs += target.outputFileMap.allOutputs
 
@@ -369,7 +396,8 @@ extension TibsBuilder {
       deps.append(bridgingHeader.path)
     }
 
-    stream.write("""
+    stream.write(
+      """
       build \(escapePath(path: outputs.joined(separator: " "))) : \
       swiftc_index \(module.sources.map { escapePath(path: $0.path) }.joined(separator: " ")) \
       | \(escapePath(path: deps.joined(separator: " ")))
@@ -382,21 +410,27 @@ extension TibsBuilder {
         DEP_FILES = \(module.outputFileMap.values.compactMap { $0.dependencies }.joined(separator: " "))
         OUTPUT_FILE_MAP = \(module.outputFileMapPath)
         SDK = \(module.sdk.map { "-sdk \($0)" } ?? "")
-      """)
+      """
+    )
 
     return outputs
   }
 
   /// - Returns: the list of outputs.
-  public func writeNinjaSnippet<Output: TextOutputStream>(for tu: TibsResolvedTarget.ClangTU, to stream: inout Output) -> [String] {
+  public func writeNinjaSnippet<Output: TextOutputStream>(
+    for tu: TibsResolvedTarget.ClangTU,
+    to stream: inout Output
+  ) -> [String] {
 
-    stream.write("""
+    stream.write(
+      """
       build \(escapePath(path: tu.outputPath)): \
       cc_index \(escapePath(path: tu.source.path)) | \(escapePath(path: toolchain.clang.path)) \(tu.generatedHeaderDep ?? "")
         IMPORT_PATHS = \(tu.importPaths.map { "-I \($0)" }.joined(separator: " "))
         OUTPUT_NAME = \(tu.outputPath)
         EXTRA_ARGS = \(tu.extraArgs.joined(separator: " "))
-      """)
+      """
+    )
 
     return [tu.outputPath]
   }
@@ -427,7 +461,7 @@ func quoteWindowsCommandLine(_ commandLine: [String]) -> String {
   func quoteWindowsCommandArg(arg: String) -> String {
     // Windows escaping, adapted from Daniel Colascione's "Everyone quotes
     // command line arguments the wrong way" - Microsoft Developer Blog
-    if !arg.contains(where: {" \t\n\"".contains($0)}) {
+    if !arg.contains(where: { " \t\n\"".contains($0) }) {
       return arg
     }
 
@@ -462,7 +496,7 @@ func quoteWindowsCommandLine(_ commandLine: [String]) -> String {
         break
       }
       let backslashCount = unquoted.distance(from: unquoted.startIndex, to: firstNonBackslash)
-      if (unquoted[firstNonBackslash] == "\"") {
+      if unquoted[firstNonBackslash] == "\"" {
         // This is  a string of \ followed by a " e.g. foo\"bar. Escape the
         // backslashes and the quote
         quoted.append(String(repeating: "\\", count: backslashCount * 2 + 1))
@@ -484,11 +518,11 @@ func quoteWindowsCommandLine(_ commandLine: [String]) -> String {
 
 func escapeCommand(_ args: [String]) -> String {
   let escaped: String
-#if os(Windows)
+  #if os(Windows)
   escaped = quoteWindowsCommandLine(args)
-#else
+  #else
   escaped = args.joined(separator: " ")
-#endif
+  #endif
   return escapePath(path: escaped)
 }
 
@@ -497,4 +531,3 @@ func escapePath(path: String) -> String {
   // since those are terminated by a :
   return path.replacingOccurrences(of: ":", with: "$:")
 }
-

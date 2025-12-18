@@ -10,10 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_implementationOnly
-import IndexStoreDB_CIndexStoreDB
-
 import Foundation
+
+@_implementationOnly import IndexStoreDB_CIndexStoreDB
 
 public enum IndexStoreDBError: Error, Sendable {
   case create(String)

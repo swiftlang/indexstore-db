@@ -34,7 +34,7 @@ public final class TibsResolvedTarget {
     public var sdk: String?
 
     public var indexOutputPaths: [String] {
-      return outputFileMap.values.compactMap{ $0.object ?? $0.swiftmodule }
+      return outputFileMap.values.compactMap { $0.object ?? $0.swiftmodule }
     }
 
     public init(
@@ -46,8 +46,8 @@ public final class TibsResolvedTarget {
       outputFileMap: OutputFileMap,
       bridgingHeader: URL? = nil,
       moduleDeps: [String] = [],
-      sdk: String? = nil)
-    {
+      sdk: String? = nil
+    ) {
       self.name = name
       self.extraArgs = extraArgs
       self.sources = sources
@@ -72,8 +72,8 @@ public final class TibsResolvedTarget {
       source: URL,
       importPaths: [String] = [],
       generatedHeaderDep: String? = nil,
-      outputPath: String)
-    {
+      outputPath: String
+    ) {
       self.extraArgs = extraArgs
       self.source = source
       self.importPaths = importPaths
@@ -88,7 +88,7 @@ public final class TibsResolvedTarget {
   public var dependencies: [String]
 
   public var indexOutputPaths: [String] {
-    return clangTUs.map{ $0.outputPath } + (swiftModule?.indexOutputPaths ?? [])
+    return clangTUs.map { $0.outputPath } + (swiftModule?.indexOutputPaths ?? [])
   }
 
   public init(name: String, swiftModule: SwiftModule?, clangTUs: [ClangTU], dependencies: [String]) {
@@ -100,7 +100,7 @@ public final class TibsResolvedTarget {
 }
 
 extension TibsResolvedTarget: Equatable {
-  public static func ==(a: TibsResolvedTarget, b: TibsResolvedTarget) -> Bool {
+  public static func == (a: TibsResolvedTarget, b: TibsResolvedTarget) -> Bool {
     if a === b {
       return true
     }

@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import ISDBTibs
 import Foundation
+import ISDBTibs
 import XCTest
 
 final class MiscTests: XCTestCase {
@@ -44,21 +44,21 @@ final class MiscTests: XCTestCase {
       /*newlines*/
       "target1: dep1 \ntarget2: dep1 dep2 dep3": [
         (target: "target1", deps: ["dep1"]),
-        (target: "target2", deps: ["dep1", "dep2", "dep3"])
+        (target: "target2", deps: ["dep1", "dep2", "dep3"]),
       ],
       /*nodeps*/
       "target: ": [
         (target: "target", deps: [])
       ],
       /*spaces*/
-      "target: Dep\\ with\\ spaces" : [
+      "target: Dep\\ with\\ spaces": [
         (target: "target", deps: ["Dep\\ with\\ spaces"])
       ],
-      "target\\ with\\ spaces: Dep" : [
+      "target\\ with\\ spaces: Dep": [
         (target: "target\\ with\\ spaces", deps: ["Dep"])
       ],
       /*paths*/
-      "target: Dep/with\\slashes" : [
+      "target: Dep/with\\slashes": [
         (target: "target", deps: ["Dep/with\\slashes"])
       ],
     ]
@@ -68,7 +68,10 @@ final class MiscTests: XCTestCase {
         XCTFail("Could not parse: \(makefile)")
         return
       }
-      XCTAssertTrue(outputsEqual(actual: parsed.outputs, expected: exp), "Makefile parse did not match!\nExpected: \(exp)\nAcutal: \(parsed.outputs)")
+      XCTAssertTrue(
+        outputsEqual(actual: parsed.outputs, expected: exp),
+        "Makefile parse did not match!\nExpected: \(exp)\nAcutal: \(parsed.outputs)"
+      )
     }
   }
 }

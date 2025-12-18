@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-import IndexStoreDB
-import ISDBTibs
 import Foundation
+import ISDBTibs
+import IndexStoreDB
 import XCTest
 
 /// Test workspace for a project using the tibs build system, providing convenient access to the
@@ -77,8 +77,8 @@ public final class TibsTestWorkspace {
     tmpDir: URL,
     removeTmpDir: Bool = true,
     useExplicitOutputUnits: Bool = false,
-    toolchain: TibsToolchain) throws
-  {
+    toolchain: TibsToolchain
+  ) throws {
     self.projectDir = immutableProjectDir
     self.tmpDir = tmpDir
     self.mutableSources = false
@@ -97,7 +97,8 @@ public final class TibsTestWorkspace {
       manifest: manifest,
       sourceRoot: projectDir,
       buildRoot: persistentBuildDir,
-      toolchain: toolchain)
+      toolchain: toolchain
+    )
 
     try builder.writeBuildFiles()
 
@@ -109,7 +110,8 @@ public final class TibsTestWorkspace {
       library: libIndexStore,
       delegate: wrapperDelegate,
       useExplicitOutputUnits: useExplicitOutputUnits,
-      listenToUnitEvents: false)
+      listenToUnitEvents: false
+    )
   }
 
   /// Creates a tibs test workspace and copies the sources to a temporary location so that they can
@@ -128,8 +130,8 @@ public final class TibsTestWorkspace {
     tmpDir: URL,
     removeTmpDir: Bool = true,
     useExplicitOutputUnits: Bool = false,
-    toolchain: TibsToolchain) throws
-  {
+    toolchain: TibsToolchain
+  ) throws {
     self.projectDir = projectDir
     self.tmpDir = tmpDir
     self.mutableSources = true
@@ -150,7 +152,8 @@ public final class TibsTestWorkspace {
       manifest: manifest,
       sourceRoot: sourceDir,
       buildRoot: buildDir,
-      toolchain: toolchain)
+      toolchain: toolchain
+    )
 
     try builder.writeBuildFiles()
 
@@ -162,7 +165,8 @@ public final class TibsTestWorkspace {
       library: libIndexStore,
       delegate: wrapperDelegate,
       useExplicitOutputUnits: useExplicitOutputUnits,
-      listenToUnitEvents: false)
+      listenToUnitEvents: false
+    )
   }
 
   static func databaseDirIn(_ tmpDir: URL) -> URL {
@@ -188,7 +192,8 @@ public final class TibsTestWorkspace {
       waitUntilDoneInitializing: waitUntilDoneInitializing,
       enableOutOfDateFileWatching: enableOutOfDateFileWatching,
       listenToUnitEvents: listenToUnitEvents,
-      prefixMappings: prefixMappings)
+      prefixMappings: prefixMappings
+    )
   }
 
   deinit {
@@ -198,17 +203,17 @@ public final class TibsTestWorkspace {
   }
 
   public func buildAndIndex() throws {
-     try builder.build()
-     index.pollForUnitChangesAndWait()
-   }
+    try builder.build()
+    index.pollForUnitChangesAndWait()
+  }
 
   public func testLoc(_ name: String) -> TestLocation { sources.locations[name]! }
 
   /// Perform a group of edits to the project sources and optionally rebuild.
   public func edit(
     rebuild: Bool = false,
-    _ block: (inout TestSources.ChangeBuilder, _ current: SourceFileCache) throws -> ()) throws
-  {
+    _ block: (inout TestSources.ChangeBuilder, _ current: SourceFileCache) throws -> Void
+  ) throws {
     precondition(mutableSources, "tried to edit in immutable workspace")
     builder.toolchain.sleepForTimestamp()
 
@@ -249,12 +254,17 @@ extension XCTestCase {
       tmpDir: URL(fileURLWithPath: NSTemporaryDirectory())
         .appendingPathComponent("isdb-test-data/\(testDirName)", isDirectory: true),
       useExplicitOutputUnits: useExplicitOutputUnits,
-      toolchain: toolchain)
+      toolchain: toolchain
+    )
 
     if workspace.builder.targets.contains(where: { target in !target.clangTUs.isEmpty })
-      && !toolchain.clangHasIndexSupport {
-      fputs("warning: skipping test because '\(toolchain.clang.path)' does not have indexstore " +
-            "support; use swift-clang\n", stderr)
+      && !toolchain.clangHasIndexSupport
+    {
+      fputs(
+        "warning: skipping test because '\(toolchain.clang.path)' does not have indexstore "
+          + "support; use swift-clang\n",
+        stderr
+      )
       return nil
     }
 
@@ -279,12 +289,17 @@ extension XCTestCase {
         .appendingPathComponent(name, isDirectory: true),
       tmpDir: URL(fileURLWithPath: NSTemporaryDirectory())
         .appendingPathComponent("isdb-test-data/\(testDirName)", isDirectory: true),
-      toolchain: toolchain)
+      toolchain: toolchain
+    )
 
     if workspace.builder.targets.contains(where: { target in !target.clangTUs.isEmpty })
-      && !toolchain.clangHasIndexSupport {
-      fputs("warning: skipping test because '\(toolchain.clang.path)' does not have indexstore " +
-        "support; use swift-clang\n", stderr)
+      && !toolchain.clangHasIndexSupport
+    {
+      fputs(
+        "warning: skipping test because '\(toolchain.clang.path)' does not have indexstore "
+          + "support; use swift-clang\n",
+        stderr
+      )
       return nil
     }
 
@@ -294,21 +309,21 @@ extension XCTestCase {
   /// The bundle of the currently executing test.
   public static var testBundle: Bundle = {
     #if os(macOS)
-      if let bundle =  Bundle.allBundles.first(where: { $0.bundlePath.hasSuffix(".xctest") }) {
-        return bundle
-      }
-      fatalError("couldn't find the test bundle")
+    if let bundle = Bundle.allBundles.first(where: { $0.bundlePath.hasSuffix(".xctest") }) {
+      return bundle
+    }
+    fatalError("couldn't find the test bundle")
     #else
-      return Bundle.main
+    return Bundle.main
     #endif
   }()
 
   /// The path to the built products directory.
   public static let productsDirectory: URL = {
     #if os(macOS)
-      return testBundle.bundleURL.deletingLastPathComponent()
+    return testBundle.bundleURL.deletingLastPathComponent()
     #else
-      return testBundle.bundleURL
+    return testBundle.bundleURL
     #endif
   }()
 
@@ -342,7 +357,7 @@ extension XCTestCase {
     }
 
     let className = name.dropFirst(2).prefix(while: { $0 != " " })
-    let methodName = name[className.endIndex...].dropFirst().prefix(while: { $0 != "]"})
+    let methodName = name[className.endIndex...].dropFirst().prefix(while: { $0 != "]" })
     return "\(className).\(methodName)"
   }
 }

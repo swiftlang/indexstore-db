@@ -10,8 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_implementationOnly
-import IndexStoreDB_CIndexStoreDB
+@_implementationOnly import IndexStoreDB_CIndexStoreDB
 
 public enum IndexSymbolKind: Hashable, Sendable {
   case unknown
@@ -76,7 +75,7 @@ public struct Symbol: Hashable, Sendable {
 }
 
 extension Symbol: Comparable {
-  public static func <(a: Symbol, b: Symbol) -> Bool {
+  public static func < (a: Symbol, b: Symbol) -> Bool {
     return (a.usr, a.name) < (b.usr, b.name)
   }
 }
@@ -110,7 +109,11 @@ extension Symbol {
   }
 
   /// Returns a SymbolOccurrence with the given location and roles.
-  public func at(_ location: SymbolLocation, symbolProvider: SymbolProviderKind, roles: SymbolRole) -> SymbolOccurrence {
+  public func at(
+    _ location: SymbolLocation,
+    symbolProvider: SymbolProviderKind,
+    roles: SymbolRole
+  ) -> SymbolOccurrence {
     return SymbolOccurrence(symbol: self, location: location, roles: roles, symbolProvider: symbolProvider)
   }
 }

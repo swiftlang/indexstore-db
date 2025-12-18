@@ -21,4 +21,3 @@ package let defaultSDKPath: String? = {
   return ProcessInfo.processInfo.environment["SDKROOT"]
   #endif
 }()
-

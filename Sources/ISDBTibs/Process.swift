@@ -53,9 +53,11 @@ extension Process {
 
     if p.terminationReason != .exit || p.terminationStatus != 0 {
       throw TibsProcessError.nonZeroExit(
-        p.terminationReason, p.terminationStatus,
+        p.terminationReason,
+        p.terminationStatus,
         stdout: String(data: dataOut, encoding: .utf8),
-        stderr: String(data: dataErr, encoding: .utf8))
+        stderr: String(data: dataErr, encoding: .utf8)
+      )
     }
 
     guard let str = String(data: dataOut, encoding: .utf8) else {
