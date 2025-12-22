@@ -24,7 +24,7 @@ public struct IndexStoreStringRef: ~Escapable, Sendable {
   /// It would be nice if this was a `Span<UInt8>` but indexstore-db talks in terms of `Span<CChar>` (aka. `Span<Int8>`)
   /// and converting between different spans of different element types is not possible.
   /// https://github.com/swiftlang/swift/issues/85763
-  private let span: RawSpan
+  public let span: RawSpan
 
   @_lifetime(borrow span)
   public init(_ span: RawSpan) {
