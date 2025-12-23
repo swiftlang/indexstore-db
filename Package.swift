@@ -12,13 +12,18 @@ func hasEnvironmentVariable(_ name: String) -> Bool {
 var useLocalDependencies: Bool { hasEnvironmentVariable("SWIFTCI_USE_LOCAL_DEPS") }
 
 var dependencies: [Package.Dependency] {
+  // Common dependency for the command line tool
+  let argumentParser: Package.Dependency = .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0")
+  
   if useLocalDependencies {
     return [
       .package(path: "../swift-lmdb"),
+      argumentParser,
     ]
   } else {
     return [
       .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main"),
+      argumentParser,
     ]
   }
 }
@@ -42,7 +47,6 @@ let package = Package(
     .library(
       name: "IndexStore",
       targets: ["IndexStore"]),
-    // --- ADDED: The Executable Product ---
     .executable(
       name: "index-dump",
       targets: ["index-dump"]),
@@ -88,7 +92,6 @@ let package = Package(
 
     // MARK: Swift Test Infrastructure
 
-    // The Test Index Build System (tibs) library.
     .target(
       name: "ISDBTibs",
       dependencies: []),
@@ -97,12 +100,10 @@ let package = Package(
       name: "ISDBTibsTests",
       dependencies: ["ISDBTibs", "ISDBTestSupport"]),
 
-    // Commandline tool for working with tibs projects.
     .executableTarget(
       name: "tibs",
       dependencies: ["ISDBTibs"]),
 
-    // Test support library, built on top of tibs.
     .target(
       name: "ISDBTestSupport",
       dependencies: ["IndexStoreDB", "ISDBTibs", "tibs"],
@@ -115,7 +116,6 @@ let package = Package(
 
     // MARK: C++ interface
 
-    // Primary C++ interface.
     .target(
       name: "IndexStoreDB_Index",
       dependencies: ["IndexStoreDB_Database"],
@@ -124,13 +124,11 @@ let package = Package(
         "indexstore_functions.def",
       ]),
 
-    // C wrapper for IndexStoreDB_Index.
     .target(
       name: "IndexStoreDB_CIndexStoreDB",
       dependencies: ["IndexStoreDB_Index"],
       exclude: ["CMakeLists.txt"]),
 
-    // The lmdb database layer.
     .target(
       name: "IndexStoreDB_Database",
       dependencies: [
@@ -141,26 +139,22 @@ let package = Package(
         "CMakeLists.txt",
       ]),
 
-    // Core index types.
     .target(
       name: "IndexStoreDB_Core",
       dependencies: ["IndexStoreDB_Support"],
       exclude: ["CMakeLists.txt"]),
 
-    // Support code that is generally useful to the C++ implementation.
     .target(
       name: "IndexStoreDB_Support",
       dependencies: ["IndexStoreDB_LLVMSupport"],
       exclude: ["CMakeLists.txt"]),
 
-    // Copy of a subset of llvm's ADT and Support libraries.
     .target(
       name: "IndexStoreDB_LLVMSupport",
       dependencies: [],
       exclude: [
         "LICENSE.TXT",
         "CMakeLists.txt",
-        // *.inc, *.def
         "include/IndexStoreDB_LLVMSupport/llvm_Support_AArch64TargetParser.def",
         "include/IndexStoreDB_LLVMSupport/llvm_Support_ARMTargetParser.def",
         "include/IndexStoreDB_LLVMSupport/llvm_Support_X86TargetParser.def",
@@ -186,10 +180,20 @@ let package = Package(
       
     // MARK: Command Line Tools
     
-    // --- ADDED: The index-dump tool target ---
     .executableTarget(
       name: "index-dump",
-      dependencies: ["IndexStore"]
+      dependencies: [
+        "IndexStore",
+        .product(name: "ArgumentParser", package: "swift-argument-parser"),
+      ],
+      swiftSettings: [
+        .enableUpcomingFeature("ExistentialAny"),
+        .enableUpcomingFeature("InternalImportsByDefault"),
+        .enableUpcomingFeature("MemberImportVisibility"),
+        .enableUpcomingFeature("InferIsolatedConformances"),
+        .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+        .swiftLanguageMode(.v6)
+      ]
     ),
   ],
   swiftLanguageModes: [.v5],
