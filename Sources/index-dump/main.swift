@@ -1,77 +1,82 @@
 import Foundation
 import IndexStore
+import ArgumentParser
 
-func main() async {
-    func printUsage() {
-        print("""
-        Usage: index-dump <path-to-libIndexStore> <path-to-index-store> <mode> <name>
-        
-        Modes:
-          unit   Dump a Unit file
-          record Dump a Record file
-        """)
+@main
+struct IndexDump: AsyncParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "Dumps the content of unit or record files from an IndexStore."
+    )
+
+    @Argument(help: "Path to the libIndexStore dylib/so file")
+    var libPath: String
+
+    @Argument(help: "Path to the index store directory")
+    var storePath: String
+
+    @Argument(help: "Name of the unit/record or a direct path to the file")
+    var nameOrPath: String
+
+    @Option(help: "Explicitly set mode (unit/record). Inferred from path if omitted.")
+    var mode: Mode?
+
+    enum Mode: String, ExpressibleByArgument {
+        case unit, record
     }
 
-    guard CommandLine.arguments.count == 5 else {
-        printUsage()
-        exit(1)
-    }
-
-    let libPath = CommandLine.arguments[1]
-    let storePath = CommandLine.arguments[2]
-    let mode = CommandLine.arguments[3]
-    let name = CommandLine.arguments[4]
-
-    do {
+    func run() async throws {
         let libURL = URL(fileURLWithPath: libPath)
         let lib = try await IndexStoreLibrary.at(dylibPath: libURL)
-        let storeURL = URL(fileURLWithPath: storePath)
-        let store = try lib.indexStore(at: storeURL)
+        let store = try lib.indexStore(at: URL(fileURLWithPath: storePath))
 
-        if mode == "unit" {
-            let unit = try store.unit(named: name)
-            
-            print("Unit Name: \(name)")
-            print("Module: \(unit.moduleName.string)")
-            print("Main File: \(unit.mainFile.string)")
-            print("Output File: \(unit.outputFile.string)")
-
-            print("DEPEND START")
-            unit.dependencies.forEach { dep in
-                let kindStr: String
-                switch dep.kind {
-                case .unit: kindStr = "Unit"
-                case .record: kindStr = "Record"
-                case .file: kindStr = "File"
-                default: kindStr = "Unknown(\(dep.kind))"
-                }
-                
-                print("\(kindStr) | \(dep.name.string)")
-                return .continue
-            }
-            print("DEPEND END")
-            
-        } else if mode == "record" {
-            let record = try store.record(named: name)
-            print("Record: \(name)")
-            print("SYMBOLS START")
-            
-            record.occurrences.forEach { occurrence in
-                let symbol = occurrence.symbol
-                print("\(symbol.kind) | \(symbol.name.string)")
-                return .continue
-            }
-            print("SYMBOLS END")
-            
+        // Determine mode: explicit flag > path search > default to unit
+        let determinedMode: Mode
+        if let explicitMode = mode {
+            determinedMode = explicitMode
+        } else if nameOrPath.contains("/units/") {
+            determinedMode = .unit
+        } else if nameOrPath.contains("/records/") {
+            determinedMode = .record
         } else {
-            print("Unknown mode: \(mode)")
-            exit(1)
+            determinedMode = .unit 
         }
 
-    } catch {
-        print("Failed: \(error)")
-        exit(1)
+        let cleanName = URL(fileURLWithPath: nameOrPath).lastPathComponent
+        var output = ""
+
+        if determinedMode == .unit {
+            let unit = try store.unit(named: cleanName)
+            output += "Unit Name: \(cleanName)\n"
+            output += "Module: \(unit.moduleName.string)\n"
+            output += "Main File: \(unit.mainFile.string)\n"
+            output += "Output File: \(unit.outputFile.string)\n"
+            
+            output += "DEPEND START\n"
+            unit.dependencies.forEach { dep in
+                let kind: String
+                switch dep.kind {
+                case .unit: kind = "Unit"
+                case .record: kind = "Record"
+                case .file: kind = "File"
+                default: kind = "Unknown(\(dep.kind))"
+                }
+                output += "\(kind) | \(dep.name.string)\n"
+                return .continue
+            }
+            output += "DEPEND END\n"
+
+        } else {
+            let record = try store.record(named: cleanName)
+            output += "Record: \(cleanName)\n"
+            output += "SYMBOLS START\n"
+            record.occurrences.forEach { occ in
+                let sym = occ.symbol
+                output += "\(sym.kind) | \(sym.name.string)\n"
+                return .continue
+            }
+            output += "SYMBOLS END\n"
+        }
+
+        print(output)
     }
 }
-
-await main()
