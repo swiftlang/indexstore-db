@@ -40,7 +40,7 @@ public struct TestLocation: Hashable {
 }
 
 extension TestLocation: Comparable {
-  public static func <(a: TestLocation, b: TestLocation) -> Bool {
+  public static func < (a: TestLocation, b: TestLocation) -> Bool {
     return (a.url.path, a.line, a.utf8Column) < (b.url.path, b.line, b.utf8Column)
   }
 }
@@ -55,14 +55,20 @@ extension SymbolLocation {
       moduleName: moduleName,
       isSystem: isSystem,
       line: loc.line,
-      utf8Column: loc.utf8Column)
+      utf8Column: loc.utf8Column
+    )
   }
 }
 
 extension Symbol {
 
   /// Returns a SymbolOccurrence with the given location and roles.
-  public func at(_ location: TestLocation, moduleName: String = TestLocation.unknownModuleName, roles: SymbolRole, symbolProvider: SymbolProviderKind) -> SymbolOccurrence {
+  public func at(
+    _ location: TestLocation,
+    moduleName: String = TestLocation.unknownModuleName,
+    roles: SymbolRole,
+    symbolProvider: SymbolProviderKind
+  ) -> SymbolOccurrence {
     return self.at(SymbolLocation(location, moduleName: moduleName), symbolProvider: symbolProvider, roles: roles)
   }
 }

@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_implementationOnly
-import IndexStoreDB_CIndexStoreDB
 import Foundation
+
+@_implementationOnly import IndexStoreDB_CIndexStoreDB
 
 // For `strdup`
 #if canImport(Glibc)
@@ -58,7 +58,7 @@ public enum SymbolProviderKind: Sendable {
 public final class IndexStoreDB {
 
   let delegate: IndexDelegate?
-  let impl: UnsafeMutableRawPointer // indexstoredb_index_t
+  let impl: UnsafeMutableRawPointer  // indexstoredb_index_t
 
   /// Create or open an IndexStoreDB at the given `databasePath`.
   ///
@@ -90,11 +90,12 @@ public final class IndexStoreDB {
   ) throws {
     self.delegate = delegate
 
-    let libProviderFunc: indexstore_library_provider_t = { (cpath: UnsafePointer<Int8>) -> indexstoredb_indexstore_library_t? in
+    let libProviderFunc: indexstore_library_provider_t = {
+      (cpath: UnsafePointer<Int8>) -> indexstoredb_indexstore_library_t? in
       return library?.library
     }
 
-    let delegateFunc = { [weak delegate] (event: indexstoredb_delegate_event_t) -> () in
+    let delegateFunc = { [weak delegate] (event: indexstoredb_delegate_event_t) -> Void in
       delegate?.handleEvent(event)
     }
     let options = indexstoredb_creation_options_create()
@@ -113,11 +114,16 @@ public final class IndexStoreDB {
     }
 
     var error: indexstoredb_error_t? = nil
-    guard let index = indexstoredb_index_create(
-      storePath, databasePath,
-      libProviderFunc, delegateFunc,
-      options, &error
-    ) else {
+    guard
+      let index = indexstoredb_index_create(
+        storePath,
+        databasePath,
+        libProviderFunc,
+        delegateFunc,
+        options,
+        &error
+      )
+    else {
       defer { indexstoredb_error_dispose(error) }
       throw IndexStoreDBError.create(error?.description ?? "unknown")
     }
@@ -131,9 +137,9 @@ public final class IndexStoreDB {
   ///   * cIndex: An existing `indexstoredb_index_t` object.
   ///   * delegate: The delegate to receive index events.
   public init(
-    cIndex: UnsafeMutableRawPointer/*indexstoredb_index_t*/,
-    delegate: IndexDelegate? = nil)
-  {
+    cIndex: UnsafeMutableRawPointer /*indexstoredb_index_t*/,
+    delegate: IndexDelegate? = nil
+  ) {
     self.delegate = delegate
     self.impl = cIndex
 
@@ -183,7 +189,11 @@ public final class IndexStoreDB {
   /// Stop iteration if `body` returns `false`.
   /// - Returns: `false` if iteration was terminated by `body` returning `true` or `true` if iteration finished.
   @discardableResult
-  public func forEachSymbolOccurrence(byUSR usr: String, roles: SymbolRole, _ body: (SymbolOccurrence) -> Bool) -> Bool {
+  public func forEachSymbolOccurrence(
+    byUSR usr: String,
+    roles: SymbolRole,
+    _ body: (SymbolOccurrence) -> Bool
+  ) -> Bool {
     return withoutActuallyEscaping(body) { body in
       return indexstoredb_index_symbol_occurrences_by_usr(impl, usr, roles.rawValue) { occur in
         return body(SymbolOccurrence(occur))
@@ -202,7 +212,11 @@ public final class IndexStoreDB {
   }
 
   @discardableResult
-  public func forEachRelatedSymbolOccurrence(byUSR usr: String, roles: SymbolRole, _ body: (SymbolOccurrence) -> Bool) -> Bool {
+  public func forEachRelatedSymbolOccurrence(
+    byUSR usr: String,
+    roles: SymbolRole,
+    _ body: (SymbolOccurrence) -> Bool
+  ) -> Bool {
     return withoutActuallyEscaping(body) { body in
       return indexstoredb_index_related_symbol_occurrences_by_usr(impl, usr, roles.rawValue) {
         occur in
@@ -220,7 +234,10 @@ public final class IndexStoreDB {
     return result
   }
 
-  @discardableResult public func forEachCanonicalSymbolOccurrence(byName: String, body: (SymbolOccurrence) -> Bool) -> Bool {
+  @discardableResult public func forEachCanonicalSymbolOccurrence(
+    byName: String,
+    body: (SymbolOccurrence) -> Bool
+  ) -> Bool {
     return withoutActuallyEscaping(body) { body in
       return indexstoredb_index_canonical_symbol_occurences_by_name(impl, byName) { occur in
         return body(SymbolOccurrence(occur))
@@ -272,8 +289,8 @@ public final class IndexStoreDB {
       anchorStart: anchorStart,
       anchorEnd: anchorEnd,
       subsequence: subsequence,
-      ignoreCase: ignoreCase)
-    { occur in
+      ignoreCase: ignoreCase
+    ) { occur in
       result.append(occur)
       return true
     }
@@ -282,7 +299,9 @@ public final class IndexStoreDB {
 
   @discardableResult
   public func forEachMainFileContainingFile(
-    path: String, crossLanguage: Bool, body: (String) -> Bool
+    path: String,
+    crossLanguage: Bool,
+    body: (String) -> Bool
   ) -> Bool {
     let fromSwift = path.hasSuffix(".swift")
     return withoutActuallyEscaping(body) { body in
@@ -338,8 +357,8 @@ public final class IndexStoreDB {
   public func filesIncludedByFile(path: String) -> [String] {
     var result: [String] = []
     foreachFileIncludedByFile(path: path) { targetPath in
-        result.append(targetPath)
-        return true
+      result.append(targetPath)
+      return true
     }
     return result
   }
@@ -357,11 +376,11 @@ public final class IndexStoreDB {
   public func filesIncludingFile(path: String) -> [String] {
     var result: [String] = []
     foreachFileIncludingFile(path: path) { targetPath in
-        result.append(targetPath)
-        return true
-      }
-      return result
+      result.append(targetPath)
+      return true
     }
+    return result
+  }
 
   /// A recorded header `#include` from a unit file.
   public struct UnitIncludeEntry: Equatable {
@@ -387,7 +406,8 @@ public final class IndexStoreDB {
         let sourcePathStr = String(cString: sourcePath)
         let targetPathStr = String(cString: targetPath)
         return body(
-          UnitIncludeEntry(sourcePath: sourcePathStr, targetPath: targetPathStr, line: line))
+          UnitIncludeEntry(sourcePath: sourcePathStr, targetPath: targetPathStr, line: line)
+        )
       }
     }
   }
@@ -515,7 +535,7 @@ public protocol IndexStoreLibraryProvider {
 }
 
 public class IndexStoreLibrary {
-  let library: UnsafeMutableRawPointer // indexstoredb_indexstore_library_t
+  let library: UnsafeMutableRawPointer  // indexstoredb_indexstore_library_t
 
   public var version: Version {
     return Version(encoded: Int(indexstoredb_store_version(library)))

@@ -10,8 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_implementationOnly
-import IndexStoreDB_CIndexStoreDB
+@_implementationOnly import IndexStoreDB_CIndexStoreDB
 
 public struct SymbolRole: OptionSet, Hashable, Sendable {
 
@@ -56,7 +55,7 @@ public struct SymbolRole: OptionSet, Hashable, Sendable {
 }
 
 extension SymbolRole: Comparable {
-  public static func <(a: SymbolRole, b: SymbolRole) -> Bool {
+  public static func < (a: SymbolRole, b: SymbolRole) -> Bool {
     return a.rawValue < b.rawValue
   }
 }

@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_implementationOnly
-import IndexStoreDB_CIndexStoreDB
 import Foundation
+
+@_implementationOnly import IndexStoreDB_CIndexStoreDB
 
 public struct SymbolLocation: Equatable, Sendable {
   public var path: String
@@ -34,7 +34,7 @@ public struct SymbolLocation: Equatable, Sendable {
 }
 
 extension SymbolLocation: Comparable {
-  public static func <(a: SymbolLocation, b: SymbolLocation) -> Bool {
+  public static func < (a: SymbolLocation, b: SymbolLocation) -> Bool {
     return (a.path, a.moduleName, a.line, a.utf8Column, a.isSystem ? 1 : 0)
       < (b.path, a.moduleName, b.line, b.utf8Column, b.isSystem ? 1 : 0)
   }

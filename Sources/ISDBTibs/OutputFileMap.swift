@@ -23,7 +23,12 @@ public struct OutputFileMap {
     public var swiftdoc: String?
     public var dependencies: String?
 
-    public init(object: String? = nil, swiftmodule: String? = nil, swiftdoc: String? = nil, dependencies: String? = nil) {
+    public init(
+      object: String? = nil,
+      swiftmodule: String? = nil,
+      swiftdoc: String? = nil,
+      dependencies: String? = nil
+    ) {
       self.object = object
       self.swiftmodule = swiftmodule
       self.swiftdoc = swiftdoc
@@ -85,7 +90,7 @@ extension OutputFileMap: Codable {
 }
 
 extension OutputFileMap: Equatable {
-  public static func ==(a: OutputFileMap, b: OutputFileMap) -> Bool {
+  public static func == (a: OutputFileMap, b: OutputFileMap) -> Bool {
     return a.order == b.order && a.values.elementsEqual(b.values)
   }
 }

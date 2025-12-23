@@ -14,11 +14,11 @@ var useLocalDependencies: Bool { hasEnvironmentVariable("SWIFTCI_USE_LOCAL_DEPS"
 var dependencies: [Package.Dependency] {
   if useLocalDependencies {
     return [
-      .package(path: "../swift-lmdb"),
+      .package(path: "../swift-lmdb")
     ]
   } else {
     return [
-      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main"),
+      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main")
     ]
   }
 }
@@ -29,19 +29,24 @@ let package = Package(
   products: [
     .library(
       name: "IndexStoreDB",
-      targets: ["IndexStoreDB"]),
+      targets: ["IndexStoreDB"]
+    ),
     .library(
       name: "IndexStoreDB_CXX",
-      targets: ["IndexStoreDB_Index"]),
+      targets: ["IndexStoreDB_Index"]
+    ),
     .library(
       name: "ISDBTestSupport",
-      targets: ["ISDBTestSupport"]),
+      targets: ["ISDBTestSupport"]
+    ),
     .executable(
       name: "tibs",
-      targets: ["tibs"]),
+      targets: ["tibs"]
+    ),
     .library(
       name: "IndexStore",
-      targets: ["IndexStore"]),
+      targets: ["IndexStore"]
+    ),
   ],
   dependencies: dependencies,
   targets: [
@@ -57,7 +62,7 @@ let package = Package(
         .enableUpcomingFeature("InferIsolatedConformances"),
         .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
         .enableExperimentalFeature("Lifetimes"),
-        .swiftLanguageMode(.v6)
+        .swiftLanguageMode(.v6),
       ]
     ),
 
@@ -74,7 +79,8 @@ let package = Package(
     .target(
       name: "IndexStoreDB",
       dependencies: ["IndexStoreDB_CIndexStoreDB"],
-      exclude: ["CMakeLists.txt"]),
+      exclude: ["CMakeLists.txt"]
+    ),
 
     .testTarget(
       name: "IndexStoreDBTests",
@@ -87,16 +93,19 @@ let package = Package(
     // The Test Index Build System (tibs) library.
     .target(
       name: "ISDBTibs",
-      dependencies: []),
+      dependencies: []
+    ),
 
     .testTarget(
       name: "ISDBTibsTests",
-      dependencies: ["ISDBTibs", "ISDBTestSupport"]),
+      dependencies: ["ISDBTibs", "ISDBTestSupport"]
+    ),
 
     // Commandline tool for working with tibs projects.
     .executableTarget(
       name: "tibs",
-      dependencies: ["ISDBTibs"]),
+      dependencies: ["ISDBTibs"]
+    ),
 
     // Test support library, built on top of tibs.
     .target(
@@ -107,7 +116,8 @@ let package = Package(
       ],
       linkerSettings: [
         .linkedFramework("XCTest", .when(platforms: [.iOS, .macOS, .tvOS, .watchOS]))
-      ]),
+      ]
+    ),
 
     // MARK: C++ interface
 
@@ -118,13 +128,15 @@ let package = Package(
       exclude: [
         "CMakeLists.txt",
         "indexstore_functions.def",
-      ]),
+      ]
+    ),
 
     // C wrapper for IndexStoreDB_Index.
     .target(
       name: "IndexStoreDB_CIndexStoreDB",
       dependencies: ["IndexStoreDB_Index"],
-      exclude: ["CMakeLists.txt"]),
+      exclude: ["CMakeLists.txt"]
+    ),
 
     // The lmdb database layer.
     .target(
@@ -134,20 +146,23 @@ let package = Package(
         .product(name: "CLMDB", package: "swift-lmdb"),
       ],
       exclude: [
-        "CMakeLists.txt",
-      ]),
+        "CMakeLists.txt"
+      ]
+    ),
 
     // Core index types.
     .target(
       name: "IndexStoreDB_Core",
       dependencies: ["IndexStoreDB_Support"],
-      exclude: ["CMakeLists.txt"]),
+      exclude: ["CMakeLists.txt"]
+    ),
 
     // Support code that is generally useful to the C++ implementation.
     .target(
       name: "IndexStoreDB_Support",
       dependencies: ["IndexStoreDB_LLVMSupport"],
-      exclude: ["CMakeLists.txt"]),
+      exclude: ["CMakeLists.txt"]
+    ),
 
     // Copy of a subset of llvm's ADT and Support libraries.
     .target(
@@ -178,7 +193,8 @@ let package = Package(
         "Windows/Signals.inc",
         "Windows/Threading.inc",
         "Windows/Watchdog.inc",
-      ]),
+      ]
+    ),
   ],
   swiftLanguageModes: [.v5],
   cxxLanguageStandard: .cxx17

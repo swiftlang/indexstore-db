@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import ISDBTibs
 import Foundation
+import ISDBTibs
 
 extension FileHandle: TextOutputStream {
   public func write(_ string: String) {
@@ -71,7 +71,8 @@ func main(arguments: [String]) {
   let toolchain = TibsToolchain(
     swiftc: URL(fileURLWithPath: "/usr/bin/swiftc"),
     clang: URL(fileURLWithPath: "/usr/bin/clang"),
-    tibs: Bundle.main.bundleURL.appendingPathComponent("tibs", isDirectory: false))
+    tibs: Bundle.main.bundleURL.appendingPathComponent("tibs", isDirectory: false)
+  )
 
   let builder: TibsBuilder
   do {

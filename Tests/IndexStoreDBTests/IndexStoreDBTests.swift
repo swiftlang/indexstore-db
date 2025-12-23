@@ -10,10 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-import IndexStoreDB
-import ISDBTibs
-import XCTest
 import Foundation
+import ISDBTibs
+import IndexStoreDB
+import XCTest
 
 let isTSanEnabled: Bool = {
   if let value = ProcessInfo.processInfo.environment["INDEXSTOREDB_ENABLED_THREAD_SANITIZER"] {
@@ -22,7 +22,12 @@ let isTSanEnabled: Bool = {
   return false
 }()
 
-func checkThrows(_ expected: IndexStoreDBError, file: StaticString = #file, line: UInt = #line, _ body: () throws -> ()) {
+func checkThrows(
+  _ expected: IndexStoreDBError,
+  file: StaticString = #file,
+  line: UInt = #line,
+  _ body: () throws -> Void
+) {
   do {
     try body()
     XCTFail("missing expected error \(expected)", file: file, line: line)
@@ -71,11 +76,21 @@ final class IndexStoreDBTests: XCTestCase {
 
     // Readonly - do not create.
     checkThrows(.create("failed opening database")) {
-      _ = try IndexStoreDB(storePath: tmp + "/store", databasePath: tmp + "/db-readonly", library: libIndexStore, readonly: true)
+      _ = try IndexStoreDB(
+        storePath: tmp + "/store",
+        databasePath: tmp + "/db-readonly",
+        library: libIndexStore,
+        readonly: true
+      )
     }
     // Readonly - do not create.
     checkThrows(.create("index store path does not exist")) {
-      _ = try IndexStoreDB(storePath: tmp + "/store-readonly", databasePath: tmp + "/db", library: libIndexStore, readonly: true)
+      _ = try IndexStoreDB(
+        storePath: tmp + "/store-readonly",
+        databasePath: tmp + "/db",
+        library: libIndexStore,
+        readonly: true
+      )
     }
   }
 
@@ -97,7 +112,7 @@ final class IndexStoreDBTests: XCTestCase {
       // Don't care about specific index data, just want an index store directory containing *something*.
       guard let ws = try staticTibsTestWorkspace(name: "SingleUnit") else { return }
       try ws.buildAndIndex()
-      indexStorePath =  ws.builder.indexstore.path
+      indexStorePath = ws.builder.indexstore.path
     }
 
     let fileMgr = FileManager.default
@@ -111,7 +126,12 @@ final class IndexStoreDBTests: XCTestCase {
     for _ in 0..<iterations {
       DispatchQueue.concurrentPerform(iterations: 2) { idx in
         let dbPath = idx == 0 ? symlinkDBPath1 : symlinkDBPath2
-        _ = try! IndexStoreDB(storePath: indexStorePath, databasePath: dbPath, library: libIndexStore, waitUntilDoneInitializing: true)
+        _ = try! IndexStoreDB(
+          storePath: indexStorePath,
+          databasePath: dbPath,
+          library: libIndexStore,
+          waitUntilDoneInitializing: true
+        )
       }
     }
   }

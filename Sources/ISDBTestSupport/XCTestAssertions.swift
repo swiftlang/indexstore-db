@@ -21,21 +21,18 @@ extension SymbolLocation {
     // the module name string in every symbol occurrence test.
     // Instead we ignore the module name if this `SymbolLocation` was initialized from
     // a test location without an explicit module name.
-    return path == other.path &&
-      (moduleName == TestLocation.unknownModuleName || other.moduleName == TestLocation.unknownModuleName || moduleName == other.moduleName) &&
-      isSystem == other.isSystem &&
-      line == other.line &&
-      utf8Column == other.utf8Column
+    return path == other.path
+      && (moduleName == TestLocation.unknownModuleName || other.moduleName == TestLocation.unknownModuleName
+        || moduleName == other.moduleName)
+      && isSystem == other.isSystem && line == other.line && utf8Column == other.utf8Column
   }
 }
 
 extension SymbolOccurrence {
   /// Special equality check for testing.
   func testEqual(with other: SymbolOccurrence) -> Bool {
-    return symbol == other.symbol &&
-      location.testEqual(with: other.location) &&
-      roles == other.roles &&
-      relations == other.relations
+    return symbol == other.symbol && location.testEqual(with: other.location) && roles == other.roles
+      && relations == other.relations
   }
 }
 
@@ -57,8 +54,8 @@ public func checkOccurrences(
   allowAdditionalRoles: Bool = true,
   expected: [SymbolOccurrence],
   file: StaticString = #file,
-  line: UInt = #line)
-{
+  line: UInt = #line
+) {
   var expected: [SymbolOccurrence] = expected
   var actual: [SymbolOccurrence] = actual
 

@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import ISDBTibs
 import Foundation
+import ISDBTibs
 import XCTest
 
 final class TibsCompilationDatabaseTests: XCTestCase {
@@ -19,7 +19,8 @@ final class TibsCompilationDatabaseTests: XCTestCase {
     swiftc: URL(fileURLWithPath: "/swiftc"),
     clang: URL(fileURLWithPath: "/clang"),
     tibs: URL(fileURLWithPath: "/tibs"),
-    ninja: URL(fileURLWithPath: "/ninja"))
+    ninja: URL(fileURLWithPath: "/ninja")
+  )
 
   typealias Command = JSONCompilationDatabase.Command
 
@@ -48,8 +49,9 @@ final class TibsCompilationDatabaseTests: XCTestCase {
           "-module-cache-path", "ModuleCache",
           "-c",
         ] + sdkargs + [
-          "-working-directory", "/build"
-        ]),
+          "-working-directory", "/build",
+        ]
+      ),
       Command(
         directory: "/build",
         file: "/src/b.swift",
@@ -65,8 +67,9 @@ final class TibsCompilationDatabaseTests: XCTestCase {
           "-module-cache-path", "ModuleCache",
           "-c",
         ] + sdkargs + [
-          "-working-directory", "/build"
-        ]),
+          "-working-directory", "/build",
+        ]
+      ),
       Command(
         directory: "/build",
         file: "/src/c.swift",
@@ -81,8 +84,9 @@ final class TibsCompilationDatabaseTests: XCTestCase {
           "-module-cache-path", "ModuleCache",
           "-c",
         ] + sdkargs + [
-          "-working-directory", "/build"
-        ]),
+          "-working-directory", "/build",
+        ]
+      ),
     ])
 
     XCTAssertEqual(builder.compilationDatabase, expected)
@@ -98,31 +102,33 @@ final class TibsCompilationDatabaseTests: XCTestCase {
 
     let sdkargs = TibsBuilder.defaultSDKPath.map { ["-sdk", $0] } ?? []
 
-    let swiftArgs = [
-      "/swiftc", "/src/a.swift", "/src/b.swift",
-      "-module-name", "main",
-      "-index-store-path", "/build/index", "-index-ignore-system-modules",
-      "-output-file-map", "main-output-file-map.json",
-      "-emit-module", "-emit-module-path",
-      "main.swiftmodule", "-emit-dependencies",
-      "-pch-output-dir", "pch",
-      "-module-cache-path", "ModuleCache",
-      "-c",
-      "-emit-objc-header", "-emit-objc-header-path", "main-Swift.h",
-      "-import-objc-header", "/src/bridging-header.h",
-    ] + sdkargs + [
-      "-Xcc", "-Wno-objc-root-class",
-      "-working-directory", "/build"
-    ]
+    let swiftArgs =
+      [
+        "/swiftc", "/src/a.swift", "/src/b.swift",
+        "-module-name", "main",
+        "-index-store-path", "/build/index", "-index-ignore-system-modules",
+        "-output-file-map", "main-output-file-map.json",
+        "-emit-module", "-emit-module-path",
+        "main.swiftmodule", "-emit-dependencies",
+        "-pch-output-dir", "pch",
+        "-module-cache-path", "ModuleCache",
+        "-c",
+        "-emit-objc-header", "-emit-objc-header-path", "main-Swift.h",
+        "-import-objc-header", "/src/bridging-header.h",
+      ] + sdkargs + [
+        "-Xcc", "-Wno-objc-root-class",
+        "-working-directory", "/build",
+      ]
 
     let clangArgs = { (src: String) -> [String] in
-      return ["/clang", "-fsyntax-only", "/src/\(src)",
+      return [
+        "/clang", "-fsyntax-only", "/src/\(src)",
         "-I", ".", "-I", "/src",
         "-index-store-path", "index", "-index-ignore-system-symbols",
         "-fmodules", "-fmodules-cache-path=ModuleCache",
         "-MMD", "-MF", "main-\(src).o.d",
         "-o", "main-\(src).o",
-        "-Wno-objc-root-class"
+        "-Wno-objc-root-class",
       ]
     }
 

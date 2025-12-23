@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import IndexStoreDB
 import ISDBTestSupport
+import IndexStoreDB
 import XCTest
 
 final class LocationScannerTests: XCTestCase {
@@ -30,8 +30,8 @@ final class LocationScannerTests: XCTestCase {
       _ name: String,
       _ line: Int,
       utf8Column: Int,
-      utf16Column: Int)
-    {
+      utf16Column: Int
+    ) {
       self.url = url
       self.name = name
       self.line = line
@@ -46,13 +46,14 @@ final class LocationScannerTests: XCTestCase {
     init(_ name: String, _ loc: TestLocation) {
       self.init(
         url: loc.url,
-        name, loc.line,
+        name,
+        loc.line,
         utf8Column: loc.utf8Column,
-        utf16Column: loc.utf16Column)
+        utf16Column: loc.utf16Column
+      )
     }
-    static func <(a: Loc, b: Loc) -> Bool {
-      return (a.url.absoluteString, a.line, a.utf8Column, a.name) <
-             (b.url.absoluteString, b.line, b.utf8Column, b.name)
+    static func < (a: Loc, b: Loc) -> Bool {
+      return (a.url.absoluteString, a.line, a.utf8Column, a.name) < (b.url.absoluteString, b.line, b.utf8Column, b.name)
     }
   }
 
@@ -103,53 +104,86 @@ final class LocationScannerTests: XCTestCase {
   func testLocation() throws {
     XCTAssertEqual(try scanString("/*a*/"), [Loc("a", 1, 6)])
     XCTAssertEqual(try scanString("   /*a*/"), [Loc("a", 1, 9)])
-    XCTAssertEqual(try scanString("""
+    XCTAssertEqual(
+      try scanString(
+        """
 
-      /*a*/
-      """), [Loc("a", 2, 6)])
-    XCTAssertEqual(try scanString("""
+        /*a*/
+        """
+      ),
+      [Loc("a", 2, 6)]
+    )
+    XCTAssertEqual(
+      try scanString(
+        """
 
 
-      /*a*/
-      """), [Loc("a", 3, 6)])
-    XCTAssertEqual(try scanString("""
-      a
-      b
-      /*a*/
-      """), [Loc("a", 3, 6)])
-    XCTAssertEqual(try scanString("""
-      a
+        /*a*/
+        """
+      ),
+      [Loc("a", 3, 6)]
+    )
+    XCTAssertEqual(
+      try scanString(
+        """
+        a
+        b
+        /*a*/
+        """
+      ),
+      [Loc("a", 3, 6)]
+    )
+    XCTAssertEqual(
+      try scanString(
+        """
+        a
 
-      b /*a*/
-      """), [Loc("a", 3, 8)])
-    XCTAssertEqual(try scanString("""
+        b /*a*/
+        """
+      ),
+      [Loc("a", 3, 8)]
+    )
+    XCTAssertEqual(
+      try scanString(
+        """
 
-      /*a*/
+        /*a*/
 
-      """), [Loc("a", 2, 6)])
+        """
+      ),
+      [Loc("a", 2, 6)]
+    )
   }
 
   func testMultiple() throws {
-    XCTAssertEqual(try scanString("""
-      func /*f*/f() {
-        /*g:call*/g(/*g:arg1*/1)
-      }/*end*/
-      """), [
+    XCTAssertEqual(
+      try scanString(
+        """
+        func /*f*/f() {
+          /*g:call*/g(/*g:arg1*/1)
+        }/*end*/
+        """
+      ),
+      [
         Loc("f", 1, 11),
         Loc("g:call", 2, 13),
         Loc("g:arg1", 2, 25),
         Loc("end", 3, 9),
-    ])
+      ]
+    )
   }
 
   func testLeft() throws {
     XCTAssertEqual(try scanString("/*a*/"), [Loc("a", 1, 6)])
     XCTAssertEqual(try scanString("/*<a*/"), [Loc("a", 1, 1)])
 
-    XCTAssertEqual(try scanString("/*a*/foo/*<a:end*/"), [
-      Loc("a", 1, 6),
-      Loc("a:end", 1, 9)
-    ])
+    XCTAssertEqual(
+      try scanString("/*a*/foo/*<a:end*/"),
+      [
+        Loc("a", 1, 6),
+        Loc("a:end", 1, 9),
+      ]
+    )
 
     XCTAssertThrowsError(try scanString("/*<a*//*a*/"))
   }
@@ -157,14 +191,17 @@ final class LocationScannerTests: XCTestCase {
   func testDirectory() throws {
     let proj1 = XCTestCase.isdbInputsDirectory
       .appendingPathComponent("proj1", isDirectory: true)
-    XCTAssertEqual(try scanDir(proj1), [
-      Loc(url: proj1.appendingPathComponent("a.swift", isDirectory: false), "a:def", 1, 15),
-      Loc(url: proj1.appendingPathComponent("a.swift", isDirectory: false), "b:call", 2, 13),
-      Loc(url: proj1.appendingPathComponent("a.swift", isDirectory: false), "c:call", 3, 13),
-      Loc(url: proj1.appendingPathComponent("b.swift", isDirectory: false), "b:def", 1, 15),
-      Loc(url: proj1.appendingPathComponent("b.swift", isDirectory: false), "a:call", 2, 13),
-      Loc(url: proj1.appendingPathComponent("rec/c.swift", isDirectory: false), "c", 1, 11),
-    ])
+    XCTAssertEqual(
+      try scanDir(proj1),
+      [
+        Loc(url: proj1.appendingPathComponent("a.swift", isDirectory: false), "a:def", 1, 15),
+        Loc(url: proj1.appendingPathComponent("a.swift", isDirectory: false), "b:call", 2, 13),
+        Loc(url: proj1.appendingPathComponent("a.swift", isDirectory: false), "c:call", 3, 13),
+        Loc(url: proj1.appendingPathComponent("b.swift", isDirectory: false), "b:def", 1, 15),
+        Loc(url: proj1.appendingPathComponent("b.swift", isDirectory: false), "a:call", 2, 13),
+        Loc(url: proj1.appendingPathComponent("rec/c.swift", isDirectory: false), "c", 1, 11),
+      ]
+    )
   }
 
   func testUnicode() throws {
