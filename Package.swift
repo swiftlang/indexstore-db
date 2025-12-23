@@ -42,6 +42,10 @@ let package = Package(
     .library(
       name: "IndexStore",
       targets: ["IndexStore"]),
+    // --- ADDED: The Executable Product ---
+    .executable(
+      name: "index-dump",
+      targets: ["index-dump"]),
   ],
   dependencies: dependencies,
   targets: [
@@ -179,6 +183,14 @@ let package = Package(
         "Windows/Threading.inc",
         "Windows/Watchdog.inc",
       ]),
+      
+    // MARK: Command Line Tools
+    
+    // --- ADDED: The index-dump tool target ---
+    .executableTarget(
+      name: "index-dump",
+      dependencies: ["IndexStore"]
+    ),
   ],
   swiftLanguageModes: [.v5],
   cxxLanguageStandard: .cxx17
