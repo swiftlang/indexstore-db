@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import IndexStoreDB
 import Dispatch
+import IndexStoreDB
 
 /// A wrapper that forwards to another delegate that can be mutated at runtime.
 final class ForwardingIndexDelegate: IndexDelegate {

@@ -10,21 +10,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_implementationOnly
-import IndexStoreDB_CIndexStoreDB
+@_implementationOnly import IndexStoreDB_CIndexStoreDB
 
 public struct SymbolProperty: OptionSet, Hashable, Sendable {
   public var rawValue: UInt64
 
   public static let generic: SymbolProperty = SymbolProperty(rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_GENERIC)
-  public static let templatePartialSpecialization: SymbolProperty = SymbolProperty(rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_TEMPLATE_PARTIAL_SPECIALIZATION)
-  public static let templateSpecialization: SymbolProperty = SymbolProperty(rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_TEMPLATE_SPECIALIZATION)
+  public static let templatePartialSpecialization: SymbolProperty = SymbolProperty(
+    rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_TEMPLATE_PARTIAL_SPECIALIZATION
+  )
+  public static let templateSpecialization: SymbolProperty = SymbolProperty(
+    rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_TEMPLATE_SPECIALIZATION
+  )
   public static let unitTest: SymbolProperty = SymbolProperty(rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_UNITTEST)
   public static let ibAnnotated: SymbolProperty = SymbolProperty(rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_IBANNOTATED)
-  public static let ibOutletCollection: SymbolProperty = SymbolProperty(rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_IBOUTLETCOLLECTION)
+  public static let ibOutletCollection: SymbolProperty = SymbolProperty(
+    rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_IBOUTLETCOLLECTION
+  )
   public static let gkInspectable: SymbolProperty = SymbolProperty(rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_GKINSPECTABLE)
   public static let local: SymbolProperty = SymbolProperty(rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_LOCAL)
-  public static let protocolInterface: SymbolProperty = SymbolProperty(rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_PROTOCOL_INTERFACE)
+  public static let protocolInterface: SymbolProperty = SymbolProperty(
+    rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_PROTOCOL_INTERFACE
+  )
   public static let swiftAsync: SymbolProperty = SymbolProperty(rawValue: INDEXSTOREDB_SYMBOL_PROPERTY_SWIFT_ASYNC)
 
   public static let all: SymbolProperty = SymbolProperty(rawValue: ~0)

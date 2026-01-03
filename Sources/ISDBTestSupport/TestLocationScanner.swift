@@ -91,10 +91,10 @@ public struct TestLocationScanner {
         let locIndex: String.Index
         if str[start] == "<" {
           nameStart = str.index(after: start)
-          locIndex = str.index(start, offsetBy: -2) // subtract '/' and '*'
+          locIndex = str.index(start, offsetBy: -2)  // subtract '/' and '*'
         } else {
           nameStart = start
-          locIndex = str.index(after: i) // after trailing '/'
+          locIndex = str.index(after: i)  // after trailing '/'
         }
 
         let name = String(str[nameStart..<str.index(before: i)])
@@ -103,7 +103,8 @@ public struct TestLocationScanner {
           url: url,
           line: line,
           utf8Column: 1 + str.utf8.distance(from: lineStart, to: locIndex),
-          utf16Column: 1 + str.utf16.distance(from: lineStart, to: locIndex))
+          utf16Column: 1 + str.utf16.distance(from: lineStart, to: locIndex)
+        )
 
         if let prevLoc = result.updateValue(loc, forKey: name) {
           throw Error.duplicateKey(name, prevLoc, loc)
@@ -112,11 +113,14 @@ public struct TestLocationScanner {
         state = .normal(prev: "_")
 
       case (.comment(_, "/"), "*"):
-        throw Error.nestedComment(TestLocation(
-          url: url,
-          line: line,
-          utf8Column: 1 + str.utf8.distance(from: lineStart, to: i),
-          utf16Column: 1 + str.utf16.distance(from: lineStart, to: i)))
+        throw Error.nestedComment(
+          TestLocation(
+            url: url,
+            line: line,
+            utf8Column: 1 + str.utf8.distance(from: lineStart, to: i),
+            utf16Column: 1 + str.utf16.distance(from: lineStart, to: i)
+          )
+        )
 
       case (.comment(let start, _), _):
         state = .comment(bodyStart: start, prev: c)
@@ -165,9 +169,9 @@ public func scanLocations(
 
 func isSourceFileExtension(_ ext: String) -> Bool {
   switch ext {
-    case "swift", "c", "cpp", "m", "mm", "h", "hpp":
-      return true
-    default:
-      return false
+  case "swift", "c", "cpp", "m", "mm", "h", "hpp":
+    return true
+  default:
+    return false
   }
 }

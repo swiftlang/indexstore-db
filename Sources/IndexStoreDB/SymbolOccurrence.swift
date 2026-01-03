@@ -10,8 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-@_implementationOnly
-import IndexStoreDB_CIndexStoreDB
+@_implementationOnly import IndexStoreDB_CIndexStoreDB
 
 public struct SymbolOccurrence: Equatable, Sendable {
   public var symbol: Symbol
@@ -20,7 +19,13 @@ public struct SymbolOccurrence: Equatable, Sendable {
   public var symbolProvider: SymbolProviderKind
   public var relations: [SymbolRelation]
 
-  public init(symbol: Symbol, location: SymbolLocation, roles: SymbolRole, symbolProvider: SymbolProviderKind, relations: [SymbolRelation] = []) {
+  public init(
+    symbol: Symbol,
+    location: SymbolLocation,
+    roles: SymbolRole,
+    symbolProvider: SymbolProviderKind,
+    relations: [SymbolRelation] = []
+  ) {
     self.symbol = symbol
     self.location = location
     self.roles = roles
@@ -30,14 +35,14 @@ public struct SymbolOccurrence: Equatable, Sendable {
 }
 
 extension SymbolOccurrence: Comparable {
-  public static func <(a: SymbolOccurrence, b: SymbolOccurrence) -> Bool {
+  public static func < (a: SymbolOccurrence, b: SymbolOccurrence) -> Bool {
     // FIXME: incorporate relations
     return (a.location, a.roles, a.symbol) < (b.location, b.roles, b.symbol)
   }
 }
 
 extension SymbolRelation: Comparable {
-  public static func <(a: SymbolRelation, b: SymbolRelation) -> Bool {
+  public static func < (a: SymbolRelation, b: SymbolRelation) -> Bool {
     (a.roles, a.symbol) < (b.roles, b.symbol)
   }
 }
@@ -75,7 +80,8 @@ extension SymbolOccurrence {
       location: SymbolLocation(indexstoredb_symbol_occurrence_location(value)),
       roles: SymbolRole(rawValue: indexstoredb_symbol_occurrence_roles(value)),
       symbolProvider: SymbolProviderKind(indexstoredb_symbol_occurrence_symbol_provider_kind(value)),
-      relations: relations)
+      relations: relations
+    )
   }
 }
 
@@ -83,6 +89,7 @@ extension SymbolRelation {
   internal init(_ value: indexstoredb_symbol_relation_t) {
     self.init(
       symbol: Symbol(indexstoredb_symbol_relation_get_symbol(value)),
-      roles: SymbolRole(rawValue: indexstoredb_symbol_relation_get_roles(value)))
+      roles: SymbolRole(rawValue: indexstoredb_symbol_relation_get_roles(value))
+    )
   }
 }

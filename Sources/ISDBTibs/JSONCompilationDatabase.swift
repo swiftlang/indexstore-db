@@ -12,7 +12,6 @@
 
 import struct Foundation.URL
 
-
 /// A JSON clang-compatible compilation database.
 ///
 /// * Note: this only supports the "arguments" form, not "command".  It is primarily suitable for

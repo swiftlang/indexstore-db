@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import ISDBTibs
 import Foundation
+import ISDBTibs
 import XCTest
 
 final class OutputFileMapTests: XCTestCase {
@@ -21,19 +21,25 @@ final class OutputFileMapTests: XCTestCase {
     ofm["b"] = OutputFileMap.Entry(swiftmodule: "B")
     ofm["c"] = OutputFileMap.Entry(swiftmodule: "C")
 
-    XCTAssertEqual(Array(ofm.values), [
-      OutputFileMap.Entry(swiftmodule: "A"),
-      OutputFileMap.Entry(swiftmodule: "B"),
-      OutputFileMap.Entry(swiftmodule: "C"),
-    ])
+    XCTAssertEqual(
+      Array(ofm.values),
+      [
+        OutputFileMap.Entry(swiftmodule: "A"),
+        OutputFileMap.Entry(swiftmodule: "B"),
+        OutputFileMap.Entry(swiftmodule: "C"),
+      ]
+    )
 
     ofm["a"] = ofm["c"]!
     ofm["a"]!.swiftdoc = "D"
 
-    XCTAssertEqual(Array(ofm.values), [
-      OutputFileMap.Entry(swiftmodule: "C", swiftdoc: "D"),
-      OutputFileMap.Entry(swiftmodule: "B"),
-      OutputFileMap.Entry(swiftmodule: "C"),
-    ])
+    XCTAssertEqual(
+      Array(ofm.values),
+      [
+        OutputFileMap.Entry(swiftmodule: "C", swiftdoc: "D"),
+        OutputFileMap.Entry(swiftmodule: "B"),
+        OutputFileMap.Entry(swiftmodule: "C"),
+      ]
+    )
   }
 }

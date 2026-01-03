@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 import Foundation
+
 #if os(Windows)
 import WinSDK
 #elseif canImport(Android)
@@ -29,13 +30,15 @@ public final class TibsToolchain {
     self.swiftc = swiftc
     self.clang = clang
 
-#if os(Windows)
+    #if os(Windows)
     let dylibFolder = "bin"
-#else
+    #else
     let dylibFolder = "lib"
-#endif
+    #endif
 
-    self.libIndexStore = libIndexStore ?? swiftc
+    self.libIndexStore =
+      libIndexStore
+      ?? swiftc
       .deletingLastPathComponent()
       .deletingLastPathComponent()
       .appendingPathComponent("\(dylibFolder)/libIndexStore\(TibsToolchain.dylibExt)", isDirectory: false)
@@ -44,16 +47,16 @@ public final class TibsToolchain {
     self.ninja = ninja
   }
 
-#if os(macOS)
+  #if os(macOS)
   public static let dylibExt = ".dylib"
   public static let execExt = ""
-#elseif os(Windows)
+  #elseif os(Windows)
   public static let dylibExt = ".dll"
   public static let execExt = ".exe"
-#else
+  #else
   public static let dylibExt = ".so"
   public static let execExt = ""
-#endif
+  #endif
 
   public private(set) lazy var clangHasIndexSupport: Bool = {
     // Check clang -help for index store support. It would be better to check
@@ -86,8 +89,8 @@ public final class TibsToolchain {
     guard let maj = Int(String(components[0])),
       let min = Int(String(components[1])),
       let patch = components.count > 2 ? Int(String(components[2])) : 0
-      else {
-        fatalError("could not parsed ninja --version '\(out)'")
+    else {
+      fatalError("could not parsed ninja --version '\(out)'")
     }
     return (maj, min, patch)
   }()
@@ -112,15 +115,18 @@ public final class TibsToolchain {
     if usec > 0 {
       if let warning = warning {
         let fsec = Float(usec) / 1_000_000
-        fputs("warning: waiting \(fsec) second\(fsec == 1.0 ? "" : "s") to ensure file timestamp " +
-              "differs; \(warning)\n", stderr)
+        fputs(
+          "warning: waiting \(fsec) second\(fsec == 1.0 ? "" : "s") to ensure file timestamp "
+            + "differs; \(warning)\n",
+          stderr
+        )
       }
 
-#if os(Windows)
+      #if os(Windows)
       Sleep(usec / 1000)
-#else
+      #else
       usleep(usec)
-#endif
+      #endif
     }
   }
 }
@@ -147,7 +153,7 @@ extension TibsToolchain {
         fatalError("toolchain must contain 'swiftc\(TibsToolchain.execExt)' \(envVar)=\(path)")
       }
       if !fm.fileExists(atPath: clang!.path) {
-        clang = nil // try to find by PATH
+        clang = nil  // try to find by PATH
       }
     }
 
@@ -157,25 +163,25 @@ extension TibsToolchain {
 
     var buildURL: URL? = nil
     #if os(macOS)
-      // If we are running under xctest, the build directory is the .xctest bundle.
-      for bundle in Bundle.allBundles {
-        if bundle.bundlePath.hasSuffix(".xctest") {
-          buildURL = bundle.bundleURL.deletingLastPathComponent()
-          break
-        }
+    // If we are running under xctest, the build directory is the .xctest bundle.
+    for bundle in Bundle.allBundles {
+      if bundle.bundlePath.hasSuffix(".xctest") {
+        buildURL = bundle.bundleURL.deletingLastPathComponent()
+        break
       }
-      // Otherwise, assume it is the main bundle.
-      if buildURL == nil {
-        buildURL = Bundle.main.bundleURL
-      }
-    #else
+    }
+    // Otherwise, assume it is the main bundle.
+    if buildURL == nil {
       buildURL = Bundle.main.bundleURL
+    }
+    #else
+    buildURL = Bundle.main.bundleURL
     #endif
 
     if let buildURL = buildURL {
       tibs = buildURL.appendingPathComponent("tibs\(TibsToolchain.execExt)", isDirectory: false)
       if !fm.fileExists(atPath: tibs!.path) {
-        tibs = nil // try to find by PATH
+        tibs = nil  // try to find by PATH
       }
     }
 
@@ -185,13 +191,15 @@ extension TibsToolchain {
     ninja = ninja ?? findTool(name: "ninja\(TibsToolchain.execExt)")
 
     guard swiftc != nil, clang != nil, tibs != nil, ninja != nil else {
-      fatalError("""
+      fatalError(
+        """
         missing TibsToolchain component; had
           swiftc = \(swiftc?.path ?? "nil")
           clang = \(clang?.path ?? "nil")
           tibs = \(tibs?.path ?? "nil")
           ninja = \(ninja?.path ?? "nil")
-        """)
+        """
+      )
     }
 
     return TibsToolchain(swiftc: swiftc!, clang: clang!, tibs: tibs!, ninja: ninja)
@@ -200,27 +208,27 @@ extension TibsToolchain {
 
 /// Returns the path to the given tool, as found by `xcrun --find` on macOS, or `which` on Linux.
 public func findTool(name: String) -> URL? {
-#if os(macOS)
+  #if os(macOS)
   let cmd = ["/usr/bin/xcrun", "--find", name]
-#elseif os(Windows)
+  #elseif os(Windows)
   var buf = [WCHAR](repeating: 0, count: Int(MAX_PATH))
   GetWindowsDirectoryW(&buf, DWORD(MAX_PATH))
   var wherePath = String(decodingCString: &buf, as: UTF16.self)
     .appendingPathComponent("system32")
     .appendingPathComponent("where.exe")
   let cmd = [wherePath, name]
-#elseif os(Android)
+  #elseif os(Android)
   let cmd = ["/system/bin/which", name]
-#else
+  #else
   let cmd = ["/usr/bin/which", name]
-#endif
+  #endif
 
   guard var path = try? Process.tibs_checkNonZeroExit(arguments: cmd) else {
     return nil
   }
-#if os(Windows)
+  #if os(Windows)
   path = String((path.split { $0.isNewline })[0])
-#endif
+  #endif
   path = path.trimmingCharacters(in: .whitespacesAndNewlines)
   return URL(fileURLWithPath: path, isDirectory: false)
 }

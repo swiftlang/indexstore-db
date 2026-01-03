@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-import ISDBTibs
 import Foundation
+import ISDBTibs
 import XCTest
 
 final class TibsManifestTests: XCTestCase {
@@ -23,9 +23,12 @@ final class TibsManifestTests: XCTestCase {
     let decoder = JSONDecoder()
     let manifest1 = try decoder.decode(TibsManifest.self, from: serialized1.data(using: .utf8)!)
 
-    XCTAssertEqual(manifest1, TibsManifest(targets: [
-      TibsManifest.Target(sources: ["a.swift"]),
-    ]))
+    XCTAssertEqual(
+      manifest1,
+      TibsManifest(targets: [
+        TibsManifest.Target(sources: ["a.swift"])
+      ])
+    )
 
     let serialized2 = """
       {
@@ -46,15 +49,25 @@ final class TibsManifestTests: XCTestCase {
     let manifest = TibsManifest.Target(sources: ["a.swift"])
     let encoder = JSONEncoder()
     let serialized = try encoder.encode(manifest)
-    XCTAssertEqual(String(data: serialized, encoding: .utf8), """
+    XCTAssertEqual(
+      String(data: serialized, encoding: .utf8),
+      """
       {"sources":["a.swift"]}
-      """)
+      """
+    )
   }
 
   func testRoundTrip() throws {
     let manifest = TibsManifest(targets: [
-      TibsManifest.Target(name: "A", swiftFlags: ["-A", "-B"], clangFlags: ["-CA"], sources: ["a.swift", "b.c"], bridgingHeader: nil, dependencies: []),
-      TibsManifest.Target(name: "B", sources: ["b.swift"], dependencies: ["A"])
+      TibsManifest.Target(
+        name: "A",
+        swiftFlags: ["-A", "-B"],
+        clangFlags: ["-CA"],
+        sources: ["a.swift", "b.c"],
+        bridgingHeader: nil,
+        dependencies: []
+      ),
+      TibsManifest.Target(name: "B", sources: ["b.swift"], dependencies: ["A"]),
     ])
 
     let encoder = JSONEncoder()

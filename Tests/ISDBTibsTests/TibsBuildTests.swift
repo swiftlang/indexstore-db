@@ -10,9 +10,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-import ISDBTibs
-import ISDBTestSupport
 import Foundation
+import ISDBTestSupport
+import ISDBTibs
 import XCTest
 
 final class TibsBuildTests: XCTestCase {
@@ -29,7 +29,7 @@ final class TibsBuildTests: XCTestCase {
       .appendingPathComponent(testDirectoryName, isDirectory: true)
     buildRoot = testDir.appendingPathComponent("build", isDirectory: true)
     sourceRoot = testDir.appendingPathComponent("src", isDirectory: true)
-    
+
     _ = try? fm.removeItem(at: testDir)
     try! fm.createDirectory(at: buildRoot, withIntermediateDirectories: true)
   }
@@ -45,7 +45,8 @@ final class TibsBuildTests: XCTestCase {
       manifest: try TibsManifest.load(projectRoot: projSource),
       sourceRoot: sourceRoot,
       buildRoot: buildRoot,
-      toolchain: TibsBuildTests.toolchain)
+      toolchain: TibsBuildTests.toolchain
+    )
   }
 
   func testBuildSwift() throws {
@@ -111,8 +112,10 @@ final class TibsBuildTests: XCTestCase {
     let dcpp = sourceRoot.appendingPathComponent("d.cpp", isDirectory: false)
     let emm = sourceRoot.appendingPathComponent("e.mm", isDirectory: false)
 
-    XCTAssertEqual(try builder._buildTest(),
-      ["Swift Module main", bc.path, cm.path, dcpp.path, emm.path])
+    XCTAssertEqual(
+      try builder._buildTest(),
+      ["Swift Module main", bc.path, cm.path, dcpp.path, emm.path]
+    )
     XCTAssertEqual(try builder._buildTest(), [])
 
     let ch = sourceRoot.appendingPathComponent("c.h", isDirectory: false)
@@ -123,14 +126,16 @@ final class TibsBuildTests: XCTestCase {
     builder.toolchain.sleepForTimestamp()
     try content.write(to: ch)
     // FIXME: there is a false dependency because of the generated header main-Swift.h
-    XCTAssertEqual(try builder._buildTest(),
-      ["Swift Module main", bc.path, cm.path, dcpp.path, emm.path])
+    XCTAssertEqual(
+      try builder._buildTest(),
+      ["Swift Module main", bc.path, cm.path, dcpp.path, emm.path]
+    )
 
     builder.toolchain.sleepForTimestamp()
     let dh = sourceRoot.appendingPathComponent("d.h", isDirectory: false)
     try """
-      class D {};
-      """.write(to: dh, atomically: false, encoding: .utf8)
+    class D {};
+    """.write(to: dh, atomically: false, encoding: .utf8)
     XCTAssertEqual(try builder._buildTest(), [dcpp.path, emm.path])
   }
 }
