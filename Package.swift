@@ -18,7 +18,7 @@ var dependencies: [Package.Dependency] {
   if useLocalDependencies {
     return [
       .package(path: "../swift-lmdb"),
-      argumentParser,
+      .package(path: "../swift-argument-parser"),
     ]
   } else {
     return [
@@ -91,7 +91,7 @@ let package = Package(
     ),
 
     // MARK: Swift Test Infrastructure
-
+    // The Test Index Build System (tibs) library.
     .target(
       name: "ISDBTibs",
       dependencies: []),
@@ -100,10 +100,12 @@ let package = Package(
       name: "ISDBTibsTests",
       dependencies: ["ISDBTibs", "ISDBTestSupport"]),
 
+    // Commandline tool for working with tibs projects.
     .executableTarget(
       name: "tibs",
       dependencies: ["ISDBTibs"]),
 
+    // Test support library, built on top of tibs.
     .target(
       name: "ISDBTestSupport",
       dependencies: ["IndexStoreDB", "ISDBTibs", "tibs"],
@@ -116,6 +118,7 @@ let package = Package(
 
     // MARK: C++ interface
 
+    // Primary C++ interface.
     .target(
       name: "IndexStoreDB_Index",
       dependencies: ["IndexStoreDB_Database"],
@@ -124,11 +127,13 @@ let package = Package(
         "indexstore_functions.def",
       ]),
 
+    // C wrapper for IndexStoreDB_Index.
     .target(
       name: "IndexStoreDB_CIndexStoreDB",
       dependencies: ["IndexStoreDB_Index"],
       exclude: ["CMakeLists.txt"]),
 
+    // The lmdb database layer.
     .target(
       name: "IndexStoreDB_Database",
       dependencies: [
@@ -139,22 +144,26 @@ let package = Package(
         "CMakeLists.txt",
       ]),
 
+    // Core index types.
     .target(
       name: "IndexStoreDB_Core",
       dependencies: ["IndexStoreDB_Support"],
       exclude: ["CMakeLists.txt"]),
 
+    // Support code that is generally useful to the C++ implementation.
     .target(
       name: "IndexStoreDB_Support",
       dependencies: ["IndexStoreDB_LLVMSupport"],
       exclude: ["CMakeLists.txt"]),
 
+    // Copy of a subset of llvm's ADT and support libraries.
     .target(
       name: "IndexStoreDB_LLVMSupport",
       dependencies: [],
       exclude: [
         "LICENSE.TXT",
         "CMakeLists.txt",
+        // *.inc, *.def
         "include/IndexStoreDB_LLVMSupport/llvm_Support_AArch64TargetParser.def",
         "include/IndexStoreDB_LLVMSupport/llvm_Support_ARMTargetParser.def",
         "include/IndexStoreDB_LLVMSupport/llvm_Support_X86TargetParser.def",
@@ -199,3 +208,5 @@ let package = Package(
   swiftLanguageModes: [.v5],
   cxxLanguageStandard: .cxx17
 )
+
+
