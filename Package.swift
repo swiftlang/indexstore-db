@@ -12,9 +12,6 @@ func hasEnvironmentVariable(_ name: String) -> Bool {
 var useLocalDependencies: Bool { hasEnvironmentVariable("SWIFTCI_USE_LOCAL_DEPS") }
 
 var dependencies: [Package.Dependency] {
-  // Common dependency for the command line tool
-  let argumentParser: Package.Dependency = .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0")
-  
   if useLocalDependencies {
     return [
       .package(path: "../swift-lmdb"),
@@ -23,7 +20,7 @@ var dependencies: [Package.Dependency] {
   } else {
     return [
       .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main"),
-      argumentParser,
+      .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
     ]
   }
 }

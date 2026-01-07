@@ -1,3 +1,15 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Swift.org open source project
+//
+// Copyright (c) 2014 - 2026 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+
 import Foundation
 import ISDBTibs
 import IndexStore
@@ -238,6 +250,50 @@ struct IndexStoreTests {
       #expect(include.target.hasSuffix("test.h"))
       #expect(include.line == 2)
     }
-    print()
+  }
+
+  @Test func unitDescription() async throws {
+    let project = TestProject(swiftFiles: [
+      "test.swift": """
+      func testFunc() {}
+      """
+    ])
+    try await project.withIndexStore { indexStore in
+      let unitName = try #require(indexStore.unitNames(sorted: false).map { $0.string }.only)
+      let unit = try indexStore.unit(named: unitName)
+
+      let description = unit.description
+      #expect(description.contains("Module: test"))
+      #expect(description.contains("Has Main File: true"))
+      #expect(description.contains("Is System: false"))
+      #expect(description.contains("Is Module: false"))
+      #expect(description.contains("DEPENDENCIES START"))
+      #expect(description.contains("DEPENDENCIES END"))
+    }
+  }
+
+  @Test func recordDescription() async throws {
+    let project = TestProject(swiftFiles: [
+      "test.swift": """
+      func testFunc() {}
+      """
+    ])
+    try await project.withIndexStore { indexStore in
+      let unitName = try #require(indexStore.unitNames(sorted: false).map { $0.string }.only)
+      let unit = try indexStore.unit(named: unitName)
+
+      let recordNames = unit.dependencies.compactMap { dep in
+        dep.kind == .record ? dep.name.string : nil
+      }
+      let recordName = try #require(recordNames.only)
+      let record = try indexStore.record(named: recordName)
+
+      let description = record.description
+      #expect(description.contains("SYMBOLS START"))
+      #expect(description.contains("SYMBOLS END"))
+      #expect(description.contains("OCCURRENCES START"))
+      #expect(description.contains("OCCURRENCES END"))
+      #expect(description.contains("testFunc"))
+    }
   }
 }
