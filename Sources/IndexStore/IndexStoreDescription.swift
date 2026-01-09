@@ -13,45 +13,56 @@
 import Foundation
 
 extension IndexStoreUnit: CustomStringConvertible {
-    public var description: String {
-        """
-        Module: \(moduleName.string)
-        Has Main File: \(hasMainFile)
-        Main File: \(mainFile.string)
-        Output File: \(outputFile.string)
-        Target: \(target.string)
-        Sysroot: \(sysrootPath.string)
-        Working Directory: \(workingDirectory.string)
-        Is System: \(isSystemUnit)
-        Is Module: \(isModuleUnit)
-        Is Debug: \(isDebugCompilation)
-        Provider Identifier: \(providerIdentifier.string)
-        Provider Version: \(providerVersion.string)
-        Mod Date: \(modificationDate)
+  public var description: String {
+    var result = """
+      Module: \(moduleName.string)
+      Has Main File: \(hasMainFile)
+      Main File: \(mainFile.string)
+      Output File: \(outputFile.string)
+      Target: \(target.string)
+      Sysroot: \(sysrootPath.string)
+      Working Directory: \(workingDirectory.string)
+      Is System: \(isSystemUnit)
+      Is Module: \(isModuleUnit)
+      Is Debug: \(isDebugCompilation)
+      Provider Identifier: \(providerIdentifier.string)
+      Provider Version: \(providerVersion.string)
+      Mod Date: \(modificationDate)
 
-        DEPENDENCIES START
-        \(dependencies.map { dep in
-            "\(String(describing: dep.kind).capitalized) | \(dep.name.string)"
-        }.joined(separator: "\n"))
-        DEPENDENCIES END
-        """
-    }
+      DEPENDENCIES START
+      \(dependencies.map { dep in
+        "\(String(describing: dep.kind).capitalized) | \(dep.name.string)"
+      }.joined(separator: "\n"))
+      DEPENDENCIES END
+      """
+
+    return result
+  }
 }
 
 extension IndexStoreRecord: CustomStringConvertible {
-    public var description: String {
-        """
-        SYMBOLS START
-        \(symbols.map { sym in
-            "\(sym.kind) | \(sym.name.string) | USR: \(sym.usr.string)"
-        }.joined(separator: "\n"))
-        SYMBOLS END
-
-        OCCURRENCES START
-        \(occurrences.map { occ in
-            "\(occ.symbol.kind) | \(occ.symbol.name.string) | \(occ.position.line):\(occ.position.column) | Roles: \(occ.roles)"
-        }.joined(separator: "\n"))
-        OCCURRENCES END
-        """
+  public var description: String {
+    let symbolLines = symbols.map { symbol in
+      "\(symbol.kind) | \(symbol.name.string) | USR: \(symbol.usr.string)"
     }
+
+    var occurrencesLines: [String] = []
+    occurrences.forEach { occurrence in
+      occurrencesLines.append(
+        "\(occurrence.position.line):\(occurrence.position.column) | \(occurrence.symbol.kind) | USR: \(occurrence.symbol.usr.string) | Roles: \(occurrence.roles)"
+      )
+
+      occurrence.relations.forEach { relation in
+        occurrencesLines.append(
+          "\tRelation | \(relation.symbol.usr.string) | Roles: \(relation.roles)")
+        return .continue
+      }
+      return .continue
+    }
+
+    let allLines =
+      ["SYMBOLS START"] + symbolLines + ["SYMBOLS END", "OCCURRENCES START"] + occurrencesLines
+      + ["OCCURRENCES END"]
+    return allLines.joined(separator: "\n")
+  }
 }
