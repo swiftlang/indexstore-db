@@ -83,7 +83,7 @@ let package = Package(
     ),
 
     // C API of libIndexStore that can be dlopen'ed from the IndexStore target
-    .target(name: "IndexStoreCAPI",),
+    .target(name: "IndexStoreCAPI", ),
 
     // MARK: Swift interface
 
@@ -205,9 +205,9 @@ let package = Package(
         "Windows/Watchdog.inc",
       ]
     ),
-      
+
     // MARK: Command Line Tools
-    
+
     .executableTarget(
       name: "index-dump",
       dependencies: [
@@ -220,12 +220,10 @@ let package = Package(
         .enableUpcomingFeature("MemberImportVisibility"),
         .enableUpcomingFeature("InferIsolatedConformances"),
         .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
-        .swiftLanguageMode(.v6)
+        .swiftLanguageMode(.v6),
       ]
     ),
   ],
   swiftLanguageModes: [.v5],
   cxxLanguageStandard: .cxx17
 )
-
-

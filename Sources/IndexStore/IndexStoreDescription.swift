@@ -46,24 +46,29 @@ extension IndexStoreRecord: CustomStringConvertible {
       "\(symbol.kind) | \(symbol.name.string) | USR: \(symbol.usr.string)"
     }
 
-    var occurrencesLines: [String] = []
-    occurrences.forEach { occurrence in
-      occurrencesLines.append(
-        "\(occurrence.position.line):\(occurrence.position.column) | \(occurrence.symbol.kind) | USR: \(occurrence.symbol.usr.string) | Roles: \(occurrence.roles)"
-      )
-
-      occurrence.relations.forEach { relation in
-        occurrencesLines.append(
-          "\tRelation | \(relation.symbol.usr.string) | Roles: \(relation.roles)"
-        )
-        return .continue
-      }
-      return .continue
+    let occurrencesLines = occurrences.map { occurrence in
+      var result =
+        [
+          """
+          \(occurrence.position.line):\(occurrence.position.column) \
+          | \(occurrence.symbol.kind) \
+          | USR: \(occurrence.symbol.usr.string) \
+          | Roles: \(occurrence.roles)
+          """
+        ]
+        + occurrence.relations.map { relation in
+          "  Relation | \(relation.symbol.usr.string) | Roles: \(relation.roles)"
+        }
+      return result
     }
 
-    let allLines =
-      ["SYMBOLS START"] + symbolLines + ["SYMBOLS END", "OCCURRENCES START"] + occurrencesLines
-      + ["OCCURRENCES END"]
-    return allLines.joined(separator: "\n")
+    return """
+      SYMBOLS START
+      \(symbolLines.joined(separator: "\n"))
+      SYMBOLS END
+      OCCURRENCES START
+      \(occurrencesLines.joined(separator: "\n"))
+      OCCURRENCES END
+      """
   }
 }

@@ -17,7 +17,7 @@ import WinSDK
 #endif
 
 /// Provides utilities to discover and locate libIndexStore in the system.
-enum LibIndexStoreProvider {
+private enum LibIndexStoreProvider {
   /// Find a tool using xcrun/which/where (copied logic from TibsToolchain.findTool)
   static func findTool(name: String) -> URL? {
     #if os(macOS)
@@ -67,7 +67,7 @@ enum LibIndexStoreProvider {
     let libName = "libIndexStore.so"
     #endif
 
-    let libURL = toolchainURL.appendingPathComponent("lib").appendingPathComponent(libName)
+    let libURL = toolchainURL.appending(components: "lib", libName)
     guard FileManager.default.fileExists(atPath: libURL.path) else {
       return nil
     }

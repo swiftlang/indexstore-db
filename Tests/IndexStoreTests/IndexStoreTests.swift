@@ -108,14 +108,10 @@ struct IndexStoreTests {
     ])
     try await project.withIndexStore { indexStore in
       let record = try indexStore.onlyRecord
-      let allSymbolNames = record.symbols(matching: { $0.name.string.contains("test") }).map {
-        $0.name.string
-      }
+      let allSymbolNames = record.symbols(matching: { $0.name.string.contains("test") }).map { $0.name.string }
       #expect(allSymbolNames == ["testMe()", "testSomethingElse()"])
 
-      let somethingElseSymbolNames = record.symbols(matching: {
-        $0.name.string.contains("SomethingElse")
-      }).map {
+      let somethingElseSymbolNames = record.symbols(matching: { $0.name.string.contains("SomethingElse") }).map {
         $0.name.string
       }
       #expect(somethingElseSymbolNames == ["testSomethingElse()"])
@@ -270,20 +266,28 @@ struct IndexStoreTests {
 
       let description = unit.description
 
-      // Verify entire formatted output of unit
-      #expect(description.contains("Module: test"))
-      #expect(description.contains("Has Main File: true"))
-      #expect(description.contains("Is System: false"))
-      #expect(description.contains("Is Module: false"))
+      #expect(
+        description == """
+          Module: test
+          Has Main File: true
+          Has Main File: false
+          Main File: 
+          Output File: 
+          Target: test
+          Sysroot: 
+          Working Directory: 
+          Is System: false
+          Is Module: false
+          Is Debug: false
+          Provider Identifier: 
+          Provider Version: 
+          Mod Date: 0
 
-      // Validate dependencies section is properly formatted
-      #expect(description.contains("DEPENDENCIES START"))
-      #expect(description.contains("DEPENDENCIES END"))
-
-      // Extract and validate dependencies section format
-      let dependenciesSection = description.components(separatedBy: "DEPENDENCIES START").last
-      #expect(dependenciesSection != nil)
-      #expect(dependenciesSection?.contains("Record |") ?? false)  // Dependency kind | name format
+          DEPENDENCIES START
+          Record | test
+          DEPENDENCIES END
+          """
+      )
 
     }
   }
@@ -308,49 +312,19 @@ struct IndexStoreTests {
 
       let description = record.description
 
-      // Verify entire formatted output structure
-      #expect(description.contains("SYMBOLS START"))
-      #expect(description.contains("SYMBOLS END"))
-      #expect(description.contains("OCCURRENCES START"))
-      #expect(description.contains("OCCURRENCES END"))
-
-      // Extract and validate symbols section
-      let symbolsSection = try #require(
-        description.components(separatedBy: "SYMBOLS START\n").last?.components(
-          separatedBy: "\nSYMBOLS END"
-        ).first
+      #expect(
+        description == """
+          SYMBOLS START
+          struct | Foo | USR: s:4test3FooV
+          instance-method | testFunc | USR: s:4test3FooV8testFuncyyF
+          SYMBOLS END
+          OCCURRENCES START
+          5:8 | struct | USR: s:4test3FooV | Roles: [definition]
+          6:8 | instance-method | USR: s:4test3FooV8testFuncyyF | Roles: [definition]
+            Relation | s:4test3FooV | Roles: [childOf]
+          OCCURRENCES END
+          """
       )
-
-      // Validate complete symbol format: kind | name | USR: <value>
-      #expect(symbolsSection.contains("struct | Foo | USR:"))
-      #expect(symbolsSection.contains("instance-method | testFunc | USR:"))
-
-      // Extract and validate occurrences section
-      let occurrencesSection = try #require(
-        description.components(separatedBy: "OCCURRENCES START\n").last?.components(
-          separatedBy: "\nOCCURRENCES END"
-        ).first
-      )
-
-      // Validate occurrence format has all required components
-      // Format: line:column | kind | USR: <value> | Roles: <roles>
-      #expect(occurrencesSection.contains("|"))  // Separators present
-      #expect(occurrencesSection.contains("USR:"))  // USR field present
-      #expect(occurrencesSection.contains("Roles:"))  // Roles field present
-
-      // Validate line:column format (digits:digits)
-      let lineColumnPattern = try #require(
-        occurrencesSection.range(of: "[0-9]+:[0-9]+", options: .regularExpression)
-      )
-      #expect(lineColumnPattern != nil)
-
-      // Validate relation format (tab-indented, with Relation keyword)
-      #expect(occurrencesSection.contains("\tRelation |"))  // Proper indentation and format
-      #expect(occurrencesSection.contains("Roles:"))  // Relations have roles
-
-      // Validate structure: each occurrence has location, kind, USR, and roles
-      let lines = occurrencesSection.split(separator: "\n", omittingEmptySubsequences: true)
-      #expect(lines.count > 0)  // Has content
     }
   }
 }
