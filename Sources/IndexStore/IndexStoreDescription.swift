@@ -54,7 +54,8 @@ extension IndexStoreRecord: CustomStringConvertible {
 
       occurrence.relations.forEach { relation in
         occurrencesLines.append(
-          "\tRelation | \(relation.symbol.usr.string) | Roles: \(relation.roles)")
+          "\tRelation | \(relation.symbol.usr.string) | Roles: \(relation.roles)"
+        )
         return .continue
       }
       return .continue

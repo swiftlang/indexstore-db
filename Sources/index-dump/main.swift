@@ -15,7 +15,7 @@ import Foundation
 import IndexStore
 
 #if os(Windows)
-  import WinSDK
+import WinSDK
 #endif
 
 @main
