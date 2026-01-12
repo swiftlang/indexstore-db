@@ -76,7 +76,7 @@ public struct IndexStoreOccurrence: ~Escapable, Sendable {
   /// Specialized version of `IndexStoreSequence` that can have a lifetime dependence on a `IndexStoreOccurrence`.
   ///
   /// There currently doesn't seem to be a way to model this using the closure-taking `IndexStoreSequence`.
-  public struct RelationsSequence: ~Escapable {
+  public struct RelationsSequence: ~Escapable, IndexStoreSequenceProtocol {
     @usableFromInline let producer: IndexStoreOccurrence
 
     @usableFromInline @_lifetime(borrow producer)
@@ -106,32 +106,6 @@ public struct IndexStoreOccurrence: ~Escapable, Sendable {
       if let caughtError {
         throw caughtError
       }
-    }
-
-    // Cannot re-use the implementations of `map` and `compactMap` through a protocol because of
-    // https://github.com/swiftlang/swift/issues/85773.
-
-    @inlinable
-    public func map<Result, Error>(
-      _ transform: (IndexStoreSymbolRelation) throws(Error) -> Result
-    ) throws(Error) -> [Result] {
-      return try self.compactMap { (value) throws(Error) in
-        try transform(value)
-      }
-    }
-
-    @inlinable
-    public func compactMap<Result, Error>(
-      _ transform: (IndexStoreSymbolRelation) throws(Error) -> Result?
-    ) throws(Error) -> [Result] {
-      var result: [Result] = []
-      try self.forEach { (value) throws(Error) in
-        if let transformed = try transform(value) {
-          result.append(transformed)
-        }
-        return .continue
-      }
-      return result
     }
   }
 }
