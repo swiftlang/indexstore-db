@@ -34,7 +34,7 @@ public struct IndexStoreUnitDependency: ~Escapable, Sendable {
   @usableFromInline nonisolated(unsafe) let dependency: indexstore_unit_dependency_t
   @usableFromInline let library: IndexStoreLibrary
 
-  @usableFromInline @_lifetime(borrow dependency, borrow library)
+  @usableFromInline @_lifetime(borrow library)
   init(dependency: indexstore_unit_dependency_t, library: borrowing IndexStoreLibrary) {
     self.dependency = dependency
     self.library = library

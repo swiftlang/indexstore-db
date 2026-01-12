@@ -128,7 +128,7 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
   @usableFromInline nonisolated(unsafe) let symbol: indexstore_symbol_t
   @usableFromInline let library: IndexStoreLibrary
 
-  @usableFromInline @_lifetime(borrow symbol, borrow library)
+  @usableFromInline @_lifetime(borrow library)
   init(symbol: indexstore_symbol_t, library: borrowing IndexStoreLibrary) {
     self.symbol = symbol
     self.library = library
