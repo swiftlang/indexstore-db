@@ -1,1 +1,1 @@
-../../../IndexStoreCAPI/include/indexstore_functions.h
+../../../IndexStoreCAPI/include/IndexStoreCAPI/indexstore_functions.h
