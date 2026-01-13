@@ -1,0 +1,3 @@
+module IndexStoreCAPI {
+  header "IndexStoreCAPI/indexstore_functions.h"
+}
