@@ -54,7 +54,7 @@ extension IndexStoreRecord: CustomStringConvertible {
           """
           \(occurrence.position.line):\(occurrence.position.column) \
           | \(occurrence.symbol.kind) \
-          | USR: \(occurrence.symbol.usr.string) \
+          | \(occurrence.symbol.usr.string) \
           | Roles: \(occurrence.roles)
           """
         ]
