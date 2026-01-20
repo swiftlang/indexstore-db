@@ -45,7 +45,7 @@ extension IndexStoreUnit: CustomStringConvertible {
 extension IndexStoreRecord: CustomStringConvertible {
   public var description: String {
     let symbolLines = symbols.map { symbol in
-      "\(symbol.kind) | \(symbol.name.string) | USR: \(symbol.usr.string)"
+      "\(symbol.kind) | \(symbol.name.string) | \(symbol.usr.string)"
     }
 
     let occurrencesLines = occurrences.map { occurrence in
