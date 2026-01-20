@@ -261,7 +261,7 @@ struct IndexStoreTests {
       """
     ])
     try await project.withIndexStore { indexStore in
-      let unitName = try #require(indexStore.unitNames(sorted: false).map { $0.string }.only)
+      let unitName = try #require(indexStore.unitNames(sorted: false).map(\.string).only)
       let unit = try indexStore.unit(named: unitName)
 
       let description = unit.description
