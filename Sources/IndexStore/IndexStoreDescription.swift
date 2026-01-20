@@ -14,7 +14,11 @@ import Foundation
 
 extension IndexStoreUnit: CustomStringConvertible {
   public var description: String {
-    var result = """
+    let dependenciesLines = dependencies.map { dep in
+        "\(String(describing: dep.kind).capitalized) | \(dep.name.string)"
+      }.joined(separator: "\n")
+      
+    return """
       Module: \(moduleName.string)
       Has Main File: \(hasMainFile)
       Main File: \(mainFile.string)
@@ -30,9 +34,7 @@ extension IndexStoreUnit: CustomStringConvertible {
       Mod Date: \(modificationDate)
 
       DEPENDENCIES START
-      \(dependencies.map { dep in
-        "\(String(describing: dep.kind).capitalized) | \(dep.name.string)"
-      }.joined(separator: "\n"))
+      \()
       DEPENDENCIES END
       """
 
