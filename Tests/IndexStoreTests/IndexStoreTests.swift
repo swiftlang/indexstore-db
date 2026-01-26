@@ -270,7 +270,6 @@ struct IndexStoreTests {
         description == """
           Module: test
           Has Main File: true
-          Has Main File: false
           Main File: 
           Output File: 
           Target: test

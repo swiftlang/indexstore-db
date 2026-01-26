@@ -15,9 +15,9 @@ import Foundation
 extension IndexStoreUnit: CustomStringConvertible {
   public var description: String {
     let dependenciesLines = dependencies.map { dep in
-        "\(String(describing: dep.kind).capitalized) | \(dep.name.string)"
-      }.joined(separator: "\n")
-      
+      "\(String(describing: dep.kind).capitalized) | \(dep.name.string)"
+    }.joined(separator: "\n")
+
     return """
       Module: \(moduleName.string)
       Has Main File: \(hasMainFile)
@@ -34,11 +34,9 @@ extension IndexStoreUnit: CustomStringConvertible {
       Mod Date: \(modificationDate)
 
       DEPENDENCIES START
-      \()
+      \(dependenciesLines)
       DEPENDENCIES END
       """
-
-    return result
   }
 }
 
@@ -49,7 +47,7 @@ extension IndexStoreRecord: CustomStringConvertible {
     }
 
     let occurrencesLines = occurrences.map { occurrence in
-      var result =
+      let result =
         [
           """
           \(occurrence.position.line):\(occurrence.position.column) \
@@ -62,7 +60,7 @@ extension IndexStoreRecord: CustomStringConvertible {
           "  Relation | \(relation.symbol.usr.string) | Roles: \(relation.roles)"
         }
       return result
-    }
+    }.flatMap { $0 }
 
     return """
       SYMBOLS START
