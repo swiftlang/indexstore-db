@@ -64,10 +64,14 @@ add_library(LLVMSupport STATIC
   YAMLTraits.cpp)
 target_compile_definitions(LLVMSupport PUBLIC
   LLVM_ENABLE_EXCEPTIONS=1)
-if(CMAKE_CXX_SIMULATE_ID MATCHES MSVC)
+if(MSVC)
   target_compile_options(LLVMSupport PUBLIC
     /EHsc
     /GR)
+else()
+  target_compile_options(LLVMSupport PUBLIC
+    -fexceptions
+    -frtti)
 endif()
 target_include_directories(LLVMSupport PUBLIC
  include)
