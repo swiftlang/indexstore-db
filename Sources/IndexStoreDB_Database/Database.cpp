@@ -117,6 +117,8 @@ Database::Implementation::Implementation() {
 }
 Database::Implementation::~Implementation() {
   if (!IsReadOnly) {
+    // Ensure any unwritten changes are flushed to disk, and close the database.
+    DBEnv.sync();
     DBEnv.close();
     assert(!SavedPath.empty() && !UniquePath.empty());
     // In case some other process already created the 'saved' path, override it so
