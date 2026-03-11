@@ -14,11 +14,13 @@ var useLocalDependencies: Bool { hasEnvironmentVariable("SWIFTCI_USE_LOCAL_DEPS"
 var dependencies: [Package.Dependency] {
   if useLocalDependencies {
     return [
-      .package(path: "../swift-lmdb")
+      .package(path: "../swift-lmdb"),
+      .package(path: "../swift-argument-parser"),
     ]
   } else {
     return [
-      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main")
+      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main"),
+      .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
     ]
   }
 }
@@ -46,6 +48,11 @@ let package = Package(
     .library(
       name: "IndexStore",
       targets: ["IndexStore"]
+    ),
+    // --- ADDED: The Executable Product ---
+    .executable(
+      name: "index-dump",
+      targets: ["index-dump"]
     ),
   ],
   dependencies: dependencies,
@@ -76,7 +83,7 @@ let package = Package(
     ),
 
     // C API of libIndexStore that can be dlopen'ed from the IndexStore target
-    .target(name: "IndexStoreCAPI",),
+    .target(name: "IndexStoreCAPI", ),
 
     // MARK: Swift interface
 
@@ -93,7 +100,6 @@ let package = Package(
     ),
 
     // MARK: Swift Test Infrastructure
-
     // The Test Index Build System (tibs) library.
     .target(
       name: "ISDBTibs",
@@ -168,7 +174,7 @@ let package = Package(
       exclude: ["CMakeLists.txt"]
     ),
 
-    // Copy of a subset of llvm's ADT and Support libraries.
+    // Copy of a subset of llvm's ADT and support libraries.
     .target(
       name: "IndexStoreDB_LLVMSupport",
       dependencies: [],
@@ -197,6 +203,24 @@ let package = Package(
         "Windows/Signals.inc",
         "Windows/Threading.inc",
         "Windows/Watchdog.inc",
+      ]
+    ),
+
+    // MARK: Command Line Tools
+
+    .executableTarget(
+      name: "index-dump",
+      dependencies: [
+        "IndexStore",
+        .product(name: "ArgumentParser", package: "swift-argument-parser"),
+      ],
+      swiftSettings: [
+        .enableUpcomingFeature("ExistentialAny"),
+        .enableUpcomingFeature("InternalImportsByDefault"),
+        .enableUpcomingFeature("MemberImportVisibility"),
+        .enableUpcomingFeature("InferIsolatedConformances"),
+        .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+        .swiftLanguageMode(.v6),
       ]
     ),
   ],
