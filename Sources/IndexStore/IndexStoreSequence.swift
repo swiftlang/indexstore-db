@@ -17,12 +17,39 @@ public enum IterationContinuationBehavior {
   case stop
 }
 
+public protocol IndexStoreSequenceProtocol: ~Escapable {
+  associatedtype Element: ~Escapable
+
+  func forEach<Error>(_ body: (Element) throws(Error) -> IterationContinuationBehavior) throws(Error)
+}
+
+extension IndexStoreSequenceProtocol where Self: ~Escapable {
+  @inlinable
+  public func map<Result, Error>(_ transform: (Element) throws(Error) -> Result) throws(Error) -> [Result] {
+    return try self.compactMap { (value) throws(Error) in
+      try transform(value)
+    }
+  }
+
+  @inlinable
+  public func compactMap<Result, Error>(_ transform: (Element) throws(Error) -> Result?) throws(Error) -> [Result] {
+    var result: [Result] = []
+    try self.forEach { (value) throws(Error) in
+      if let transformed = try transform(value) {
+        result.append(transformed)
+      }
+      return .continue
+    }
+    return result
+  }
+}
+
 /// A sequence that yields non-`Escapable` types to the consumer.
 ///
 /// The yielded values are non-Escapable because they are backed by stack allocated memory inside `libIndexStore`.
 /// When needed, use `map` or `compactMap` to extract all pieces of information that are relevant from this sequence
 /// into an escapable array.
-public struct IndexStoreSequence<Element: ~Escapable> {
+public struct IndexStoreSequence<Element: ~Escapable>: IndexStoreSequenceProtocol {
   @usableFromInline let iterate: ((Element) -> IterationContinuationBehavior) -> Void
 
   @usableFromInline
@@ -48,25 +75,6 @@ public struct IndexStoreSequence<Element: ~Escapable> {
     if let caughtError {
       throw caughtError
     }
-  }
-
-  @inlinable
-  public func map<Result, Error>(_ transform: (Element) throws(Error) -> Result) throws(Error) -> [Result] {
-    return try self.compactMap { (value) throws(Error) in
-      try transform(value)
-    }
-  }
-
-  @inlinable
-  public func compactMap<Result, Error>(_ transform: (Element) throws(Error) -> Result?) throws(Error) -> [Result] {
-    var result: [Result] = []
-    try self.forEach { (value) throws(Error) in
-      if let transformed = try transform(value) {
-        result.append(transformed)
-      }
-      return .continue
-    }
-    return result
   }
 }
 
