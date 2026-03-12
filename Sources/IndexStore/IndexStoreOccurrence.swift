@@ -23,7 +23,7 @@ public struct IndexStoreOccurrence: ~Escapable, Sendable {
   @usableFromInline nonisolated(unsafe) let occurrence: indexstore_occurrence_t
   @usableFromInline let library: IndexStoreLibrary
 
-  @usableFromInline @_lifetime(borrow occurrence, borrow library)
+  @usableFromInline @_lifetime(borrow library)
   init(occurrence: indexstore_occurrence_t, library: borrowing IndexStoreLibrary) {
     self.occurrence = occurrence
     self.library = library

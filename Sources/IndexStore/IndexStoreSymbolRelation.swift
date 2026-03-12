@@ -17,7 +17,7 @@ public struct IndexStoreSymbolRelation: ~Escapable, Sendable {
   @usableFromInline nonisolated(unsafe) let relation: indexstore_symbol_relation_t
   @usableFromInline let library: IndexStoreLibrary
 
-  @usableFromInline @_lifetime(borrow relation, borrow library)
+  @usableFromInline @_lifetime(borrow library)
   init(relation: indexstore_symbol_relation_t, library: borrowing IndexStoreLibrary) {
     self.relation = relation
     self.library = library

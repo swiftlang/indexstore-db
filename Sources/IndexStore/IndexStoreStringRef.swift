@@ -32,7 +32,7 @@ public struct IndexStoreStringRef: ~Escapable, Sendable {
   }
 
   @usableFromInline
-  init(_ stringRef: borrowing indexstore_string_ref_t) {
+  init(_ stringRef: indexstore_string_ref_t) {
     // We cannot use optional binding here due to https://github.com/swiftlang/swift/issues/85753
     if stringRef.data != nil {
       self.span = RawSpan(_unsafeStart: stringRef.data!, count: stringRef.length)
