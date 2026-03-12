@@ -89,7 +89,7 @@ final class TibsCompilationDatabaseTests: XCTestCase {
       ),
     ])
 
-    XCTAssertEqual(builder.compilationDatabase, expected)
+    XCTAssertEqual(try builder.compilationDatabase, expected)
   }
 
   public func testCompilationDatabaseMixedLangTarget() throws {
@@ -141,6 +141,6 @@ final class TibsCompilationDatabaseTests: XCTestCase {
       Command(directory: "/build", file: "/src/e.mm", arguments: clangArgs("e.mm")),
     ])
 
-    XCTAssertEqual(builder.compilationDatabase, expected)
+    XCTAssertEqual(try builder.compilationDatabase, expected)
   }
 }

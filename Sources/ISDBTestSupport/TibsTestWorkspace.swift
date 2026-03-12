@@ -261,7 +261,7 @@ extension XCTestCase {
       && !toolchain.clangHasIndexSupport
     {
       fputs(
-        "warning: skipping test because '\(toolchain.clang.path)' does not have indexstore "
+        "warning: skipping test because '\(try toolchain.clang.path)' does not have indexstore "
           + "support; use swift-clang\n",
         stderr
       )
@@ -296,7 +296,7 @@ extension XCTestCase {
       && !toolchain.clangHasIndexSupport
     {
       fputs(
-        "warning: skipping test because '\(toolchain.clang.path)' does not have indexstore "
+        "warning: skipping test because '\(try toolchain.clang.path)' does not have indexstore "
           + "support; use swift-clang\n",
         stderr
       )

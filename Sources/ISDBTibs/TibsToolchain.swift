@@ -18,17 +18,61 @@ import WinSDK
 import Android
 #endif
 
+struct MissingToolchainComponentError: Error {
+  let tool: String
+}
+
 /// The set of commandline tools used to build a tibs project.
 public final class TibsToolchain {
-  public let swiftc: URL
-  public let clang: URL
-  public let libIndexStore: URL
-  public let tibs: URL
-  public let ninja: URL?
+  public let _swiftc: URL?
+  public var swiftc: URL {
+    get throws {
+      guard let _swiftc else {
+        throw MissingToolchainComponentError(tool: "swiftc")
+      }
+      return _swiftc
+    }
+  }
+  public let _clang: URL?
+  public var clang: URL {
+    get throws {
+      guard let _clang else {
+        throw MissingToolchainComponentError(tool: "clang")
+      }
+      return _clang
+    }
+  }
+  public let _libIndexStore: URL?
+  public var libIndexStore: URL {
+    get throws {
+      guard let _libIndexStore else {
+        throw MissingToolchainComponentError(tool: "libIndexStore")
+      }
+      return _libIndexStore
+    }
+  }
+  public let _tibs: URL?
+  public var tibs: URL {
+    get throws {
+      guard let _tibs else {
+        throw MissingToolchainComponentError(tool: "tibs")
+      }
+      return _tibs
+    }
+  }
+  public let _ninja: URL?
+  public var ninja: URL {
+    get throws {
+      guard let _ninja else {
+        throw MissingToolchainComponentError(tool: "ninja")
+      }
+      return _ninja
+    }
+  }
 
-  public init(swiftc: URL, clang: URL, libIndexStore: URL? = nil, tibs: URL, ninja: URL? = nil) {
-    self.swiftc = swiftc
-    self.clang = clang
+  public init(swiftc: URL?, clang: URL?, libIndexStore: URL? = nil, tibs: URL?, ninja: URL? = nil) {
+    self._swiftc = swiftc
+    self._clang = clang
 
     #if os(Windows)
     let dylibFolder = "bin"
@@ -36,15 +80,15 @@ public final class TibsToolchain {
     let dylibFolder = "lib"
     #endif
 
-    self.libIndexStore =
+    self._libIndexStore =
       libIndexStore
-      ?? swiftc
+      ?? _swiftc?
       .deletingLastPathComponent()
       .deletingLastPathComponent()
       .appendingPathComponent("\(dylibFolder)/libIndexStore\(TibsToolchain.dylibExt)", isDirectory: false)
 
-    self.tibs = tibs
-    self.ninja = ninja
+    self._tibs = tibs
+    self._ninja = ninja
   }
 
   #if os(macOS)
@@ -66,6 +110,9 @@ public final class TibsToolchain {
     // been removed. While we could check a full compile command, I have not
     // found a robust command that detects index support without also doing I/O
     // in the index directory when it succeeds. To avoid I/O, we check -help.
+    guard let clang = try? clang else {
+      return false
+    }
 
     let cmd = [clang.path, "-help"]
     do {
@@ -82,8 +129,7 @@ public final class TibsToolchain {
   }()
 
   public private(set) lazy var ninjaVersion: (Int, Int, Int) = {
-    precondition(ninja != nil, "expected non-nil ninja in ninjaVersion")
-    var out = try! Process.tibs_checkNonZeroExit(arguments: [ninja!.path, "--version"])
+    var out = try! Process.tibs_checkNonZeroExit(arguments: [try! ninja.path, "--version"])
     out = out.trimmingCharacters(in: .whitespacesAndNewlines)
     let components = out.split(separator: ".", maxSplits: 3)
     guard let maj = Int(String(components[0])),
@@ -190,19 +236,7 @@ extension TibsToolchain {
     tibs = tibs ?? findTool(name: "tibs\(TibsToolchain.execExt)")
     ninja = ninja ?? findTool(name: "ninja\(TibsToolchain.execExt)")
 
-    guard swiftc != nil, clang != nil, tibs != nil, ninja != nil else {
-      fatalError(
-        """
-        missing TibsToolchain component; had
-          swiftc = \(swiftc?.path ?? "nil")
-          clang = \(clang?.path ?? "nil")
-          tibs = \(tibs?.path ?? "nil")
-          ninja = \(ninja?.path ?? "nil")
-        """
-      )
-    }
-
-    return TibsToolchain(swiftc: swiftc!, clang: clang!, tibs: tibs!, ninja: ninja)
+    return TibsToolchain(swiftc: swiftc, clang: clang, tibs: tibs, ninja: ninja)
   }
 }
 
