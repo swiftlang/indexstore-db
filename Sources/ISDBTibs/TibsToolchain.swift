@@ -129,7 +129,7 @@ public final class TibsToolchain {
   }()
 
   public private(set) lazy var ninjaVersion: (Int, Int, Int) = {
-    var out = try! Process.tibs_checkNonZeroExit(arguments: [try! ninja.path, "--version"])
+    var out = try! Process.tibs_checkNonZeroExit(arguments: [ninja.path, "--version"])
     out = out.trimmingCharacters(in: .whitespacesAndNewlines)
     let components = out.split(separator: ".", maxSplits: 3)
     guard let maj = Int(String(components[0])),
