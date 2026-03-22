@@ -27,12 +27,7 @@ struct TestProject {
 
   func withIndexStore(body: (IndexStore) async throws -> Void) async throws {
     try await withTestScratchDir { scratchDir in
-      let swiftc = try #require(findTool(name: "swiftc\(TibsToolchain.execExt)"))
-      let libIndexStore =
-        swiftc
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .appending(components: "lib", "libIndexStore.dylib")
+      let libIndexStore = try TibsToolchain.testDefault.libIndexStore
 
       let sourceDir = scratchDir.appending(component: "sources")
       try FileManager.default.createDirectory(at: sourceDir, withIntermediateDirectories: true)

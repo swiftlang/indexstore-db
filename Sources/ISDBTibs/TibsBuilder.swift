@@ -161,12 +161,8 @@ extension TibsBuilder {
 
   @discardableResult
   func buildImpl(targets: [String]) throws -> String {
-    guard let ninja = toolchain.ninja?.path else {
-      throw Error.noNinjaBinaryConfigured
-    }
-
     do {
-      return try Process.tibs_checkNonZeroExit(arguments: [ninja, "-C", buildRoot.path] + targets)
+      return try Process.tibs_checkNonZeroExit(arguments: [toolchain.ninja.path, "-C", buildRoot.path] + targets)
     } catch Process.TibsProcessError.nonZeroExit(let reason, let code, let stdout, let stderr) {
       throw Error.buildFailure(reason, exitCode: code, stdout: stdout, stderr: stderr)
     }
@@ -187,77 +183,79 @@ extension TibsBuilder {
   // MARK: Serialization
 
   public var compilationDatabase: JSONCompilationDatabase {
-    var commands = [JSONCompilationDatabase.Command]()
-    for target in targets {
-      if let module = target.swiftModule {
-        var args = [toolchain.swiftc.path]
-        args += module.sources.map { $0.path }
-        args += module.importPaths.flatMap { ["-I", $0] }
-        args += [
-          "-module-name", module.name,
-          "-index-store-path", indexstore.path,
-          "-index-ignore-system-modules",
-          "-output-file-map", module.outputFileMapPath,
-          "-emit-module",
-          "-emit-module-path", module.emitModulePath,
-          "-emit-dependencies",
-          "-pch-output-dir", "pch",
-          "-module-cache-path", "ModuleCache",
-          "-c",
-        ]
-        args +=
-          module.emitHeaderPath.map {
-            [
-              "-emit-objc-header",
-              "-emit-objc-header-path", $0,
-            ]
-          } ?? []
-        args += module.bridgingHeader.map { ["-import-objc-header", $0.path] } ?? []
-        args += module.sdk.map { ["-sdk", $0] } ?? []
-        args += module.extraArgs
+    get throws {
+      var commands = [JSONCompilationDatabase.Command]()
+      for target in targets {
+        if let module = target.swiftModule {
+          var args = [try toolchain.swiftc.path]
+          args += module.sources.map { $0.path }
+          args += module.importPaths.flatMap { ["-I", $0] }
+          args += [
+            "-module-name", module.name,
+            "-index-store-path", indexstore.path,
+            "-index-ignore-system-modules",
+            "-output-file-map", module.outputFileMapPath,
+            "-emit-module",
+            "-emit-module-path", module.emitModulePath,
+            "-emit-dependencies",
+            "-pch-output-dir", "pch",
+            "-module-cache-path", "ModuleCache",
+            "-c",
+          ]
+          args +=
+            module.emitHeaderPath.map {
+              [
+                "-emit-objc-header",
+                "-emit-objc-header-path", $0,
+              ]
+            } ?? []
+          args += module.bridgingHeader.map { ["-import-objc-header", $0.path] } ?? []
+          args += module.sdk.map { ["-sdk", $0] } ?? []
+          args += module.extraArgs
 
-        // FIXME: handle via 'directory' field?
-        args += ["-working-directory", buildRoot.path]
+          // FIXME: handle via 'directory' field?
+          args += ["-working-directory", buildRoot.path]
 
-        module.sources.forEach { sourceFile in
+          module.sources.forEach { sourceFile in
+            commands.append(
+              JSONCompilationDatabase.Command(
+                directory: buildRoot.path,
+                file: sourceFile.path,
+                arguments: args
+              )
+            )
+          }
+        }
+
+        for tu in target.clangTUs {
+          var args = [
+            try toolchain.clang.path,
+            "-fsyntax-only",
+            tu.source.path,
+          ]
+          args += tu.importPaths.flatMap { ["-I", $0] }
+          args += [
+            "-index-store-path", "index",
+            "-index-ignore-system-symbols",
+            "-fmodules",
+            "-fmodules-cache-path=ModuleCache",
+            "-MMD", "-MF", "\(tu.outputPath).d",
+            "-o", tu.outputPath,
+          ]
+          args += tu.extraArgs
+
           commands.append(
             JSONCompilationDatabase.Command(
               directory: buildRoot.path,
-              file: sourceFile.path,
+              file: tu.source.path,
               arguments: args
             )
           )
         }
       }
 
-      for tu in target.clangTUs {
-        var args = [
-          toolchain.clang.path,
-          "-fsyntax-only",
-          tu.source.path,
-        ]
-        args += tu.importPaths.flatMap { ["-I", $0] }
-        args += [
-          "-index-store-path", "index",
-          "-index-ignore-system-symbols",
-          "-fmodules",
-          "-fmodules-cache-path=ModuleCache",
-          "-MMD", "-MF", "\(tu.outputPath).d",
-          "-o", tu.outputPath,
-        ]
-        args += tu.extraArgs
-
-        commands.append(
-          JSONCompilationDatabase.Command(
-            directory: buildRoot.path,
-            file: tu.source.path,
-            arguments: args
-          )
-        )
-      }
+      return JSONCompilationDatabase(commands: commands)
     }
-
-    return JSONCompilationDatabase(commands: commands)
   }
 
   public func writeBuildFiles() throws {
@@ -287,18 +285,20 @@ extension TibsBuilder {
   }
 
   public var ninja: String {
-    var result = ""
-    writeNinja(to: &result)
-    return result
+    get throws {
+      var result = ""
+      try writeNinja(to: &result)
+      return result
+    }
   }
 
-  public func writeNinja<Output: TextOutputStream>(to stream: inout Output) {
+  public func writeNinja<Output: TextOutputStream>(to stream: inout Output) throws {
     writeNinjaHeader(to: &stream)
     stream.write("\n\n")
-    writeNinjaRules(to: &stream)
+    try writeNinjaRules(to: &stream)
     stream.write("\n\n")
     for target in targets {
-      writeNinjaSnippet(for: target, to: &stream)
+      try writeNinjaSnippet(for: target, to: &stream)
       stream.write("\n\n")
     }
   }
@@ -312,7 +312,7 @@ extension TibsBuilder {
     )
   }
 
-  public func writeNinjaRules<Output: TextOutputStream>(to stream: inout Output) {
+  public func writeNinjaRules<Output: TextOutputStream>(to stream: inout Output) throws {
     #if os(Windows)
     let callCmd = "cmd.exe /C "
     let copyCmd = "copy NUL $out"
@@ -323,19 +323,19 @@ extension TibsBuilder {
     // FIXME: rdar://83355591 avoid -c, since we don't want to spend time writing .o files.
     let swiftIndexCommand =
       callCmd + """
-        \(escapeCommand([toolchain.swiftc.path])) $in $IMPORT_PATHS -module-name $MODULE_NAME \
+        \(escapeCommand([try toolchain.swiftc.path])) $in $IMPORT_PATHS -module-name $MODULE_NAME \
          -index-store-path index -index-ignore-system-modules \
          -output-file-map $OUTPUT_FILE_MAP \
         -emit-module -emit-module-path $MODULE_PATH -emit-dependencies \
         -pch-output-dir pch -module-cache-path ModuleCache \
         -c \
         $EMIT_HEADER $BRIDGING_HEADER $SDK $EXTRA_ARGS \
-        && \(toolchain.tibs.path) swift-deps-merge $out $DEP_FILES > $out.d
+        && \(try toolchain.tibs.path) swift-deps-merge $out $DEP_FILES > $out.d
         """
 
     let ccIndexCommand =
       callCmd + """
-        \(escapeCommand([toolchain.clang.path])) -fsyntax-only $in $IMPORT_PATHS -index-store-path index \
+        \(escapeCommand([try toolchain.clang.path])) -fsyntax-only $in $IMPORT_PATHS -index-store-path index \
         -index-ignore-system-symbols -fmodules -fmodules-cache-path=ModuleCache \
         -MMD -MF $OUTPUT_NAME.d -o $out $EXTRA_ARGS && \(copyCmd)
         """
@@ -357,15 +357,15 @@ extension TibsBuilder {
     )
   }
 
-  public func writeNinjaSnippet<Output: TextOutputStream>(for target: TibsResolvedTarget, to stream: inout Output) {
+  public func writeNinjaSnippet<Output: TextOutputStream>(for target: TibsResolvedTarget, to stream: inout Output) throws {
     var outputs: [String] = []
     if let module = target.swiftModule {
-      let out = writeNinjaSnippet(for: module, to: &stream)
+      let out = try writeNinjaSnippet(for: module, to: &stream)
       outputs.append(contentsOf: out)
       stream.write("\n\n")
     }
     for tu in target.clangTUs {
-      let out = writeNinjaSnippet(for: tu, to: &stream)
+      let out = try writeNinjaSnippet(for: tu, to: &stream)
       outputs.append(contentsOf: out)
       stream.write("\n\n")
     }
@@ -382,7 +382,7 @@ extension TibsBuilder {
   public func writeNinjaSnippet<Output: TextOutputStream>(
     for module: TibsResolvedTarget.SwiftModule,
     to stream: inout Output
-  ) -> [String] {
+  ) throws -> [String] {
     // FIXME: the generated -Swift.h header should be considered an output, but ninja does not
     // support multiple outputs when using gcc-style .d files.
     let outputs = [module.emitModulePath /*module.emitHeaderPath*/]
@@ -391,7 +391,7 @@ extension TibsBuilder {
 
     var deps = module.moduleDeps
     deps.append(module.outputFileMapPath)
-    deps.append(toolchain.swiftc.path)
+    deps.append(try toolchain.swiftc.path)
     if let bridgingHeader = module.bridgingHeader {
       deps.append(bridgingHeader.path)
     }
@@ -420,12 +420,12 @@ extension TibsBuilder {
   public func writeNinjaSnippet<Output: TextOutputStream>(
     for tu: TibsResolvedTarget.ClangTU,
     to stream: inout Output
-  ) -> [String] {
+  ) throws -> [String] {
 
     stream.write(
       """
       build \(escapePath(path: tu.outputPath)): \
-      cc_index \(escapePath(path: tu.source.path)) | \(escapePath(path: toolchain.clang.path)) \(tu.generatedHeaderDep ?? "")
+      cc_index \(escapePath(path: tu.source.path)) | \(escapePath(path: try toolchain.clang.path)) \(tu.generatedHeaderDep ?? "")
         IMPORT_PATHS = \(tu.importPaths.map { "-I \($0)" }.joined(separator: " "))
         OUTPUT_NAME = \(tu.outputPath)
         EXTRA_ARGS = \(tu.extraArgs.joined(separator: " "))
