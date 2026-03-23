@@ -329,24 +329,9 @@ extension XCTestCase {
 
   /// The path to the INPUTS directory of shared test projects.
   public static var isdbInputsDirectory: URL = {
-    // FIXME: Use Bundle.module.resourceURL once the fix for SR-12912 is released.
-    #if os(macOS)
-    var resources = XCTestCase.productsDirectory
-      .appendingPathComponent("IndexStoreDB_ISDBTestSupport.bundle")
-      .appendingPathComponent("Contents")
-      .appendingPathComponent("Resources")
-    if !FileManager.default.fileExists(atPath: resources.path) {
-      // Xcode and command-line swiftpm differ about the path.
-      resources.deleteLastPathComponent()
-      resources.deleteLastPathComponent()
-    }
-    #else
-    let resources = XCTestCase.productsDirectory
-      .appendingPathComponent("IndexStoreDB_ISDBTestSupport.resources")
-    #endif
-    guard FileManager.default.fileExists(atPath: resources.path) else {
-      fatalError("missing resources \(resources.path)")
-    }
+    guard let resources = Bundle.module.resourceURL else {
+        fatalError("missing resources")
+      }
     return resources.appendingPathComponent("INPUTS", isDirectory: true).standardizedFileURL
   }()
 
