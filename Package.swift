@@ -132,6 +132,12 @@ let package = Package(
       exclude: [
         "CMakeLists.txt",
         "indexstore_functions.def",
+      ],
+      cSettings: [
+        .unsafeFlags([
+            "-I" + (ProcessInfo.processInfo.environment["SDKROOT"] ?? "") + "\\usr\\include",
+            "-I" + (ProcessInfo.processInfo.environment["SDKROOT"] ?? "") + "\\usr\\include\\Block",
+        ], .when(platforms: [.windows])),
       ]
     ),
 
@@ -139,7 +145,13 @@ let package = Package(
     .target(
       name: "IndexStoreDB_CIndexStoreDB",
       dependencies: ["IndexStoreDB_Index"],
-      exclude: ["CMakeLists.txt"]
+      exclude: ["CMakeLists.txt"],
+      cSettings: [
+        .unsafeFlags([
+            "-I" + (ProcessInfo.processInfo.environment["SDKROOT"] ?? "") + "\\usr\\include",
+            "-I" + (ProcessInfo.processInfo.environment["SDKROOT"] ?? "") + "\\usr\\include\\Block",
+        ], .when(platforms: [.windows])),
+      ]
     ),
 
     // The lmdb database layer.
@@ -151,6 +163,12 @@ let package = Package(
       ],
       exclude: [
         "CMakeLists.txt"
+      ],
+      cSettings: [
+        .unsafeFlags([
+            "-I" + (ProcessInfo.processInfo.environment["SDKROOT"] ?? "") + "\\usr\\include",
+            "-I" + (ProcessInfo.processInfo.environment["SDKROOT"] ?? "") + "\\usr\\include\\Block",
+        ], .when(platforms: [.windows])),
       ]
     ),
 
@@ -165,7 +183,13 @@ let package = Package(
     .target(
       name: "IndexStoreDB_Support",
       dependencies: ["IndexStoreDB_LLVMSupport"],
-      exclude: ["CMakeLists.txt"]
+      exclude: ["CMakeLists.txt"],
+      cSettings: [
+        .unsafeFlags([
+            "-I" + (ProcessInfo.processInfo.environment["SDKROOT"] ?? "") + "\\usr\\include",
+            "-I" + (ProcessInfo.processInfo.environment["SDKROOT"] ?? "") + "\\usr\\include\\Block",
+        ], .when(platforms: [.windows])),
+      ]
     ),
 
     // Copy of a subset of llvm's ADT and Support libraries.
