@@ -1,3 +1,15 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Swift.org open source project
+//
+// Copyright (c) 2014 - 2026 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+
 import Foundation
 import ISDBTibs
 import IndexStore
@@ -204,7 +216,9 @@ struct IndexStoreTests {
         guard occurrence.symbol.name.string == "bar()" else {
           return .continue
         }
-        #expect(occurrence.symbol.roles == [.definition, .reference, .call, .calledBy, .containedBy])
+        #expect(
+          occurrence.symbol.roles == [.definition, .reference, .call, .calledBy, .containedBy]
+        )
         #expect(occurrence.symbol.relatedRoles == [.calledBy, .containedBy])
         return .continue
       }
@@ -238,6 +252,78 @@ struct IndexStoreTests {
       #expect(include.target.hasSuffix("test.h"))
       #expect(include.line == 2)
     }
-    print()
+  }
+
+  @Test func unitDescription() async throws {
+    let project = TestProject(swiftFiles: [
+      "test.swift": """
+      func testFunc() {}
+      """
+    ])
+    try await project.withIndexStore { indexStore in
+      let unitName = try #require(indexStore.unitNames(sorted: false).map(\.string).only)
+      let unit = try indexStore.unit(named: unitName)
+
+      let description = unit.description
+
+      #expect(
+        description == """
+          Module: test
+          Has Main File: true
+          Main File: 
+          Output File: 
+          Target: test
+          Sysroot: 
+          Working Directory: 
+          Is System: false
+          Is Module: false
+          Is Debug: false
+          Provider Identifier: 
+          Provider Version: 
+          Mod Date: 0
+
+          DEPENDENCIES START
+          Record | test
+          DEPENDENCIES END
+          """
+      )
+
+    }
+  }
+
+  @Test func recordDescription() async throws {
+    let project = TestProject(swiftFiles: [
+      "test.swift": """
+      struct Foo {
+        func testFunc() {}
+      }
+      """
+    ])
+    try await project.withIndexStore { indexStore in
+      let unitName = try #require(indexStore.unitNames(sorted: false).map { $0.string }.only)
+      let unit = try indexStore.unit(named: unitName)
+
+      let recordNames = unit.dependencies.compactMap { dep in
+        dep.kind == .record ? dep.name.string : nil
+      }
+      let recordName = try #require(recordNames.only)
+      let record = try indexStore.record(named: recordName)
+
+      let description = record.description
+
+      #expect(
+        description == """
+          SYMBOLS START
+          struct | Foo | USR: s:4test3FooV
+          instance-method | testFunc | USR: s:4test3FooV8testFuncyyF
+          SYMBOLS END
+          OCCURRENCES START
+          5:8 | struct | USR: s:4test3FooV | Roles: [definition]
+          6:8 | instance-method | USR: s:4test3FooV8testFuncyyF | Roles: [definition]
+            Relation | s:4test3FooV | Roles: [childOf]
+          OCCURRENCES END
+          """
+      )
+    }
   }
 }
