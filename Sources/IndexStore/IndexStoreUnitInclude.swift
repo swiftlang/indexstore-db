@@ -17,7 +17,7 @@ public struct IndexStoreUnitInclude: ~Escapable, Sendable {
   @usableFromInline nonisolated(unsafe) let include: indexstore_unit_include_t
   @usableFromInline let library: IndexStoreLibrary
 
-  @usableFromInline @_lifetime(borrow include, borrow library)
+  @usableFromInline @_lifetime(borrow library)
   init(include: indexstore_unit_include_t, library: borrowing IndexStoreLibrary) {
     self.include = include
     self.library = library
