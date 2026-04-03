@@ -26,6 +26,7 @@ using namespace index;
 using namespace IndexStoreDB::internal;
 
 static indexstoredb_symbol_kind_t toCSymbolKind(SymbolKind K);
+static indexstoredb_symbol_subkind_t toCSymbolSubKind(SymbolSubKind K);
 
 namespace {
 
@@ -374,6 +375,12 @@ indexstoredb_symbol_kind(indexstoredb_symbol_t symbol) {
   return toCSymbolKind(value->getSymbolKind());
 }
 
+indexstoredb_symbol_subkind_t
+indexstoredb_symbol_subkind(indexstoredb_symbol_t symbol) {
+  auto value = (Symbol *)symbol;
+  return toCSymbolSubKind(value->getSymbolSubKind());
+}
+
 uint64_t
 indexstoredb_symbol_properties(indexstoredb_symbol_t symbol) {
   auto value = (Symbol *)symbol;
@@ -601,6 +608,49 @@ static indexstoredb_symbol_kind_t toCSymbolKind(SymbolKind K) {
     return INDEXSTOREDB_SYMBOL_KIND_COMMENTTAG;
   default:
     return INDEXSTOREDB_SYMBOL_KIND_UNKNOWN;
+  }
+}
+
+static indexstoredb_symbol_subkind_t toCSymbolSubKind(SymbolSubKind K) {
+  switch (K) {
+  case SymbolSubKind::None:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_NONE;
+  case SymbolSubKind::CXXCopyConstructor:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_CXXCOPYCONSTRUCTOR;
+  case SymbolSubKind::CXXMoveConstructor:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_CXXMOVECONSTRUCTOR;
+  case SymbolSubKind::AccessorGetter:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_ACCESSORGETTER;
+  case SymbolSubKind::AccessorSetter:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_ACCESSORSETTER;
+  case SymbolSubKind::SwiftAccessorWillSet:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTACCESSORWILLSET;
+  case SymbolSubKind::SwiftAccessorDidSet:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTACCESSORDIDSET;
+  case SymbolSubKind::SwiftAccessorAddressor:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTACCESSORADDRESSOR;
+  case SymbolSubKind::SwiftAccessorMutableAddressor:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTACCESSORMUTABLEADDRESSOR;
+  case SymbolSubKind::SwiftExtensionOfStruct:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTEXTENSIONOFSTRUCT;
+  case SymbolSubKind::SwiftExtensionOfClass:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTEXTENSIONOFCLASS;
+  case SymbolSubKind::SwiftExtensionOfEnum:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTEXTENSIONOFENUM;
+  case SymbolSubKind::SwiftExtensionOfProtocol:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTEXTENSIONOFPROTOCOL;
+  case SymbolSubKind::SwiftPrefixOperator:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTPREFIXOPERATOR;
+  case SymbolSubKind::SwiftPostfixOperator:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTPOSTFIXOPERATOR;
+  case SymbolSubKind::SwiftInfixOperator:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTINFIXOPERATOR;
+  case SymbolSubKind::SwiftSubscript:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTSUBSCRIPT;
+  case SymbolSubKind::SwiftAssociatedType:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTASSOCIATEDTYPE;
+  case SymbolSubKind::SwiftGenericTypeParam:
+    return INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTGENERICTYPEPARAM;
   }
 }
 

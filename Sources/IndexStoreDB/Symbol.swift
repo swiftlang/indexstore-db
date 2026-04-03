@@ -51,6 +51,28 @@ public enum Language: Hashable, Sendable {
   case swift
 }
 
+public enum IndexSymbolSubKind: Hashable, Sendable {
+  case none
+  case cxxCopyConstructor
+  case cxxMoveConstructor
+  case accessorGetter
+  case accessorSetter
+  case swiftAccessorWillSet
+  case swiftAccessorDidSet
+  case swiftAccessorAddressor
+  case swiftAccessorMutableAddressor
+  case swiftExtensionOfStruct
+  case swiftExtensionOfClass
+  case swiftExtensionOfEnum
+  case swiftExtensionOfProtocol
+  case swiftPrefixOperator
+  case swiftPostfixOperator
+  case swiftInfixOperator
+  case swiftSubscript
+  case swiftAssociatedType
+  case swiftGenericTypeParam
+}
+
 public struct Symbol: Hashable, Sendable {
 
   public var usr: String
@@ -58,19 +80,22 @@ public struct Symbol: Hashable, Sendable {
   public var kind: IndexSymbolKind
   public var properties: SymbolProperty
   public var language: Language
+  public var subKind: IndexSymbolSubKind
 
   public init(
     usr: String,
     name: String,
     kind: IndexSymbolKind,
     properties: SymbolProperty = SymbolProperty(),
-    language: Language
+    language: Language,
+    subKind: IndexSymbolSubKind = .none
   ) {
     self.usr = usr
     self.name = name
     self.kind = kind
     self.properties = properties
     self.language = language
+    self.subKind = subKind
   }
 }
 
@@ -97,14 +122,16 @@ extension Symbol {
     usr: String? = nil,
     kind: IndexSymbolKind? = nil,
     properties: SymbolProperty? = nil,
-    language: Language? = nil
+    language: Language? = nil,
+    subKind: IndexSymbolSubKind? = nil
   ) -> Symbol {
     return Symbol(
       usr: usr ?? self.usr,
       name: name ?? self.name,
       kind: kind ?? self.kind,
       properties: properties ?? self.properties,
-      language: language ?? self.language
+      language: language ?? self.language,
+      subKind: subKind ?? self.subKind
     )
   }
 
@@ -146,7 +173,8 @@ extension Symbol {
       name: String(cString: indexstoredb_symbol_name(value)),
       kind: IndexSymbolKind(indexstoredb_symbol_kind(value)),
       properties: SymbolProperty(rawValue: indexstoredb_symbol_properties(value)),
-      language: Language(indexstoredb_symbol_language(value))
+      language: Language(indexstoredb_symbol_language(value)),
+      subKind: IndexSymbolSubKind(indexstoredb_symbol_subkind(value))
     )
   }
 }
@@ -214,6 +242,54 @@ extension IndexSymbolKind {
       self = .commentTag
     default:
       self = .unknown
+    }
+  }
+}
+
+
+extension IndexSymbolSubKind {
+  init(_ cSymbolSubKind: indexstoredb_symbol_subkind_t) {
+    switch cSymbolSubKind {
+    case INDEXSTOREDB_SYMBOL_SUBKIND_NONE:
+      self = .none
+    case INDEXSTOREDB_SYMBOL_SUBKIND_CXXCOPYCONSTRUCTOR:
+      self = .cxxCopyConstructor
+    case INDEXSTOREDB_SYMBOL_SUBKIND_CXXMOVECONSTRUCTOR:
+      self = .cxxMoveConstructor
+    case INDEXSTOREDB_SYMBOL_SUBKIND_ACCESSORGETTER:
+      self = .accessorGetter
+    case INDEXSTOREDB_SYMBOL_SUBKIND_ACCESSORSETTER:
+      self = .accessorSetter
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTACCESSORWILLSET:
+      self = .swiftAccessorWillSet
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTACCESSORDIDSET:
+      self = .swiftAccessorDidSet
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTACCESSORADDRESSOR:
+      self = .swiftAccessorAddressor
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTACCESSORMUTABLEADDRESSOR:
+      self = .swiftAccessorMutableAddressor
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTEXTENSIONOFSTRUCT:
+      self = .swiftExtensionOfStruct
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTEXTENSIONOFCLASS:
+      self = .swiftExtensionOfClass
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTEXTENSIONOFENUM:
+      self = .swiftExtensionOfEnum
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTEXTENSIONOFPROTOCOL:
+      self = .swiftExtensionOfProtocol
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTPREFIXOPERATOR:
+      self = .swiftPrefixOperator
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTPOSTFIXOPERATOR:
+      self = .swiftPostfixOperator
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTINFIXOPERATOR:
+      self = .swiftInfixOperator
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTSUBSCRIPT:
+      self = .swiftSubscript
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTASSOCIATEDTYPE:
+      self = .swiftAssociatedType
+    case INDEXSTOREDB_SYMBOL_SUBKIND_SWIFTGENERICTYPEPARAM:
+      self = .swiftGenericTypeParam
+    default:
+      self = .none
     }
   }
 }

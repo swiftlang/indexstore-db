@@ -865,6 +865,27 @@ final class IndexTests: XCTestCase {
     )
   }
 
+  func testSubKinds() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "SubKinds") else { return }
+    let index = ws.index
+
+    try ws.buildAndIndex()
+
+    let symbols = index.symbols(inFilePath: ws.testLoc("boxSubscript:get").url.path)
+    let subscriptSymbol = try XCTUnwrap(symbols.first(where: { $0.subKind == .swiftSubscript }))
+
+    XCTAssertEqual(
+      subscriptSymbol,
+      Symbol(
+        usr: subscriptSymbol.usr,
+        name: subscriptSymbol.name,
+        kind: .instanceProperty,
+        language: .swift,
+        subKind: .swiftSubscript
+      )
+    )
+  }
+
   func testConcepts() throws {
     guard let ws = try staticTibsTestWorkspace(name: "CxxLangFeatures") else { return }
     try XCTSkipIf(ws.libIndexStore.version < IndexStoreLibrary.Version(major: 0, minor: 14))
