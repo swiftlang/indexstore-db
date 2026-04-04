@@ -48,4 +48,8 @@ public struct IndexStoreUnitInclude: ~Escapable, Sendable {
       return _overrideLifetime(stringRef, borrowing: self)
     }
   }
+
+  var description: String {
+    return "\(sourcePath.string):\(line) | \(targetPath.string)"
+  }
 }

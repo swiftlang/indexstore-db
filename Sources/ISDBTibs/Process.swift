@@ -22,30 +22,23 @@ extension Process {
   /// Runs a subprocess and returns its output as a String if it has a zero exit.
   package static func tibs_checkNonZeroExit(
     arguments: [String],
-    environment: [String: String]? = nil
+    environment: [String: String]? = nil,
+    workingDirectory: URL? = nil
   ) throws -> String {
     let p = Process()
     let out = Pipe()
     let err = Pipe()
 
-    if #available(macOS 10.13, *) {
-      p.executableURL = URL(fileURLWithPath: arguments[0], isDirectory: false)
-    } else {
-      p.launchPath = arguments[0]
-    }
-
+    p.executableURL = URL(fileURLWithPath: arguments[0], isDirectory: false)
     p.arguments = Array(arguments[1...])
     if let environment = environment {
       p.environment = environment
     }
     p.standardOutput = out
     p.standardError = err
+    p.currentDirectoryURL = workingDirectory
 
-    if #available(macOS 10.13, *) {
-      try p.run()
-    } else {
-      p.launch()
-    }
+    try p.run()
 
     let dataOut = out.fileHandleForReading.readDataToEndOfFile()
     let dataErr = err.fileHandleForReading.readDataToEndOfFile()

@@ -7,6 +7,16 @@ func hasEnvironmentVariable(_ name: String) -> Bool {
   return ProcessInfo.processInfo.environment[name] != nil
 }
 
+/// Settings to apply to targets building in Swift 6 mode.
+let swift6Settings: [SwiftSetting] = [
+  .swiftLanguageMode(.v6),
+  .enableUpcomingFeature("ExistentialAny"),
+  .enableUpcomingFeature("InternalImportsByDefault"),
+  .enableUpcomingFeature("MemberImportVisibility"),
+  .enableUpcomingFeature("InferIsolatedConformances"),
+  .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+]
+
 /// Assume that all the package dependencies are checked out next to indexstore-db and use that instead of fetching a
 /// remote dependency.
 var useLocalDependencies: Bool { hasEnvironmentVariable("SWIFTCI_USE_LOCAL_DEPS") }
@@ -14,11 +24,13 @@ var useLocalDependencies: Bool { hasEnvironmentVariable("SWIFTCI_USE_LOCAL_DEPS"
 var dependencies: [Package.Dependency] {
   if useLocalDependencies {
     return [
-      .package(path: "../swift-lmdb")
+      .package(path: "../swift-lmdb"),
+      .package(path: "../swift-argument-parser"),
     ]
   } else {
     return [
-      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main")
+      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main"),
+      .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.1"),
     ]
   }
 }
@@ -47,6 +59,10 @@ let package = Package(
       name: "IndexStore",
       targets: ["IndexStore"]
     ),
+    .executable(
+      name: "index-dump",
+      targets: ["index-dump"]
+    ),
   ],
   dependencies: dependencies,
   targets: [
@@ -56,15 +72,7 @@ let package = Package(
       name: "IndexStore",
       dependencies: ["IndexStoreCAPI"],
       exclude: ["Index Store.md", "README.md"],
-      swiftSettings: [
-        .enableUpcomingFeature("ExistentialAny"),
-        .enableUpcomingFeature("InternalImportsByDefault"),
-        .enableUpcomingFeature("MemberImportVisibility"),
-        .enableUpcomingFeature("InferIsolatedConformances"),
-        .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
-        .enableExperimentalFeature("Lifetimes"),
-        .swiftLanguageMode(.v6),
-      ]
+      swiftSettings: swift6Settings + [.enableExperimentalFeature("Lifetimes")]
     ),
 
     .testTarget(
@@ -198,6 +206,16 @@ let package = Package(
         "Windows/Threading.inc",
         "Windows/Watchdog.inc",
       ]
+    ),
+
+    // Executable to dump index and record files
+    .executableTarget(
+      name: "index-dump",
+      dependencies: [
+        "IndexStore",
+        .product(name: "ArgumentParser", package: "swift-argument-parser"),
+      ],
+      swiftSettings: swift6Settings
     ),
   ],
   swiftLanguageModes: [.v5],

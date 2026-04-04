@@ -13,7 +13,7 @@
 public import IndexStoreCAPI
 
 public struct IndexStoreUnitDependency: ~Escapable, Sendable {
-  public struct Kind: RawRepresentable, Sendable, Hashable {
+  public struct Kind: RawRepresentable, Sendable, Hashable, CustomStringConvertible {
     public let rawValue: UInt8
 
     public static let unit = Kind(INDEXSTORE_UNIT_DEPENDENCY_UNIT)
@@ -28,6 +28,15 @@ public struct IndexStoreUnitDependency: ~Escapable, Sendable {
     @usableFromInline
     init(_ kind: indexstore_unit_dependency_kind_t) {
       self.rawValue = UInt8(kind.rawValue)
+    }
+
+    public var description: String {
+      switch self {
+      case .unit: return "Unit"
+      case .record: return "Record"
+      case .file: return "File"
+      default: return "Unknown dependency kind \(rawValue)"
+      }
     }
   }
 
@@ -82,5 +91,15 @@ public struct IndexStoreUnitDependency: ~Escapable, Sendable {
       let stringRef = IndexStoreStringRef(library.api.unit_dependency_get_name(dependency))
       return _overrideLifetime(stringRef, borrowing: self)
     }
+  }
+
+  var description: String {
+    return [
+      kind.description,
+      isSystem ? "system" : "user",
+      moduleName.string,
+      filePath.string,
+      name.string,
+    ].filter { !$0.isEmpty }.joined(separator: " | ")
   }
 }

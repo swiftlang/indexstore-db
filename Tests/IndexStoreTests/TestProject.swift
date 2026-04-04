@@ -65,12 +65,17 @@ struct TestProject {
       "-index-store-path", indexDir.filePath,
       "-o", fileUrl.deletingPathExtension().appendingPathExtension("o").filePath,
       "-index-ignore-system-modules",
+      "-disable-implicit-concurrency-module-import",
+      "-disable-implicit-string-processing-module-import",
     ]
     if let sdk = defaultSDKPath {
       compilerArguments += ["-sdk", sdk]
     }
 
-    _ = try Process.tibs_checkNonZeroExit(arguments: compilerArguments)
+    _ = try Process.tibs_checkNonZeroExit(
+      arguments: compilerArguments,
+      workingDirectory: fileUrl.deletingLastPathComponent()
+    )
   }
 
   private func indexClangFile(at fileUrl: URL, indexDir: URL) throws {
@@ -83,6 +88,9 @@ struct TestProject {
       "-o", fileUrl.deletingPathExtension().appendingPathExtension("o").filePath,
     ]
 
-    _ = try Process.tibs_checkNonZeroExit(arguments: compilerArguments)
+    _ = try Process.tibs_checkNonZeroExit(
+      arguments: compilerArguments,
+      workingDirectory: fileUrl.deletingLastPathComponent()
+    )
   }
 }
