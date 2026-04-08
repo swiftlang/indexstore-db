@@ -78,24 +78,24 @@ public struct Symbol: Hashable, Sendable {
   public var usr: String
   public var name: String
   public var kind: IndexSymbolKind
+  public var subKind: IndexSymbolSubKind
   public var properties: SymbolProperty
   public var language: Language
-  public var subKind: IndexSymbolSubKind
 
   public init(
     usr: String,
     name: String,
     kind: IndexSymbolKind,
+    subKind: IndexSymbolSubKind = .none,
     properties: SymbolProperty = SymbolProperty(),
-    language: Language,
-    subKind: IndexSymbolSubKind = .none
+    language: Language
   ) {
     self.usr = usr
     self.name = name
     self.kind = kind
+    self.subKind = subKind
     self.properties = properties
     self.language = language
-    self.subKind = subKind
   }
 }
 
@@ -121,17 +121,17 @@ extension Symbol {
     name: String? = nil,
     usr: String? = nil,
     kind: IndexSymbolKind? = nil,
+    subKind: IndexSymbolSubKind? = nil,
     properties: SymbolProperty? = nil,
-    language: Language? = nil,
-    subKind: IndexSymbolSubKind? = nil
+    language: Language? = nil
   ) -> Symbol {
     return Symbol(
       usr: usr ?? self.usr,
       name: name ?? self.name,
       kind: kind ?? self.kind,
+      subKind: subKind ?? self.subKind,
       properties: properties ?? self.properties,
-      language: language ?? self.language,
-      subKind: subKind ?? self.subKind
+      language: language ?? self.language
     )
   }
 
@@ -172,9 +172,9 @@ extension Symbol {
       usr: String(cString: indexstoredb_symbol_usr(value)),
       name: String(cString: indexstoredb_symbol_name(value)),
       kind: IndexSymbolKind(indexstoredb_symbol_kind(value)),
+      subKind: IndexSymbolSubKind(indexstoredb_symbol_subkind(value)),
       properties: SymbolProperty(rawValue: indexstoredb_symbol_properties(value)),
-      language: Language(indexstoredb_symbol_language(value)),
-      subKind: IndexSymbolSubKind(indexstoredb_symbol_subkind(value))
+      language: Language(indexstoredb_symbol_language(value))
     )
   }
 }

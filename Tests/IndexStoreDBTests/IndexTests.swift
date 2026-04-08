@@ -880,8 +880,8 @@ final class IndexTests: XCTestCase {
         usr: subscriptSymbol.usr,
         name: subscriptSymbol.name,
         kind: .instanceProperty,
-        language: .swift,
-        subKind: .swiftSubscript
+        subKind: .swiftSubscript,
+        language: .swift
       )
     )
   }
