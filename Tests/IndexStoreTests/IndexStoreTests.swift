@@ -212,6 +212,33 @@ struct IndexStoreTests {
   }
 
   @Test
+  func swiftSubscriptSymbolHasSubKind() async throws {
+    let project = TestProject(swiftFiles: [
+      "test.swift": """
+      struct Box {
+        subscript(index: Int) -> Int {
+          get { index }
+          set { _ = newValue }
+        }
+      }
+      """
+    ])
+    try await project.withIndexStore { indexStore in
+      let record = try indexStore.onlyRecord
+      let subscriptSymbol = try #require(record.symbols.compactMap { symbol in
+        symbol.subKind == IndexStoreSymbol.SubKind.swiftSubscript
+          ? (symbol.name.string, symbol.kind, symbol.language, symbol.subKind)
+          : nil
+      }.only)
+
+      #expect(subscriptSymbol.0.contains("subscript"))
+      #expect(subscriptSymbol.1 == .instanceProperty)
+      #expect(subscriptSymbol.2 == .swift)
+      #expect(subscriptSymbol.3 == .swiftSubscript)
+    }
+  }
+
+  @Test
   func includesInCFiles() async throws {
     let project = TestProject(
       clangFiles: [
