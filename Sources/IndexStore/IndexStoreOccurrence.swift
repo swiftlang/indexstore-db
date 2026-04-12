@@ -73,6 +73,15 @@ public struct IndexStoreOccurrence: ~Escapable, Sendable {
     return (Int(line), Int(column))
   }
 
+  public var description: String {
+    var result = "\(position.line):\(position.column) | \(symbol.description)"
+    relations.forEach { relation in
+      result += "\n  " + relation.description
+      return .continue
+    }
+    return result
+  }
+
   /// Specialized version of `IndexStoreSequence` that can have a lifetime dependence on a `IndexStoreOccurrence`.
   ///
   /// There currently doesn't seem to be a way to model this using the closure-taking `IndexStoreSequence`.

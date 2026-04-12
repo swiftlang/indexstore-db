@@ -17,7 +17,7 @@ public import IndexStoreCAPI
 /// A symbol by itself does not have any source information associated with it. It just represents the declaration
 /// itself, `IndexStoreSymbolOccurrence` represents actual occurrences of symbols within a source file.
 public struct IndexStoreSymbol: ~Escapable, Sendable {
-  public struct Kind: RawRepresentable, Hashable, Sendable {
+  public struct Kind: RawRepresentable, Hashable, Sendable, CustomStringConvertible {
     public let rawValue: UInt16
 
     public static let unknown = Kind(INDEXSTORE_SYMBOL_KIND_UNKNOWN)
@@ -50,6 +50,41 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
     public static let concept = Kind(INDEXSTORE_SYMBOL_KIND_CONCEPT)
     public static let commentTag = Kind(INDEXSTORE_SYMBOL_KIND_COMMENTTAG)
 
+    public var description: String {
+      switch self {
+      case .unknown: return "unknown"
+      case .module: return "module"
+      case .namespace: return "namespace"
+      case .namespaceAlias: return "namespaceAlias"
+      case .macro: return "macro"
+      case .enum: return "enum"
+      case .struct: return "struct"
+      case .class: return "class"
+      case .protocol: return "protocol"
+      case .extension: return "extension"
+      case .union: return "union"
+      case .typealias: return "typealias"
+      case .function: return "function"
+      case .variable: return "variable"
+      case .field: return "field"
+      case .enumConstant: return "enumConstant"
+      case .instanceMethod: return "instanceMethod"
+      case .classMethod: return "classMethod"
+      case .staticMethod: return "staticMethod"
+      case .instanceProperty: return "instanceProperty"
+      case .classProperty: return "classProperty"
+      case .staticProperty: return "staticProperty"
+      case .constructor: return "constructor"
+      case .destructor: return "destructor"
+      case .conversionFunction: return "conversionFunction"
+      case .parameter: return "parameter"
+      case .using: return "using"
+      case .concept: return "concept"
+      case .commentTag: return "commentTag"
+      default: return "unknown symbol kind \(rawValue)"
+      }
+    }
+
     @inlinable
     public init(rawValue: UInt16) {
       self.rawValue = rawValue
@@ -61,7 +96,7 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
     }
   }
 
-  public struct SubKind: RawRepresentable, Hashable, Sendable {
+  public struct SubKind: RawRepresentable, Hashable, Sendable, CustomStringConvertible {
     public let rawValue: UInt16
 
     public static let none = SubKind(INDEXSTORE_SYMBOL_SUBKIND_NONE)
@@ -97,9 +132,38 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
     init(_ subKind: indexstore_symbol_subkind_t) {
       self.rawValue = UInt16(subKind.rawValue)
     }
+
+    public var description: String {
+      switch self {
+      case .none: return "none"
+      case .cxxCopyConstructor: return "cxxCopyConstructor"
+      case .cxxMoveConstructor: return "cxxMoveConstructor"
+      case .accessorGetter: return "accessorGetter"
+      case .accessorSetter: return "accessorSetter"
+      case .usingTypename: return "usingTypename"
+      case .usingValue: return "usingValue"
+      case .swiftAccessorWillSet: return "swiftAccessorWillSet"
+      case .swiftAccessorDidSet: return "swiftAccessorDidSet"
+      case .swiftAccessorAddressor: return "swiftAccessorAddressor"
+      case .swiftAccessorMutableAddressor: return "swiftAccessorMutableAddressor"
+      case .swiftExtensionOfStruct: return "swiftExtensionOfStruct"
+      case .swiftExtensionOfClass: return "swiftExtensionOfClass"
+      case .swiftExtensionOfEnum: return "swiftExtensionOfEnum"
+      case .swiftExtensionOfProtocol: return "swiftExtensionOfProtocol"
+      case .swiftPrefixOperator: return "swiftPrefixOperator"
+      case .swiftPostfixOperator: return "swiftPostfixOperator"
+      case .swiftInfixOperator: return "swiftInfixOperator"
+      case .swiftSubscript: return "swiftSubscript"
+      case .swiftAssociatedtype: return "swiftAssociatedtype"
+      case .swiftGenericTypeParam: return "swiftGenericTypeParam"
+      case .swiftAccessorRead: return "swiftAccessorRead"
+      case .swiftAccessorModify: return "swiftAccessorModify"
+      default: return "unknown SubKind \(rawValue)"
+      }
+    }
   }
 
-  public struct Properties: OptionSet, Sendable {
+  public struct Properties: OptionSet, Sendable, CustomStringConvertible {
     public let rawValue: UInt64
 
     public static let generic = Properties(INDEXSTORE_SYMBOL_PROPERTY_GENERIC)
@@ -122,6 +186,21 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
     @usableFromInline
     init(_ rawValue: indexstore_symbol_property_t) {
       self.rawValue = UInt64(rawValue.rawValue)
+    }
+
+    public var description: String {
+      var components: [String] = []
+      if self.contains(.generic) { components.append("generic") }
+      if self.contains(.templatePartialSpecialization) { components.append("templatePartialSpecialization") }
+      if self.contains(.templateSpecialization) { components.append("templateSpecialization") }
+      if self.contains(.unittest) { components.append("unittest") }
+      if self.contains(.ibAnnotated) { components.append("ibAnnotated") }
+      if self.contains(.ibOutletCollection) { components.append("ibOutletCollection") }
+      if self.contains(.gkInspectable) { components.append("gkInspectable") }
+      if self.contains(.local) { components.append("local") }
+      if self.contains(.protocolInterface) { components.append("protocolInterface") }
+      if self.contains(.swiftAsync) { components.append("swiftAsync") }
+      return components.joined(separator: ", ")
     }
   }
 
@@ -161,13 +240,19 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
     return Properties(rawValue: library.api.symbol_get_properties(symbol))
   }
 
-  /// The union of all roles with which the symbol occurs in the current record, including the relationship roles.
+  /// The union of all roles with which the symbol occurs in the current record
+  ///
+  /// Ie. the result of iterating over all `IndexStoreOccurrence`s of this symbol in the record and collecting their
+  /// roles.
   @inlinable
   public var roles: IndexStoreSymbolRoles {
     return IndexStoreSymbolRoles(rawValue: library.api.symbol_get_roles(symbol))
   }
 
-  /// Only the relationship roles with which the symbol occurs in the current record.
+  /// The roles with which this symbol is related to other symbol occurrences in the current record.
+  ///
+  /// Ie. the result of iterating over all `IndexStoreSymbolRelation`s of this symbol in the record and collecting
+  /// their roles.
   @inlinable
   public var relatedRoles: IndexStoreSymbolRoles {
     return IndexStoreSymbolRoles(rawValue: library.api.symbol_get_related_roles(symbol))
@@ -205,5 +290,22 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
       let stringRef = IndexStoreStringRef(library.api.symbol_get_codegen_name(symbol))
       return _overrideLifetime(stringRef, borrowing: self)
     }
+  }
+
+  var description: String {
+    var kindString = kind.description
+    if subKind != .none {
+      kindString += ".\(subKind)"
+    }
+    if !properties.isEmpty {
+      kindString += "(\(properties))"
+    }
+
+    return [
+      name.string,
+      kindString,
+      usr.string,
+      roles.description,
+    ].joined(separator: " | ")
   }
 }

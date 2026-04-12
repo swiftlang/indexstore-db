@@ -14,7 +14,7 @@ public import Foundation
 public import IndexStoreCAPI
 
 /// Representation of a unit file within the Index Store that can be used to read its contents.
-public final class IndexStoreUnit: Sendable {
+public final class IndexStoreUnit: Sendable, CustomStringConvertible {
   @usableFromInline nonisolated(unsafe) let unitReader: indexstore_unit_reader_t
   @usableFromInline let library: IndexStoreLibrary
 
@@ -177,5 +177,35 @@ public final class IndexStoreUnit: Sendable {
         return body(IndexStoreUnitInclude(include: result!, library: self.library))
       }
     }
+  }
+
+  public var description: String {
+    var result = """
+      Module: \(moduleName.string)
+      Has Main File: \(hasMainFile)
+      Main File: \(mainFile.string)
+      Output File: \(outputFile.string)
+      Target: \(target.string)
+      Sysroot: \(sysrootPath.string)
+      Working Directory: \(workingDirectory.string)
+      Is System: \(isSystemUnit)
+      Is Module: \(isModuleUnit)
+      Is Debug: \(isDebugCompilation)
+      Provider Identifier: \(providerIdentifier.string)
+      Provider Version: \(providerVersion.string)
+      Modification Date: \(modificationDate)
+      Dependencies:
+      \(dependencies.map { $0.description }.joined(separator: "\n"))
+      """
+
+    let includesString = includes.map { $0.description }.joined(separator: "\n")
+    if !includesString.isEmpty {
+      result += """
+
+        Includes:
+        \(includesString)
+        """
+    }
+    return result
   }
 }

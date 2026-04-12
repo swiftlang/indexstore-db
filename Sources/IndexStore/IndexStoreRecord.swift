@@ -13,7 +13,7 @@
 public import IndexStoreCAPI
 
 /// Representation of a record file within the Index Store that can be used to read its contents.
-public final class IndexStoreRecord: Sendable {
+public final class IndexStoreRecord: Sendable, CustomStringConvertible {
   @usableFromInline nonisolated(unsafe) let recordReader: indexstore_record_reader_t
   @usableFromInline let library: IndexStoreLibrary
 
@@ -143,4 +143,14 @@ public final class IndexStoreRecord: Sendable {
 
   // `record_reader_occurrences_of_symbols_apply_f` cannot be represented easily because we can't take an array of
   // `IndexStoreSymbol` as input to this function and has thus not been wrapped yet.
+
+  public var description: String {
+    return """
+      Symbols:
+      \(symbols.map {$0.description }.joined(separator: "\n"))
+
+      Occurrences:
+      \(occurrences.map { $0.description }.joined(separator: "\n"))
+      """
+  }
 }

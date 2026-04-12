@@ -1,3 +1,15 @@
+//===----------------------------------------------------------------------===//
+//
+// This source file is part of the Swift.org open source project
+//
+// Copyright (c) 2014 - 2026 Apple Inc. and the Swift project authors
+// Licensed under Apache License v2.0 with Runtime Library Exception
+//
+// See https://swift.org/LICENSE.txt for license information
+// See https://swift.org/CONTRIBUTORS.txt for the list of Swift project authors
+//
+//===----------------------------------------------------------------------===//
+
 import Foundation
 import ISDBTibs
 import IndexStore
@@ -204,7 +216,9 @@ struct IndexStoreTests {
         guard occurrence.symbol.name.string == "bar()" else {
           return .continue
         }
-        #expect(occurrence.symbol.roles == [.definition, .reference, .call, .calledBy, .containedBy])
+        #expect(
+          occurrence.symbol.roles == [.definition, .reference, .call, .calledBy, .containedBy]
+        )
         #expect(occurrence.symbol.relatedRoles == [.calledBy, .containedBy])
         return .continue
       }
@@ -265,6 +279,5 @@ struct IndexStoreTests {
       #expect(include.target.hasSuffix("test.h"))
       #expect(include.line == 2)
     }
-    print()
   }
 }

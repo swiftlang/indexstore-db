@@ -42,4 +42,8 @@ public struct IndexStoreSymbolRelation: ~Escapable, Sendable {
       return _overrideLifetime(symbol, borrowing: self)
     }
   }
+
+  var description: String {
+    return "\(roles) | \(symbol.usr.string)"
+  }
 }
