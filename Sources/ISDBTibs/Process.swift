@@ -22,8 +22,7 @@ extension Process {
   /// Runs a subprocess and returns its output as a String if it has a zero exit.
   package static func tibs_checkNonZeroExit(
     arguments: [String],
-    environment: [String: String]? = nil,
-    workingDirectory: URL? = nil
+    environment: [String: String]? = nil
   ) throws -> String {
     let p = Process()
     let out = Pipe()
@@ -36,7 +35,14 @@ extension Process {
     }
     p.standardOutput = out
     p.standardError = err
-    p.currentDirectoryURL = workingDirectory
+
+    // IMPORTANT: If you are tempted to add `p.currentDirectoryPath` here, don't.
+    // On Amazon Linux 2 `_CFPosixSpawnFileActionsChdir` is not implemented because it AL2 doesn't support
+    // posix_spawn_file_actions_addchdir_np. Because of this, swift-corelibs-foundation changes the working directory of
+    // the current process.
+    // https://github.com/swiftlang/swift-corelibs-foundation/blob/0b23e798e921fd14ff59b37c9145021cd60e0aa9/Sources/Foundation/Process.swift#L989
+    // If we run multiple sub-processes concurrently, this races to change global state, resulting
+    // in non-deterministic working directories and spurious test failures.
 
     try p.run()
 

@@ -57,6 +57,7 @@ struct TestProject {
       swiftc.filePath,
       "-index-file",
       fileUrl.filePath,
+      "-working-directory", fileUrl.deletingLastPathComponent().filePath,
       "-index-store-path", indexDir.filePath,
       "-o", fileUrl.deletingPathExtension().appendingPathExtension("o").filePath,
       "-index-ignore-system-modules",
@@ -67,10 +68,7 @@ struct TestProject {
       compilerArguments += ["-sdk", sdk]
     }
 
-    _ = try Process.tibs_checkNonZeroExit(
-      arguments: compilerArguments,
-      workingDirectory: fileUrl.deletingLastPathComponent()
-    )
+    _ = try Process.tibs_checkNonZeroExit(arguments: compilerArguments)
   }
 
   private func indexClangFile(at fileUrl: URL, indexDir: URL) throws {
@@ -79,13 +77,11 @@ struct TestProject {
       clang.filePath,
       "-fsyntax-only",
       fileUrl.filePath,
+      "-working-directory", fileUrl.deletingLastPathComponent().filePath,
       "-index-store-path", indexDir.filePath,
       "-o", fileUrl.deletingPathExtension().appendingPathExtension("o").filePath,
     ]
 
-    _ = try Process.tibs_checkNonZeroExit(
-      arguments: compilerArguments,
-      workingDirectory: fileUrl.deletingLastPathComponent()
-    )
+    _ = try Process.tibs_checkNonZeroExit(arguments: compilerArguments)
   }
 }
