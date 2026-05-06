@@ -29,7 +29,7 @@ var dependencies: [Package.Dependency] {
     ]
   } else {
     return [
-      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "main"),
+      .package(url: "https://github.com/swiftlang/swift-lmdb.git", branch: "release/6.4.x"),
       .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.1"),
     ]
   }
