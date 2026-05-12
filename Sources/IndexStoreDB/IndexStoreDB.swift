@@ -303,12 +303,17 @@ public final class IndexStoreDB {
     crossLanguage: Bool,
     body: (String) -> Bool
   ) -> Bool {
+    let isSwift = if crossLanguage {
+      // If 'crossLanguage' is requested, this value is not used.
+      false
+    } else {
+      path.hasSuffix(".swift") || path.hasSuffix(".swiftinterface") || path.hasSuffix(".swiftmodule")
+    }
     let fromSwift = path.hasSuffix(".swift")
     return withoutActuallyEscaping(body) { body in
       return indexstoredb_index_units_containing_file(impl, path) { unit in
         let mainFileStr = String(cString: indexstoredb_unit_info_main_file_path(unit))
-        let toSwift = mainFileStr.hasSuffix(".swift")
-        if !crossLanguage && fromSwift != toSwift {
+        if !crossLanguage && isSwift != mainFileStr.hasSuffix(".swift") {
           return true  // continue
         }
         return body(mainFileStr)
