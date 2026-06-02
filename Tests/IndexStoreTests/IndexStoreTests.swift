@@ -62,7 +62,7 @@ struct IndexStoreTests {
         #expect(symbol.language == .swift)
         #expect(symbol.kind == .function)
         #expect(symbol.subKind == .none)
-        #expect(symbol.properties == [.swiftAsync])
+        #expect(symbol.properties.components == [.swiftAsync, .swiftAccessControlInternal])
         #expect(symbol.roles == [.definition])
         #expect(symbol.relatedRoles == [])
         #expect(symbol.name.string == "foo()")
