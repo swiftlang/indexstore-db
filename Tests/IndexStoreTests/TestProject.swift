@@ -52,9 +52,8 @@ struct TestProject {
   }
 
   private func indexSwiftFile(at fileUrl: URL, indexDir: URL) throws {
-    let swiftc = try #require(findTool(name: "swiftc\(TibsToolchain.execExt)"))
     var compilerArguments = try [
-      swiftc.filePath,
+      TibsToolchain.testDefault.swiftc.filePath,
       "-index-file",
       fileUrl.filePath,
       "-working-directory", fileUrl.deletingLastPathComponent().filePath,
@@ -72,9 +71,8 @@ struct TestProject {
   }
 
   private func indexClangFile(at fileUrl: URL, indexDir: URL) throws {
-    let clang = try #require(findTool(name: "clang\(TibsToolchain.execExt)"))
     let compilerArguments = try [
-      clang.filePath,
+      TibsToolchain.testDefault.clang.filePath,
       "-fsyntax-only",
       fileUrl.filePath,
       "-working-directory", fileUrl.deletingLastPathComponent().filePath,
