@@ -60,7 +60,6 @@ struct TestProject {
       "-index-store-path", indexDir.filePath,
       "-o", fileUrl.deletingPathExtension().appendingPathExtension("o").filePath,
       "-index-ignore-system-modules",
-      "-disable-implicit-concurrency-module-import",
       "-disable-implicit-string-processing-module-import",
     ]
     if let sdk = defaultSDKPath {

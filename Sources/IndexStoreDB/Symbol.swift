@@ -107,7 +107,7 @@ extension Symbol: Comparable {
 
 extension Symbol: CustomStringConvertible {
   public var description: String {
-    if properties.isEmpty {
+    if properties.rawValue == 0 {
       return "\(name) | \(kind) | \(usr) | \(language)"
     }
     return "\(name) | \(kind) (\(properties)) | \(usr) | \(language)"
