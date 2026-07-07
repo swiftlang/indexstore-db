@@ -80,7 +80,12 @@ class INDEXSTOREDB_EXPORT UnitDataImport {
   std::vector<UnitInfo::Provider> ProviderDepends;
 
 public:
-  UnitDataImport(ImportTransaction &import, StringRef unitName, llvm::sys::TimePoint<> modTime);
+  /// \param ignoreModTime If true, treat the unit as out-of-date even if its modification time matches the one already
+  /// recorded in the database, forcing a re-import. This is used when a caller knows that the unit's contents changed
+  /// but its modification time might not have (e.g. because the file system's timestamp granularity is too coarse to
+  /// distinguish two writes in quick succession).
+  UnitDataImport(ImportTransaction &import, StringRef unitName, llvm::sys::TimePoint<> modTime,
+                 bool ignoreModTime = false);
   ~UnitDataImport();
 
   IDCode getUnitCode() const { return UnitCode; }

@@ -402,7 +402,8 @@ void ImportTransaction::commit() {
   return Impl->commit();
 }
 
-UnitDataImport::UnitDataImport(ImportTransaction &import, StringRef unitName, llvm::sys::TimePoint<> modTime)
+UnitDataImport::UnitDataImport(ImportTransaction &import, StringRef unitName, llvm::sys::TimePoint<> modTime,
+                               bool ignoreModTime)
 : Import(import), UnitName(unitName), ModTime(modTime), IsSystem(false) {
 
   auto dbUnit = import._impl()->getUnitInfo(makeIDCodeFromString(unitName));
@@ -420,7 +421,7 @@ UnitDataImport::UnitDataImport(ImportTransaction &import, StringRef unitName, ll
   PrevTargetCode = dbUnit.TargetCode;
   PrevSysrootCode = dbUnit.SysrootCode;
 
-  if (dbUnit.ModTime == modTime) {
+  if (!ignoreModTime && dbUnit.ModTime == modTime) {
     IsUpToDate = true;
     return;
   }

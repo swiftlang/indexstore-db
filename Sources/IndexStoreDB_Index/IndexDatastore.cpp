@@ -88,9 +88,15 @@ struct UnitEventInfo {
   bool isInitialScan;
   /// Whether this is an explicit enqueue of a dependency unit for processing, while `UseExplicitOutputUnits` is enabled.
   bool isDependency;
+  /// Whether to re-import the unit even if its modification time matches the one already recorded in the database.
+  /// This is set when a caller explicitly requests processing of a unit that it knows was just re-generated, so that
+  /// the new contents are loaded even if the file system's timestamp granularity didn't distinguish the two writes.
+  bool ignoreModTime;
 
-  UnitEventInfo(IndexStore::UnitEvent::Kind kind, std::string name, bool isInitialScan, bool isDependency = false)
-  : kind(kind), name(std::move(name)), isInitialScan(isInitialScan), isDependency(isDependency) {}
+  UnitEventInfo(IndexStore::UnitEvent::Kind kind, std::string name, bool isInitialScan, bool isDependency = false,
+                bool ignoreModTime = false)
+  : kind(kind), name(std::move(name)), isInitialScan(isInitialScan), isDependency(isDependency),
+    ignoreModTime(ignoreModTime) {}
 };
 
 struct PollUnitsState {
@@ -158,7 +164,7 @@ public:
   void checkUnitContainingFileIsOutOfDate(StringRef file);
 
 private:
-  void registerUnit(StringRef UnitName, bool isInitialScan, std::shared_ptr<UnitProcessingSession> processSession);
+  void registerUnit(StringRef UnitName, bool isInitialScan, std::shared_ptr<UnitProcessingSession> processSession, bool ignoreModTime = false);
   void removeUnit(StringRef UnitName);
 };
 
@@ -425,7 +431,7 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
       case IndexStore::UnitEvent::Kind::Added:
       case IndexStore::UnitEvent::Kind::Modified:
         if (!shouldIgnore(evt)) {
-          registerUnit(evt.name, evt.isInitialScan, processSession);
+          registerUnit(evt.name, evt.isInitialScan, processSession, evt.ignoreModTime);
         }
         break;
       case IndexStore::UnitEvent::Kind::Removed:
@@ -453,7 +459,7 @@ void StoreUnitRepo::onFilesChange(std::vector<UnitEventInfo> evts,
   }
 }
 
-void StoreUnitRepo::registerUnit(StringRef unitName, bool isInitialScan, std::shared_ptr<UnitProcessingSession> processSession) {
+void StoreUnitRepo::registerUnit(StringRef unitName, bool isInitialScan, std::shared_ptr<UnitProcessingSession> processSession, bool ignoreModTime) {
   std::string Error;
   auto optModTime = IdxStore->getUnitModificationTime(unitName, Error);
   if (!optModTime) {
@@ -493,7 +499,7 @@ void StoreUnitRepo::registerUnit(StringRef unitName, bool isInitialScan, std::sh
   // Returns true if an error occurred.
   auto importUnit = [&]() -> bool {
     ImportTransaction import(SymIndex->getDBase());
-    UnitDataImport unitImport(import, unitName, unitModTime);
+    UnitDataImport unitImport(import, unitName, unitModTime, ignoreModTime);
     unitCode = unitImport.getUnitCode();
     needDatabaseUpdate = !unitImport.isUpToDate();
     optIsSystem = unitImport.getIsSystem();
@@ -752,7 +758,13 @@ void StoreUnitRepo::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> output
   std::vector<UnitEventInfo> events;
   for (StringRef outputPath : outputPaths) {
     IdxStore->getUnitNameFromOutputPath(outputPath, nameBuf);
-    events.emplace_back(IndexStore::UnitEvent::Kind::Modified, nameBuf.str(), /*isInitialScan=*/false);
+    // The caller explicitly requests processing of these output paths because it knows their units were just
+    // re-generated. Pass `ignoreModTime` so that we re-import them even if the unit's modification time happens to
+    // match the one already in the database, which can occur when two writes land within the same file-system
+    // timestamp tick (observed e.g. on Windows). Otherwise the freshly indexed symbols would not become queryable
+    // until the unit is eventually picked up through file watching.
+    events.emplace_back(IndexStore::UnitEvent::Kind::Modified, nameBuf.str(), /*isInitialScan=*/false,
+                        /*isDependency=*/false, /*ignoreModTime=*/true);
   }
   auto session = makeUnitProcessingSession();
   session->process(std::move(events), /*waitForProcessing=*/true);
