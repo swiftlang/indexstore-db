@@ -28,5 +28,10 @@ install(TARGETS IndexStoreDB
   ARCHIVE DESTINATION lib/swift$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:_static>/$<LOWER_CASE:${CMAKE_SYSTEM_NAME}>
   LIBRARY DESTINATION lib/swift$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:_static>/$<LOWER_CASE:${CMAKE_SYSTEM_NAME}>
   RUNTIME DESTINATION bin)
+if(MSVC)
+  install(FILES $<TARGET_FILE_DIR:IndexStoreDB>/$<TARGET_FILE_BASE_NAME:IndexStoreDB>.pdb
+    DESTINATION bin
+    OPTIONAL)
+endif()
 install_swiftmodule(IndexStoreDB)
 set_property(GLOBAL APPEND PROPERTY IndexStoreDB_EXPORTS IndexStoreDB)
