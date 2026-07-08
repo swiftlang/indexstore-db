@@ -163,7 +163,7 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
     }
   }
 
-  public struct Properties: OptionSet, Sendable, CustomStringConvertible {
+  public struct Properties: Sendable, CustomStringConvertible, Equatable {
     public let rawValue: UInt64
 
     public static let generic = Properties(INDEXSTORE_SYMBOL_PROPERTY_GENERIC)
@@ -179,6 +179,26 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
     public static let protocolInterface = Properties(INDEXSTORE_SYMBOL_PROPERTY_PROTOCOL_INTERFACE)
     public static let swiftAsync = Properties(INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ASYNC)
 
+    public static let swiftAccessControlLessThanFilePrivate = Properties(
+      INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_LESSTHANFILEPRIVATE
+    )
+    public static let swiftAccessControlFileprivate = Properties(
+      INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_FILEPRIVATE
+    )
+    public static let swiftAccessControlInternal = Properties(INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_INTERNAL)
+    public static let swiftAccessControlPackage = Properties(INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_PACKAGE)
+    public static let swiftAccessControlSpi = Properties(INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_SPI)
+    public static let swiftAccessControlPublic = Properties(INDEXSTORE_SYMBOL_PROPERTY_SWIFT_ACCESSCONTROL_PUBLIC)
+
+    @usableFromInline
+    static let swiftAccessControlBitmask =
+      Properties.swiftAccessControlLessThanFilePrivate.rawValue
+      | Properties.swiftAccessControlFileprivate.rawValue
+      | Properties.swiftAccessControlInternal.rawValue
+      | Properties.swiftAccessControlPackage.rawValue
+      | Properties.swiftAccessControlSpi.rawValue
+      | Properties.swiftAccessControlPublic.rawValue
+
     public init(rawValue: UInt64) {
       self.rawValue = rawValue
     }
@@ -188,19 +208,74 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
       self.rawValue = UInt64(rawValue.rawValue)
     }
 
+    @inlinable
+    public func contains(_ property: Properties) -> Bool {
+      if property.rawValue & Self.swiftAccessControlBitmask != 0 {
+        return self.rawValue & Self.swiftAccessControlBitmask == property.rawValue
+      }
+      return self.rawValue & property.rawValue != 0
+    }
+
     public var description: String {
-      var components: [String] = []
-      if self.contains(.generic) { components.append("generic") }
-      if self.contains(.templatePartialSpecialization) { components.append("templatePartialSpecialization") }
-      if self.contains(.templateSpecialization) { components.append("templateSpecialization") }
-      if self.contains(.unittest) { components.append("unittest") }
-      if self.contains(.ibAnnotated) { components.append("ibAnnotated") }
-      if self.contains(.ibOutletCollection) { components.append("ibOutletCollection") }
-      if self.contains(.gkInspectable) { components.append("gkInspectable") }
-      if self.contains(.local) { components.append("local") }
-      if self.contains(.protocolInterface) { components.append("protocolInterface") }
-      if self.contains(.swiftAsync) { components.append("swiftAsync") }
-      return components.joined(separator: ", ")
+      return self.components.map { component in
+        switch component {
+        case .generic: "generic"
+        case .templatePartialSpecialization: "templatePartialSpecialization"
+        case .templateSpecialization: "templateSpecialization"
+        case .unittest: "unittest"
+        case .ibAnnotated: "ibAnnotated"
+        case .ibOutletCollection: "ibOutletCollection"
+        case .gkInspectable: "gkInspectable"
+        case .local: "local"
+        case .protocolInterface: "protocolInterface"
+        case .swiftAsync: "swiftAsync"
+        case .swiftAccessControlLessThanFilePrivate: "less_than_fileprivate"
+        case .swiftAccessControlFileprivate: "fileprivate"
+        case .swiftAccessControlInternal: "internal"
+        case .swiftAccessControlPackage: "package"
+        case .swiftAccessControlSpi: "spi"
+        case .swiftAccessControlPublic: "public"
+        default: "unknown(\(component.rawValue))"
+        }
+      }.joined(separator: ", ")
+    }
+
+    /// The individual properties that this symbol carries.
+    ///
+    /// Each entry is equal to one of the static properties on this type or carries the remaining bits which aren't know
+    /// to represent one of the static properties.
+    public var components: [Properties] {
+      let singleBitComponents: [Properties] = [
+        .generic,
+        .templatePartialSpecialization,
+        .templateSpecialization,
+        .unittest,
+        .ibAnnotated,
+        .ibOutletCollection,
+        .gkInspectable,
+        .local,
+        .protocolInterface,
+        .swiftAsync,
+      ]
+      var remainingRawValue = self.rawValue
+      var result: [Properties] = []
+      for component in singleBitComponents {
+        if remainingRawValue & component.rawValue != 0 {
+          result.append(component)
+        }
+        remainingRawValue &= ~component.rawValue
+      }
+
+      let swiftAccessControlValue = remainingRawValue & Self.swiftAccessControlBitmask
+      if swiftAccessControlValue != 0 {
+        result.append(Properties(rawValue: swiftAccessControlValue))
+        remainingRawValue &= ~Self.swiftAccessControlBitmask
+      }
+      if remainingRawValue != 0 {
+        result.append(Properties(rawValue: remainingRawValue))
+      }
+
+      return result
     }
   }
 
@@ -297,7 +372,8 @@ public struct IndexStoreSymbol: ~Escapable, Sendable {
     if subKind != .none {
       kindString += ".\(subKind)"
     }
-    if !properties.isEmpty {
+    let propertiesDescription = properties.description
+    if !propertiesDescription.isEmpty {
       kindString += "(\(properties))"
     }
 

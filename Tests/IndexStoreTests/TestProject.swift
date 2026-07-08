@@ -52,16 +52,14 @@ struct TestProject {
   }
 
   private func indexSwiftFile(at fileUrl: URL, indexDir: URL) throws {
-    let swiftc = try #require(findTool(name: "swiftc\(TibsToolchain.execExt)"))
     var compilerArguments = try [
-      swiftc.filePath,
+      TibsToolchain.testDefault.swiftc.filePath,
       "-index-file",
       fileUrl.filePath,
       "-working-directory", fileUrl.deletingLastPathComponent().filePath,
       "-index-store-path", indexDir.filePath,
       "-o", fileUrl.deletingPathExtension().appendingPathExtension("o").filePath,
       "-index-ignore-system-modules",
-      "-disable-implicit-concurrency-module-import",
       "-disable-implicit-string-processing-module-import",
     ]
     if let sdk = defaultSDKPath {
@@ -72,9 +70,8 @@ struct TestProject {
   }
 
   private func indexClangFile(at fileUrl: URL, indexDir: URL) throws {
-    let clang = try #require(findTool(name: "clang\(TibsToolchain.execExt)"))
     let compilerArguments = try [
-      clang.filePath,
+      TibsToolchain.testDefault.clang.filePath,
       "-fsyntax-only",
       fileUrl.filePath,
       "-working-directory", fileUrl.deletingLastPathComponent().filePath,

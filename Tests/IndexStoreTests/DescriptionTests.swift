@@ -31,6 +31,8 @@ struct DescriptionTests {
           Modification Date: 20.*
           Dependencies:
           Unit \| system \| Swift \| .*[\/]Swift.swiftmodule[\/].*swiftinterface
+          Unit \| system \| _SwiftConcurrencyShims \| .*[\/]_SwiftConcurrencyShims-.*.pcm
+          Unit \| system \| Swift \| .*[\/]_Concurrency.swiftmodule[\/].*.swiftinterface
           Record \| user \| .*[\/]test.swift \| test.swift-.*
           """#
         ).wholeMatch(in: description) != nil,
@@ -111,16 +113,16 @@ struct DescriptionTests {
       #expect(
         description == """
           Symbols:
-          init() | constructor | s:4test3FooVACycfc | definition, implicit, childOf
+          init() | constructor(internal) | s:4test3FooVACycfc | definition, implicit, childOf
           Foo | struct | s:4test3FooV | definition
           subscript(_:) | instanceProperty.swiftSubscript | s:4test3FooVyS2icip | definition, childOf
           x | parameter | s:4test3FooVyS2icip1xL_Sivp | definition, childOf
           Int | struct | s:Si | reference
           getter:subscript(_:) | instanceMethod.accessorGetter | s:4test3FooVyS2icig | definition, childOf, accessorOf
-          testFunc() | instanceMethod(swiftAsync) | s:4test3FooV0A4FuncyyYaF | definition, childOf
+          testFunc() | instanceMethod(swiftAsync, internal) | s:4test3FooV0A4FuncyyYaF | definition, childOf
 
           Occurrences:
-          1:8 | init() | constructor | s:4test3FooVACycfc | definition, implicit, childOf
+          1:8 | init() | constructor(internal) | s:4test3FooVACycfc | definition, implicit, childOf
             childOf | s:4test3FooV
           1:8 | Foo | struct | s:4test3FooV | definition
           2:3 | subscript(_:) | instanceProperty.swiftSubscript | s:4test3FooVyS2icip | definition, childOf
@@ -131,7 +133,7 @@ struct DescriptionTests {
           2:24 | Int | struct | s:Si | reference
           2:28 | getter:subscript(_:) | instanceMethod.accessorGetter | s:4test3FooVyS2icig | definition, childOf, accessorOf
             childOf, accessorOf | s:4test3FooVyS2icip
-          3:8 | testFunc() | instanceMethod(swiftAsync) | s:4test3FooV0A4FuncyyYaF | definition, childOf
+          3:8 | testFunc() | instanceMethod(swiftAsync, internal) | s:4test3FooV0A4FuncyyYaF | definition, childOf
             childOf | s:4test3FooV
           """
       )

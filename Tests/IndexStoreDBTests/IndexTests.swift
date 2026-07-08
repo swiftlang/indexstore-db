@@ -48,7 +48,7 @@ final class IndexTests: XCTestCase {
     let asym = Symbol(usr: "s:4main1ayyF", name: "a()", kind: .function, language: .swift)
 
     let ccanon = SymbolOccurrence(
-      symbol: csym,
+      symbol: csym.with(properties: .swiftAccessControlInternal),
       location: SymbolLocation(ws.testLoc("c"), moduleName: "main"),
       roles: [.definition, .canonical],
       symbolProvider: .clang,
@@ -404,7 +404,12 @@ final class IndexTests: XCTestCase {
     checkOccurrences(
       ws.index.occurrences(ofUSR: aaa.usr, roles: .all),
       expected: [
-        aaa.at(ws.testLoc("aaa:def"), moduleName: "A", roles: .definition, symbolProvider: .swift),
+        aaa.with(properties: .swiftAccessControlPublic).at(
+          ws.testLoc("aaa:def"),
+          moduleName: "A",
+          roles: .definition,
+          symbolProvider: .swift
+        ),
         aaa.at(ws.testLoc("aaa:call"), moduleName: "B", roles: .call, symbolProvider: .swift),
         aaa.at(ws.testLoc("aaa:call:c"), moduleName: "C", roles: .call, symbolProvider: .swift),
       ]
@@ -416,12 +421,13 @@ final class IndexTests: XCTestCase {
     try ws.buildAndIndex()
 
     let cdecl = Symbol(usr: "s:4main1cyyF", name: "c()", kind: .function, language: .swift)
+    let cdef = cdecl.with(properties: .swiftAccessControlInternal)
     let roles: SymbolRole = [.reference, .definition, .declaration]
 
     checkOccurrences(
       ws.index.occurrences(ofUSR: cdecl.usr, roles: .all),
       expected: [
-        cdecl.at(ws.testLoc("c"), roles: .definition, symbolProvider: .clang),
+        cdef.at(ws.testLoc("c"), roles: .definition, symbolProvider: .clang),
         cdecl.at(ws.testLoc("c:call"), roles: .call, symbolProvider: .clang),
       ]
     )
@@ -443,7 +449,7 @@ final class IndexTests: XCTestCase {
     checkOccurrences(
       ws.index.occurrences(ofUSR: cdecl.usr, roles: .all),
       expected: [
-        cdecl.at(ws.testLoc("c"), roles: .definition, symbolProvider: .clang),
+        cdef.at(ws.testLoc("c"), roles: .definition, symbolProvider: .clang),
         cdecl.at(ws.testLoc("c:call"), roles: .call, symbolProvider: .clang),
         cdecl.at(ws.testLoc("c:anotherOne"), roles: .call, symbolProvider: .clang),
       ]
@@ -491,7 +497,7 @@ final class IndexTests: XCTestCase {
       waitOccs,
       expected: [
         SymbolOccurrence(
-          symbol: csym,
+          symbol: csym.with(properties: .swiftAccessControlInternal),
           location: SymbolLocation(ws.testLoc("c")),
           roles: [.definition, .canonical],
           symbolProvider: .clang
@@ -808,7 +814,7 @@ final class IndexTests: XCTestCase {
       usr: "s:4main9asyncFuncyyYaF",
       name: "asyncFunc()",
       kind: .function,
-      properties: .swiftAsync,
+      properties: SymbolProperty(.swiftAsync, .swiftAccessControlInternal),
       language: .swift
     )
     let asyncFuncOccs = index.occurrences(ofUSR: asyncFuncSym.usr, roles: .definition)
@@ -823,7 +829,7 @@ final class IndexTests: XCTestCase {
       usr: "s:4main8MyStructV11asyncMethodyyYaF",
       name: "asyncMethod()",
       kind: .instanceMethod,
-      properties: .swiftAsync,
+      properties: SymbolProperty(.swiftAsync, .swiftAccessControlInternal),
       language: .swift
     )
     let asyncMethOccs = index.occurrences(ofUSR: asyncMethSym.usr, roles: .definition)
@@ -838,7 +844,7 @@ final class IndexTests: XCTestCase {
       usr: "s:4main10MyTestCaseC6testMeyyF",
       name: "testMe()",
       kind: .instanceMethod,
-      properties: .unitTest,
+      properties: SymbolProperty(.unitTest, .swiftAccessControlInternal),
       language: .swift
     )
     let testMeOccs = index.occurrences(ofUSR: testMeSym.usr, roles: .definition)
@@ -853,7 +859,7 @@ final class IndexTests: XCTestCase {
       usr: "s:4main10MyTestCaseC11testMeAsyncyyYaF",
       name: "testMeAsync()",
       kind: .instanceMethod,
-      properties: [.unitTest, .swiftAsync],
+      properties: SymbolProperty(.unitTest, .swiftAsync, .swiftAccessControlInternal),
       language: .swift
     )
     let testMeAsyncOccs = index.occurrences(ofUSR: testMeAsyncSym.usr, roles: .definition)
