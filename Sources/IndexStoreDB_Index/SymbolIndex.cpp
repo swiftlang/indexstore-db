@@ -495,7 +495,16 @@ bool SymbolIndexImpl::foreachSymbolInFilePath(CanonicalFilePathRef filePath,
                       }
                     });
 
-                    return false;
+                    if (!didFinish) {
+                      return false;
+                    }
+
+                    // A given unit only has one meaningful provider for a file, so stop scanning
+                    // this unit's providers once it's found. But a source file can be a member of
+                    // more than one compiling unit (e.g. an app target and an extension target
+                    // sharing the same file), so keep enumerating the remaining units for this
+                    // file instead of stopping the whole search here.
+                    break;
                 }
             }
         }
@@ -525,7 +534,16 @@ bool SymbolIndexImpl::foreachSymbolOccurrenceInFilePath(CanonicalFilePathRef fil
           }
           didFinish = record->foreachSymbolOccurrence(Receiver);
 
-          return false;
+          if (!didFinish) {
+            return false;
+          }
+
+          // A given unit only has one meaningful provider for a file, so stop scanning this
+          // unit's providers once it's found. But a source file can be a member of more than one
+          // compiling unit (e.g. an app target and an extension target sharing the same file), so
+          // keep enumerating the remaining units for this file instead of stopping the whole
+          // search here.
+          break;
         }
       }
     }
