@@ -173,7 +173,8 @@ let package = Package(
     .target(
       name: "IndexStoreDB_Support",
       dependencies: ["IndexStoreDB_LLVMSupport"],
-      exclude: ["CMakeLists.txt"]
+      exclude: ["CMakeLists.txt"],
+      linkerSettings: [.linkedLibrary("execinfo", .when(platforms: [.custom("freebsd")]))]
     ),
 
     // Copy of a subset of llvm's ADT and Support libraries.
