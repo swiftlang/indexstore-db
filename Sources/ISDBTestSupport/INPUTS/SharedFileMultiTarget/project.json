@@ -1,0 +1,6 @@
+{
+  "targets": [
+    { "name": "TargetA", "sources": ["shared.swift"] },
+    { "name": "TargetB", "sources": ["shared.swift"] },
+  ]
+}

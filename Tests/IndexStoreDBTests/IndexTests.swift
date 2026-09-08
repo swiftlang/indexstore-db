@@ -827,8 +827,10 @@ final class IndexTests: XCTestCase {
         expectedSymbolNames: ["a_function"]
       ),
       (
+        // d.h is #included by both d.c and e.c, so its declaration belongs to two distinct
+        // translation units and must be reported once per unit (https://github.com/swiftlang/indexstore-db/issues/292).
         path: ws.testLoc("a_function:decl").url.path,
-        expectedSymbolNames: ["a_function"]
+        expectedSymbolNames: ["a_function", "a_function"]
       ),
       (
         path: ws.testLoc("some_other_function:def").url.path,
@@ -869,6 +871,36 @@ final class IndexTests: XCTestCase {
       let actualSymbolNames = subject.symbols(inFilePath: path).map(\.name)
       XCTAssertEqual(actualSymbolNames.sorted(), expectedSymbolNames.sorted())
     }
+  }
+
+  /// A single source file that is compiled independently into two unrelated targets (e.g. an app
+  /// target and an extension target sharing a source file) must contribute symbols/occurrences
+  /// from *both* compilations, not just the first unit found. https://github.com/swiftlang/indexstore-db/issues/292
+  func testSymbolsInFileSharedAcrossMultipleTargets() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "SharedFileMultiTarget") else { return }
+    try ws.buildAndIndex()
+
+    let path = ws.testLoc("Shared:def").url.path
+    let actualSymbolNames = ws.index.symbols(inFilePath: path).map(\.name).sorted()
+
+    // Each declaration is expected twice: once from TargetA's compilation of shared.swift, and
+    // once from TargetB's independent compilation of the same file.
+    let expectedSymbolNames = ["Shared", "Shared", "doWork()", "doWork()", "helper()", "helper()", "init()", "init()"].sorted()
+    XCTAssertEqual(actualSymbolNames, expectedSymbolNames)
+  }
+
+  func testSymbolOccurrencesInFileSharedAcrossMultipleTargets() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "SharedFileMultiTarget") else { return }
+    try ws.buildAndIndex()
+
+    let path = ws.testLoc("Shared:def").url.path
+    let definitionOccurrences = ws.index.symbolOccurrences(inFilePath: path).filter {
+      $0.roles.contains(.definition)
+    }
+
+    // 4 definitions (Shared, init(), doWork(), helper()) from each of the two independent
+    // compilations of shared.swift == 8 total.
+    XCTAssertEqual(definitionOccurrences.count, 8)
   }
 
   func testProperties() throws {
