@@ -22,7 +22,7 @@ struct DescriptionTests {
           Output File: .*[\/]test.o
           Target: .*-.*-.*
           Sysroot: .*
-          Working Directory: .*[\/]sources
+          Working Directory: .*[\/]sources[\/]?
           Is System: false
           Is Module: false
           Is Debug: true
@@ -67,7 +67,7 @@ struct DescriptionTests {
           Output File: .*[\/]Test.o
           Target: .*-.*-.*
           Sysroot: .*
-          Working Directory: .*[\/]sources
+          Working Directory: .*[\/]sources[\/]?
           Is System: false
           Is Module: false
           Is Debug: true
