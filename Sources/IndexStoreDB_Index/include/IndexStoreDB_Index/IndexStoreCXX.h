@@ -78,11 +78,14 @@ static inline auto functionPtrFromFunctionRef(void *ctx, Params ...params)
 
 class IndexRecordSymbol {
   indexstore_symbol_t obj;
-  IndexStoreLibraryRef lib;
+  // Not owned: `obj` is only valid while the `IndexRecordReader` that produced it is alive, and that reader
+  // keeps the library alive. Not retaining the library avoids a reference count update on every symbol,
+  // occurrence and relation that is visited, which threads reading records concurrently contend on.
+  IndexStoreLibrary *lib;
   friend class IndexRecordReader;
 
 public:
-  IndexRecordSymbol(indexstore_symbol_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(std::move(lib)) {}
+  IndexRecordSymbol(indexstore_symbol_t obj, IndexStoreLibrary *lib) : obj(obj), lib(lib) {}
 
   indexstore_symbol_language_t getLanguage() {
     return lib->api().symbol_get_language(obj);
@@ -101,10 +104,13 @@ public:
 
 class IndexSymbolRelation {
   indexstore_symbol_relation_t obj;
-  IndexStoreLibraryRef lib;
+  // Not owned: `obj` is only valid while the `IndexRecordReader` that produced it is alive, and that reader
+  // keeps the library alive. Not retaining the library avoids a reference count update on every symbol,
+  // occurrence and relation that is visited, which threads reading records concurrently contend on.
+  IndexStoreLibrary *lib;
 
 public:
-  IndexSymbolRelation(indexstore_symbol_relation_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(std::move(lib)) {}
+  IndexSymbolRelation(indexstore_symbol_relation_t obj, IndexStoreLibrary *lib) : obj(obj), lib(lib) {}
 
   uint64_t getRoles() { return lib->api().symbol_relation_get_roles(obj); }
   IndexRecordSymbol getSymbol() { return {lib->api().symbol_relation_get_symbol(obj), lib}; }
@@ -112,10 +118,13 @@ public:
 
 class IndexRecordOccurrence {
   indexstore_occurrence_t obj;
-  IndexStoreLibraryRef lib;
+  // Not owned: `obj` is only valid while the `IndexRecordReader` that produced it is alive, and that reader
+  // keeps the library alive. Not retaining the library avoids a reference count update on every symbol,
+  // occurrence and relation that is visited, which threads reading records concurrently contend on.
+  IndexStoreLibrary *lib;
 
 public:
-  IndexRecordOccurrence(indexstore_occurrence_t obj, IndexStoreLibraryRef lib) : obj(obj), lib(std::move(lib)) {}
+  IndexRecordOccurrence(indexstore_occurrence_t obj, IndexStoreLibrary *lib) : obj(obj), lib(lib) {}
 
   IndexRecordSymbol getSymbol() { return {lib->api().occurrence_get_symbol(obj), lib}; }
   uint64_t getRoles() { return lib->api().occurrence_get_roles(obj); }
@@ -413,10 +422,10 @@ public:
   bool searchSymbols(llvm::function_ref<bool(IndexRecordSymbol, bool &stop)> filter,
                      llvm::function_ref<void(IndexRecordSymbol)> receiver) {
     auto forwarder_filter = [&](indexstore_symbol_t symbol, bool *stop) -> bool {
-      return filter({symbol, lib}, *stop);
+      return filter({symbol, lib.get()}, *stop);
     };
     auto forwarder_receiver = [&](indexstore_symbol_t symbol) {
-      receiver({symbol, lib});
+      receiver({symbol, lib.get()});
     };
     return lib->api().record_reader_search_symbols_f(obj, &forwarder_filter, functionPtrFromFunctionRef<decltype(forwarder_filter)>,
                                                      &forwarder_receiver, functionPtrFromFunctionRef<decltype(forwarder_receiver)>);
@@ -424,7 +433,7 @@ public:
 
   bool foreachSymbol(bool noCache, llvm::function_ref<bool(IndexRecordSymbol)> receiver) {
     auto forwarder = [&](indexstore_symbol_t sym) -> bool {
-      return receiver({sym, lib});
+      return receiver({sym, lib.get()});
     };
     return lib->api().record_reader_symbols_apply_f(obj, noCache, &forwarder, functionPtrFromFunctionRef<decltype(forwarder)>);
   }
@@ -447,7 +456,7 @@ public:
       c_relatedSymbolsFilter.push_back(sym.obj);
     }
     auto forwarder = [&](indexstore_occurrence_t occur) -> bool {
-      return receiver({occur, lib});
+      return receiver({occur, lib.get()});
     };
     return lib->api().record_reader_occurrences_of_symbols_apply_f(obj,
                                 c_symbolsFilter.data(), c_symbolsFilter.size(),
@@ -459,7 +468,7 @@ public:
   bool foreachOccurrence(
               llvm::function_ref<bool(IndexRecordOccurrence)> receiver) {
     auto forwarder = [&](indexstore_occurrence_t occur) -> bool {
-      return receiver({occur, lib});
+      return receiver({occur, lib.get()});
     };
     return lib->api().record_reader_occurrences_apply_f(obj, &forwarder, functionPtrFromFunctionRef<decltype(forwarder)>);
   }
@@ -467,7 +476,7 @@ public:
   bool foreachOccurrenceInLineRange(unsigned lineStart, unsigned lineEnd,
               llvm::function_ref<bool(IndexRecordOccurrence)> receiver) {
     auto forwarder = [&](indexstore_occurrence_t occur) -> bool {
-      return receiver({occur, lib});
+      return receiver({occur, lib.get()});
     };
     return lib->api().record_reader_occurrences_in_line_range_apply_f(obj,
                                                                       lineStart,
