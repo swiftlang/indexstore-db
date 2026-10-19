@@ -397,6 +397,43 @@ final class IndexTests: XCTestCase {
     #endif
   }
 
+  func checkRelativeWorkingDir(_ workingDir: String) throws {
+    guard let ws = try staticTibsTestWorkspace(name: "RelativeWorkingDir") else {
+      return
+    }
+    // Map the build root to a relative path. The paths may or may not end with
+    // '/', so handle both.
+    let buildRoot = try ws.builder.buildRoot.realpath.path
+    try ws.reinitIndexStore(prefixMappings: [
+      PathMapping(original: buildRoot + "/", replacement: workingDir),
+      PathMapping(original: buildRoot, replacement: workingDir),
+    ])
+    try ws.buildAndIndex()
+    let index = ws.index
+
+    let foo = Symbol(usr: "c:@F@foo", name: "foo", kind: .function, language: .c)
+    checkOccurrences(
+      index.occurrences(ofUSR: foo.usr, roles: .all),
+      expected: [foo.at(ws.testLoc("foo:call"), roles: .call, symbolProvider: .clang)]
+    )
+
+    let main = ws.testLoc("foo:call").url.path
+    let units = index.unitNamesContainingFile(path: main)
+    XCTAssertEqual(units.count, 1)
+    let mainUnit = try XCTUnwrap(units.first)
+    // main.c includes "include/foo.h", which includes bar.h. We can't resolve
+    // these since they are relative paths, so just drop them.
+    XCTAssertEqual(index.includesOfUnit(unitName: mainUnit), [])
+    XCTAssertEqual(index.filesIncludedByFile(path: main), [])
+    XCTAssertEqual(index.filesIncludingFile(path: ws.testLoc("bar:decl").url.path), [])
+  }
+  func testEmptyWorkingDir() throws {
+    try checkRelativeWorkingDir("")
+  }
+  func testRelativeWorkingDir() throws {
+    try checkRelativeWorkingDir("relative_dir")
+  }
+
   /// All units passed to a single `processUnitsForOutputPathsAndWait` call are imported, not just some of them.
   func testProcessUnitsForOutputPathsAndWait() throws {
     guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }

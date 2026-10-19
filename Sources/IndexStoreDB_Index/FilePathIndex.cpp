@@ -238,7 +238,11 @@ bool FileIndexImpl::foreachIncludeOfUnit(StringRef unitName,
     StringRef targetPath = inc.getTargetPath();
     unsigned line = inc.getSourceLine();
     CanonicalFilePath fullSourcePath = getCanonicalPath(sourcePath, workDir);
+    if (fullSourcePath.empty())
+      return true;
     CanonicalFilePath fullTargetPath = getCanonicalPath(targetPath, workDir);
+    if (fullTargetPath.empty())
+      return true;
     return receiver(fullSourcePath, fullTargetPath, line);
   });
 }
