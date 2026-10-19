@@ -24,7 +24,9 @@
 #include <IndexStoreDB_LLVMSupport/llvm_Support_Mutex.h>
 #include <IndexStoreDB_LLVMSupport/llvm_Support_raw_ostream.h>
 
+#include <algorithm>
 #include <atomic>
+#include <dispatch/dispatch.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <deque>
@@ -268,22 +270,67 @@ SymbolIndexImpl::lookupProvidersForUSR(StringRef USR, SymbolRoleSet roles, Symbo
   return providers;
 }
 
+/// Calls `Receiver` with the occurrences that `readProvider` passes to its receiver for each provider
+/// index in `0..<providerCount`, in provider order.
+///
+/// The first provider is read on this thread and passes its occurrences to `Receiver` directly, so that a
+/// receiver that only needs the first occurrence reads no more than it would if the providers were read
+/// one at a time. Reading a provider's record is independent of the other providers, so the remaining
+/// providers are read concurrently, in batches. The occurrences of a batch are passed to `Receiver` on
+/// this thread after the whole batch has been read, and no further batch is read once `Receiver` stops.
+/// Each batch is twice as large as the previous one, so that reading every provider only waits for the
+/// slowest provider of a few batches.
+///
+/// `readProvider` must be safe to call concurrently for different indices. If `providerCallCount` is not
+/// null, it is incremented for every provider that is read.
+static bool foreachProviderOccurrence(size_t providerCount,
+                                      std::atomic<unsigned> *providerCallCount,
+                                      function_ref<bool(size_t index, function_ref<bool(SymbolOccurrenceRef)> receiver)> readProvider,
+                                      function_ref<bool(SymbolOccurrenceRef)> Receiver) {
+  if (providerCount == 0)
+    return true;
+  bool Continue = readProvider(0, Receiver);
+  if (providerCallCount)
+    ++*providerCallCount;
+  if (!Continue)
+    return false;
+
+  std::vector<std::vector<SymbolOccurrenceRef>> occurrencesByProvider(providerCount);
+  std::vector<SymbolOccurrenceRef> *occurrencesPtr = occurrencesByProvider.data();
+  size_t batchSize = 2;
+  for (size_t batchStart = 1; batchStart < providerCount; batchStart += batchSize, batchSize *= 2) {
+    size_t batchCount = std::min(batchSize, providerCount - batchStart);
+    dispatch_apply(batchCount, DISPATCH_APPLY_AUTO, ^(size_t offset) {
+      std::vector<SymbolOccurrenceRef> &occurrences = occurrencesPtr[batchStart + offset];
+      readProvider(batchStart + offset, [&](SymbolOccurrenceRef Occur)->bool {
+        occurrences.push_back(std::move(Occur));
+        return true;
+      });
+    });
+    if (providerCallCount)
+      *providerCallCount += static_cast<unsigned>(batchCount);
+
+    for (size_t index = batchStart; index < batchStart + batchCount; ++index) {
+      for (auto &Occur : occurrencesPtr[index]) {
+        if (!Receiver(std::move(Occur)))
+          return false;
+      }
+      occurrencesPtr[index].clear();
+    }
+  }
+  return true;
+}
+
 bool SymbolIndexImpl::foreachSymbolOccurrenceByUSR(StringRef USR,
                                                     SymbolRoleSet RoleSet,
                        function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
   assert(RoleSet && "did not set any role!");
   auto providers = lookupProvidersForUSR(USR, RoleSet, None);
-  for (auto &prov : providers) {
-    bool Continue = prov->foreachSymbolOccurrenceByUSR(makeIDCodeFromString(USR), RoleSet,
-      [&](SymbolOccurrenceRef Occur)->bool {
-        return Receiver(std::move(Occur));
-      });
-    ++NumProviderForeachSymbolOccurrenceByUSR;
-    if (!Continue)
-      return false;
-  }
-
-  return true;
+  IDCode usrCode = makeIDCodeFromString(USR);
+  return foreachProviderOccurrence(providers.size(), &NumProviderForeachSymbolOccurrenceByUSR,
+    [&](size_t index, function_ref<bool(SymbolOccurrenceRef)> receiver) -> bool {
+      return providers[index]->foreachSymbolOccurrenceByUSR(usrCode, RoleSet, receiver);
+    }, Receiver);
 }
 
 bool SymbolIndexImpl::foreachRelatedSymbolOccurrenceByUSR(StringRef USR,
@@ -291,17 +338,11 @@ bool SymbolIndexImpl::foreachRelatedSymbolOccurrenceByUSR(StringRef USR,
                        function_ref<bool(SymbolOccurrenceRef Occur)> Receiver) {
   assert(RoleSet && "did not set any role!");
   auto providers = lookupProvidersForUSR(USR, None, RoleSet);
-  for (auto &prov : providers) {
-    bool Continue = prov->foreachRelatedSymbolOccurrenceByUSR(makeIDCodeFromString(USR), RoleSet,
-      [&](SymbolOccurrenceRef Occur)->bool {
-        return Receiver(std::move(Occur));
-      });
-    ++NumProviderForeachRelatedSymbolOccurrenceByUSR;
-    if (!Continue)
-      return false;
-  }
-
-  return true;
+  IDCode usrCode = makeIDCodeFromString(USR);
+  return foreachProviderOccurrence(providers.size(), &NumProviderForeachRelatedSymbolOccurrenceByUSR,
+    [&](size_t index, function_ref<bool(SymbolOccurrenceRef)> receiver) -> bool {
+      return providers[index]->foreachRelatedSymbolOccurrenceByUSR(usrCode, RoleSet, receiver);
+    }, Receiver);
 }
 
 bool SymbolIndexImpl::foreachCanonicalSymbolImpl(bool workspaceOnly,
@@ -377,37 +418,48 @@ bool SymbolIndexImpl::foreachCanonicalSymbolOccurrenceImpl(bool workspaceOnly,
                                                            function_ref<bool(ReadTransaction &, function_ref<bool(ArrayRef<IDCode> usrCode)> usrConsumer)> usrProducer,
                                                            function_ref<bool(SymbolOccurrenceRef)> Receiver) {
   SymbolRoleSet DeclOrCanon = SymbolRoleSet(SymbolRole::Declaration) | SymbolRole::Canonical;
-  return foreachCanonicalSymbolImpl(workspaceOnly, usrProducer, [&](SymbolDataProviderRef Prov, std::vector<std::pair<IDCode, bool>> USRsInfo) -> bool {
-    SmallVector<IDCode, 16> USRs;
-    USRs.reserve(USRsInfo.size());
-    for (auto &Entry : USRsInfo) {
-      USRs.push_back(Entry.first);
-    }
-
-    bool ReceiverStopped = false;
-    Prov->foreachSymbolOccurrenceByUSR(USRs, DeclOrCanon, [&](SymbolOccurrenceRef Occur)->bool{
-      IDCode OccurUSRCode = makeIDCodeFromString(Occur->getSymbol()->getUSR());
-      auto It = std::find_if(USRsInfo.begin(), USRsInfo.end(), [&](const std::pair<IDCode, bool> &Info)->bool {
-        return Info.first == OccurUSRCode;
-      });
-      if (It == USRsInfo.end())
-        return true;
-
-      bool HasCanonical = It->second;
-      SymbolRoleSet OccurRoles = Occur->getRoles();
-      if (!HasCanonical || OccurRoles.containsAny(SymbolRole::Canonical)) {
-        bool Continue = Receiver(std::move(Occur));
-        if (!Continue) {
-          ReceiverStopped = true;
-          return false;
-        }
-      }
-      return true;
-    });
-    ++NumProviderForeachSymbolOccurrenceByUSR;
-
-    return !ReceiverStopped;
+  typedef std::pair<SymbolDataProviderRef, std::vector<std::pair<IDCode, bool>>> ProviderAndUSRs;
+  std::vector<ProviderAndUSRs> providers;
+  bool cont = foreachCanonicalSymbolImpl(workspaceOnly, usrProducer, [&](SymbolDataProviderRef Prov, std::vector<std::pair<IDCode, bool>> USRsInfo) -> bool {
+    providers.emplace_back(std::move(Prov), std::move(USRsInfo));
+    return true;
   });
+  if (!cont)
+    return false;
+
+  return foreachProviderOccurrence(providers.size(), &NumProviderForeachSymbolOccurrenceByUSR,
+    [&](size_t index, function_ref<bool(SymbolOccurrenceRef)> receiver) -> bool {
+      SymbolDataProviderRef &Prov = providers[index].first;
+      std::vector<std::pair<IDCode, bool>> &USRsInfo = providers[index].second;
+      SmallVector<IDCode, 16> USRs;
+      USRs.reserve(USRsInfo.size());
+      for (auto &Entry : USRsInfo) {
+        USRs.push_back(Entry.first);
+      }
+
+      bool ReceiverStopped = false;
+      Prov->foreachSymbolOccurrenceByUSR(USRs, DeclOrCanon, [&](SymbolOccurrenceRef Occur)->bool{
+        IDCode OccurUSRCode = makeIDCodeFromString(Occur->getSymbol()->getUSR());
+        auto It = std::find_if(USRsInfo.begin(), USRsInfo.end(), [&](const std::pair<IDCode, bool> &Info)->bool {
+          return Info.first == OccurUSRCode;
+        });
+        if (It == USRsInfo.end())
+          return true;
+
+        bool HasCanonical = It->second;
+        SymbolRoleSet OccurRoles = Occur->getRoles();
+        if (!HasCanonical || OccurRoles.containsAny(SymbolRole::Canonical)) {
+          bool Continue = receiver(std::move(Occur));
+          if (!Continue) {
+            ReceiverStopped = true;
+            return false;
+          }
+        }
+        return true;
+      });
+
+      return !ReceiverStopped;
+    }, Receiver);
 }
 
 bool SymbolIndexImpl::foreachCanonicalSymbolOccurrenceContainingPattern(StringRef Pattern,
@@ -440,16 +492,13 @@ bool SymbolIndexImpl::foreachSymbolName(function_ref<bool(StringRef name)> recei
 bool SymbolIndexImpl::foreachCanonicalSymbolOccurrenceByUSR(StringRef USR,
                        function_ref<bool(SymbolOccurrenceRef occur)> receiver) {
   IDCode usrCode = makeIDCodeFromString(USR);
-  for (auto ProvInfo : findCanonicalProvidersForUSR(usrCode)) {
-    bool HasCanonical = ProvInfo.second;
-    SymbolRole RoleToSearch = HasCanonical ? SymbolRole::Canonical : SymbolRole::Declaration;
-    bool Continue = ProvInfo.first->foreachSymbolOccurrenceByUSR(usrCode, RoleToSearch, [&](SymbolOccurrenceRef Occur)->bool {
-      return receiver(std::move(Occur));
-    });
-    if (!Continue)
-      return false;
-  }
-  return true;
+  auto providers = findCanonicalProvidersForUSR(usrCode);
+  return foreachProviderOccurrence(providers.size(), nullptr,
+    [&](size_t index, function_ref<bool(SymbolOccurrenceRef)> providerReceiver) -> bool {
+      bool HasCanonical = providers[index].second;
+      SymbolRole RoleToSearch = HasCanonical ? SymbolRole::Canonical : SymbolRole::Declaration;
+      return providers[index].first->foreachSymbolOccurrenceByUSR(usrCode, RoleToSearch, providerReceiver);
+    }, receiver);
 }
 
 size_t SymbolIndexImpl::countOfCanonicalSymbolsWithKind(SymbolKind symKind, bool workspaceOnly) {
@@ -631,11 +680,10 @@ std::vector<SymbolDataProviderRef> SymbolIndexImpl::providersContainingTestCases
 }
 
 bool SymbolIndexImpl::foreachUnitTestSymbolOccurrence(const std::vector<SymbolDataProviderRef> &providers, function_ref<bool(SymbolOccurrenceRef Occur)> receiver) {
-  for (SymbolDataProviderRef provider : providers) {
-    bool cont = provider->foreachUnitTestSymbolOccurrence(receiver);
-    if (!cont) return false;
-  }
-  return true;
+  return foreachProviderOccurrence(providers.size(), nullptr,
+    [&](size_t index, function_ref<bool(SymbolOccurrenceRef)> providerReceiver) -> bool {
+      return providers[index]->foreachUnitTestSymbolOccurrence(providerReceiver);
+    }, receiver);
 }
 
 llvm::Optional<sys::TimePoint<>> SymbolIndexImpl::timestampOfLatestUnitForFile(CanonicalFilePathRef filePath) {
