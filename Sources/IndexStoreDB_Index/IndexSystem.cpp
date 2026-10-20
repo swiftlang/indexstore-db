@@ -114,6 +114,11 @@ private:
   }
 
 public:
+  /// Call \p fn on the delegate queue once all delegate callbacks enqueued so far have been delivered.
+  void dispatchAfterPendingCallbacks(std::function<void()> fn) {
+    Queue.dispatch(std::move(fn));
+  }
+
   /// Public for Testing. Wait for any outstanding async work to finish.
   void _wait() {
     Queue.dispatchSync([]{});
@@ -154,6 +159,8 @@ public:
 
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait(bool isInitialScan);
+
+  void pollForUnitChanges(bool isInitialScan, std::function<void()> completion);
 
   /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
   void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
@@ -344,6 +351,17 @@ void IndexSystemImpl::purgeStaleData() {
 void IndexSystemImpl::pollForUnitChangesAndWait(bool isInitialScan) {
   IndexStore->pollForUnitChangesAndWait(isInitialScan);
   DelegateWrap->_wait();
+}
+
+void IndexSystemImpl::pollForUnitChanges(bool isInitialScan, std::function<void()> completion) {
+  // The delegate's destructor waits for its queue to drain, so don't keep it alive from a block on that queue.
+  std::weak_ptr<AsyncIndexDelegate> weakDelegate = DelegateWrap;
+  IndexStore->pollForUnitChanges(isInitialScan, [weakDelegate, completion] {
+    if (auto delegate = weakDelegate.lock())
+      delegate->dispatchAfterPendingCallbacks(completion);
+    else
+      completion();
+  });
 }
 
 void IndexSystemImpl::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
@@ -734,6 +752,10 @@ void IndexSystem::purgeStaleData() {
 
 void IndexSystem::pollForUnitChangesAndWait(bool isInitialScan) {
   IMPL->pollForUnitChangesAndWait(isInitialScan);
+}
+
+void IndexSystem::pollForUnitChanges(bool isInitialScan, std::function<void()> completion) {
+  IMPL->pollForUnitChanges(isInitialScan, std::move(completion));
 }
 
 void IndexSystem::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {

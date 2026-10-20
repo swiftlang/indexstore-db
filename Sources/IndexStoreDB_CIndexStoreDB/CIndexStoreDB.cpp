@@ -221,6 +221,17 @@ void indexstoredb_index_poll_for_unit_changes_and_wait(indexstoredb_index_t inde
   obj->value->pollForUnitChangesAndWait(isInitialScan);
 }
 
+void indexstoredb_index_poll_for_unit_changes(indexstoredb_index_t index,
+                                              bool isInitialScan,
+                                              indexstoredb_completion_t completion) {
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
+  indexstoredb_completion_t completionCopy = Block_copy(completion);
+  obj->value->pollForUnitChanges(isInitialScan, [completionCopy] {
+    completionCopy();
+    Block_release(completionCopy);
+  });
+}
+
 void indexstoredb_index_process_units_for_output_paths_and_wait(indexstoredb_index_t index,
                                                                 const char *const *outputPaths,
                                                                 size_t count) {

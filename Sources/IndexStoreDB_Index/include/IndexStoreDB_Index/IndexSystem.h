@@ -92,6 +92,13 @@ public:
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait(bool isInitialScan);
 
+  /// Poll for any changes to units and call \p completion once they have been registered and all resulting delegate
+  /// callbacks have been delivered.
+  ///
+  /// \p completion is called exactly once, on an internal serial queue, so it must not block or wait for unit
+  /// processing (e.g. by calling `pollForUnitChangesAndWait`).
+  void pollForUnitChanges(bool isInitialScan, std::function<void()> completion);
+
   /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
   ///
   /// A unit is identified by a hash of the output path that the compiler recorded for it, so each output path must be

@@ -61,6 +61,9 @@ public:
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait(bool isInitialScan);
 
+  /// Poll for any changes to units and call \p completion on an internal serial queue once they have been registered.
+  void pollForUnitChanges(bool isInitialScan, std::function<void()> completion);
+
   /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
   void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
 

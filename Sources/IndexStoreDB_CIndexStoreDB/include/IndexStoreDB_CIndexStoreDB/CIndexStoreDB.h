@@ -287,6 +287,16 @@ indexstoredb_store_version(_Nonnull indexstoredb_indexstore_library_t lib);
 INDEXSTOREDB_PUBLIC void
 indexstoredb_index_poll_for_unit_changes_and_wait(_Nonnull indexstoredb_index_t index, bool isInitialScan);
 
+/// Poll for any changes to index units and call `completion` once they have been registered and all resulting delegate
+/// callbacks have been delivered.
+///
+/// `completion` is called exactly once, on an internal serial queue, so it must not block or wait for unit processing
+/// (e.g. by calling `indexstoredb_index_poll_for_unit_changes_and_wait`).
+INDEXSTOREDB_PUBLIC void
+indexstoredb_index_poll_for_unit_changes(_Nonnull indexstoredb_index_t index,
+                                         bool isInitialScan,
+                                         _Nonnull indexstoredb_completion_t completion);
+
 /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
 ///
 /// A unit is identified by a hash of the output path that the compiler recorded for it, so each output path must be
