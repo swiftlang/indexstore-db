@@ -102,6 +102,8 @@ def get_swiftpm_options(args: argparse.Namespace) -> List[str]:
             os.path.join(args.toolchain, 'lib', 'swift', 'Block'),
         ]
 
+    swiftpm_args += args.extra_swiftpm_flags
+
     return swiftpm_args
 
 
@@ -190,6 +192,7 @@ def parse_args() -> argparse.Namespace:
         parser.add_argument('--sanitize-all', action='store_true', help='build using every available sanitizer in sub-directories of build path')
         parser.add_argument('--verbose', '-v', action='store_true', help='enable verbose output')
         parser.add_argument('--multiroot-data-file', help='path to an Xcode workspace to create a unified build of all of Swift\'s SwiftPM projects')
+        parser.add_argument('--extra-swiftpm-flag', action='append', default=[], dest='extra_swiftpm_flags', help='additional flag to pass to SwiftPM invocations')
 
     parser = argparse.ArgumentParser(description='Build along with the Swift build-script.')
 
