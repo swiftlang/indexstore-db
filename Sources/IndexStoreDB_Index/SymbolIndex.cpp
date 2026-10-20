@@ -273,13 +273,11 @@ SymbolIndexImpl::lookupProvidersForUSR(StringRef USR, SymbolRoleSet roles, Symbo
 /// Calls `Receiver` with the occurrences that `readProvider` passes to its receiver for each provider
 /// index in `0..<providerCount`, in provider order.
 ///
-/// The first provider is read on this thread and passes its occurrences to `Receiver` directly, so that a
-/// receiver that only needs the first occurrence reads no more than it would if the providers were read
-/// one at a time. Reading a provider's record is independent of the other providers, so the remaining
-/// providers are read concurrently, in batches. The occurrences of a batch are passed to `Receiver` on
-/// this thread after the whole batch has been read, and no further batch is read once `Receiver` stops.
-/// Each batch is twice as large as the previous one, so that reading every provider only waits for the
-/// slowest provider of a few batches.
+/// Providers are read concurrently, but not all at once: a receiver that stops early usually does
+/// so within the first few occurrences, and reading every record up front would waste that. So the
+/// providers are read in batches that start with a single provider and double in size. Each batch
+/// is passed to `Receiver` on this thread once it has been read, and no further batch is read after
+/// `Receiver` stops.
 ///
 /// `readProvider` must be safe to call concurrently for different indices. If `providerCallCount` is not
 /// null, it is incremented for every provider that is read.
