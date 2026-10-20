@@ -468,6 +468,79 @@ final class IndexTests: XCTestCase {
     }
   }
 
+  /// All units passed to a single `processUnitsForOutputPaths` call are imported by the time it returns.
+  func testProcessUnitsForOutputPaths() async throws {
+    guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
+    try ws.builder.build()
+    let index = ws.index
+
+    let asym = Symbol(usr: "s:4main1ayyF", name: "a()", kind: .function, language: .swift)
+    let bsym = Symbol(usr: "s:4main1byyF", name: "b()", kind: .function, language: .swift)
+    let csym = Symbol(usr: "s:4main1cyyF", name: "c()", kind: .function, language: .swift)
+    let definitions = [(asym, "a:def"), (bsym, "b:def"), (csym, "c")]
+
+    for (symbol, _) in definitions {
+      XCTAssertEqual(0, index.occurrences(ofUSR: symbol.usr, roles: .definition).count)
+    }
+
+    let outputPaths = try ws.builder.indexOutputPaths.map { try $0.realpath.filePath }
+    XCTAssertEqual(3, outputPaths.count)
+    await index.processUnitsForOutputPaths(outputPaths)
+
+    for (symbol, locationName) in definitions {
+      let occurrences = index.occurrences(ofUSR: symbol.usr, roles: .definition)
+      let location = ws.testLoc(locationName)
+      XCTAssertEqual(1, occurrences.count, "expected a single definition of '\(symbol.name)'")
+      XCTAssertEqual(location.url.path, occurrences.first?.location.path)
+      XCTAssertEqual(location.line, occurrences.first?.location.line)
+    }
+  }
+
+  /// Concurrent `processUnitsForOutputPaths` calls each return once their own units are imported.
+  func testProcessUnitsForOutputPathsConcurrently() async throws {
+    guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
+    try ws.builder.build()
+    let index = ws.index
+
+    let usrByOutputSuffix = [
+      "-a.swift.o": "s:4main1ayyF",
+      "-b.swift.o": "s:4main1byyF",
+      "-c.swift.o": "s:4main1cyyF",
+    ]
+    let outputPaths = try ws.builder.indexOutputPaths.map { try $0.realpath.filePath }
+    XCTAssertEqual(3, outputPaths.count)
+
+    // Nothing is imported yet.
+    for usr in usrByOutputSuffix.values {
+      XCTAssertEqual(0, index.occurrences(ofUSR: usr, roles: .definition).count)
+    }
+
+    let importedCount = await withTaskGroup(of: Int.self) { group in
+      for outputPath in outputPaths {
+        group.addTask {
+          await index.processUnitsForOutputPaths([outputPath])
+          guard let usr = usrByOutputSuffix.first(where: { outputPath.hasSuffix($0.key) })?.value else {
+            XCTFail("unexpected output path \(outputPath)")
+            return 0
+          }
+          return index.occurrences(ofUSR: usr, roles: .definition).count
+        }
+      }
+      return await group.reduce(0, +)
+    }
+    XCTAssertEqual(3, importedCount)
+  }
+
+  /// `processUnitsForOutputPaths` returns even if none of the output paths identifies a unit.
+  func testProcessUnitsForOutputPathsWithoutUnits() async throws {
+    guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
+    let index = ws.index
+
+    await index.processUnitsForOutputPaths([])
+    await index.processUnitsForOutputPaths([ws.builder.buildRoot.appendingPathComponent("missing.o").path])
+    XCTAssertEqual(0, index.occurrences(ofUSR: "s:4main1cyyF", roles: .definition).count)
+  }
+
   /// Re-processing a batch of output paths picks up the changes of every unit in the batch.
   func testProcessUnitsForOutputPathsAndWaitAfterEdit() throws {
     guard let ws = try mutableTibsTestWorkspace(name: "proj1") else { return }

@@ -158,6 +158,8 @@ public:
   /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
   void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
 
+  void processUnitsForOutputPaths(ArrayRef<StringRef> outputPaths, std::function<void()> completion);
+
   void printStats(raw_ostream &OS);
 
   void dumpProviderFileAssociations(raw_ostream &OS);
@@ -346,6 +348,10 @@ void IndexSystemImpl::pollForUnitChangesAndWait(bool isInitialScan) {
 
 void IndexSystemImpl::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
   IndexStore->processUnitsForOutputPathsAndWait(outputPaths);
+}
+
+void IndexSystemImpl::processUnitsForOutputPaths(ArrayRef<StringRef> outputPaths, std::function<void()> completion) {
+  IndexStore->processUnitsForOutputPaths(outputPaths, std::move(completion));
 }
 
 void IndexSystemImpl::printStats(raw_ostream &OS) {
@@ -732,6 +738,10 @@ void IndexSystem::pollForUnitChangesAndWait(bool isInitialScan) {
 
 void IndexSystem::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
   IMPL->processUnitsForOutputPathsAndWait(outputPaths);
+}
+
+void IndexSystem::processUnitsForOutputPaths(ArrayRef<StringRef> outputPaths, std::function<void()> completion) {
+  IMPL->processUnitsForOutputPaths(outputPaths, std::move(completion));
 }
 
 void IndexSystem::printStats(raw_ostream &OS) {

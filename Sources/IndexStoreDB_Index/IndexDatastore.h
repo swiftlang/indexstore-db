@@ -15,6 +15,7 @@
 
 #include <IndexStoreDB_Core/Symbol.h>
 #include <IndexStoreDB_LLVMSupport/llvm_ADT_OptionSet.h>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -62,6 +63,10 @@ public:
 
   /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
   void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
+
+  /// Import the units for the given output paths into indexstore-db and call \p completion on the unit processing
+  /// queue once the import has finished. The output paths are only read during this call.
+  void processUnitsForOutputPaths(ArrayRef<StringRef> outputPaths, std::function<void()> completion);
 
 private:
   IndexDatastore(void *Impl) : Impl(Impl) {}

@@ -203,6 +203,9 @@ typedef bool(^indexstoredb_file_includes_receiver)(const char *_Nonnull sourcePa
 /// Returns true to continue.
 typedef bool(^indexstoredb_unit_includes_receiver)(const char *_Nonnull sourcePath, const char *_Nonnull targetPath, size_t line);
 
+/// Called once an asynchronous operation has finished.
+typedef void(^indexstoredb_completion_t)(void);
+
 typedef void *indexstoredb_creation_options_t;
 
 INDEXSTOREDB_PUBLIC indexstoredb_creation_options_t _Nonnull
@@ -294,6 +297,18 @@ INDEXSTOREDB_PUBLIC void
 indexstoredb_index_process_units_for_output_paths_and_wait(_Nonnull indexstoredb_index_t index,
                                                            const char *_Nonnull const *_Nonnull outputPaths,
                                                            size_t count);
+
+/// Import the units for the given output paths into indexstore-db and call `completion` once the import has finished.
+/// Accepts the same output paths as `indexstoredb_index_process_units_for_output_paths_and_wait`, which are copied
+/// before this function returns.
+///
+/// `completion` is called exactly once, on the serial queue that imports units, so it must not block or wait for unit
+/// processing (e.g. by calling `indexstoredb_index_process_units_for_output_paths_and_wait`).
+INDEXSTOREDB_PUBLIC void
+indexstoredb_index_process_units_for_output_paths(_Nonnull indexstoredb_index_t index,
+                                                  const char *_Nonnull const *_Nonnull outputPaths,
+                                                  size_t count,
+                                                  _Nonnull indexstoredb_completion_t completion);
 
 /// Add output filepaths for the set of unit files that index data should be loaded from.
 /// Only has an effect if `useExplicitOutputUnits` was set to true for `indexstoredb_index_create`.
