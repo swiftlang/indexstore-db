@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include <IndexStoreDB_Support/Path.h>
+#include <IndexStoreDB_Support/Logging.h>
 #include <IndexStoreDB_LLVMSupport/llvm_ADT_StringMap.h>
 #include <IndexStoreDB_LLVMSupport/llvm_Support_Allocator.h>
 #include <IndexStoreDB_LLVMSupport/llvm_Support_Path.h>
@@ -49,8 +50,13 @@ CanonicalPathCacheImpl::getCanonicalPath(StringRef Path, StringRef WorkingDir) {
   SmallString<256> AbsPath;
   if (llvm::sys::path::is_absolute(Path)) {
     AbsPath = Path;
+  } else if (!llvm::sys::path::is_absolute(WorkingDir)) {
+    // Gracefully handle malformed index units with relative paths.
+    LOG_WARN_FUNC("ignoring relative path '" << Path
+                  << "' with relative working directory '"
+                  << WorkingDir << "'");
+    return CanonicalFilePath();
   } else {
-    assert(!WorkingDir.empty() && "passed relative path without working-dir");
     AbsPath = WorkingDir;
     AbsPath += '/';
     AbsPath += Path;

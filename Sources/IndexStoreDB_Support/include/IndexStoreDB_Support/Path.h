@@ -85,6 +85,10 @@ public:
   CanonicalPathCache();
   ~CanonicalPathCache();
 
+  /// Returns the canonical absolute path for \p Path or an empty path if it
+  /// cannot be made absolute. If \p Path is not already absolute, an absolute
+  /// \p WorkingDir must be provided. The working directory of the process is
+  /// not considered.
   CanonicalFilePath getCanonicalPath(StringRef Path,
                                      StringRef WorkingDir = StringRef());
 };

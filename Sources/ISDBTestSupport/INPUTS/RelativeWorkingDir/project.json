@@ -1,0 +1,8 @@
+{
+  "clang_flags": [
+    "-fdebug-prefix-map=$SRC_DIR/include=include",
+    "-fdebug-prefix-map=$SRC_DIR/sysroot=sysroot",
+    "-isysroot", "$SRC_DIR/sysroot", "-Wno-missing-sysroot"
+  ],
+  "sources": ["main.c"]
+}
