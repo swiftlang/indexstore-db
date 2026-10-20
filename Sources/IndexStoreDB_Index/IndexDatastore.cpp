@@ -41,6 +41,7 @@
 
 #include <dispatch/dispatch.h>
 #include <Block.h>
+#include <atomic>
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
@@ -305,6 +306,9 @@ class UnitProcessingSession : public std::enable_shared_from_this<UnitProcessing
   std::shared_ptr<IndexSystemDelegate> Delegate;
   /// Called on the unit processing queue once the deque has been drained. Only set by `processAsync`.
   std::function<void()> OnDrained;
+  /// Whether `OnDrained` has been called. `OnDrained` itself is only read on the unit processing queue because the
+  /// session may be destroyed on another thread without synchronization that the thread sanitizer can see.
+  std::atomic<bool> NotifiedDrained{false};
 
   static const unsigned MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT = 10;
 
@@ -425,10 +429,8 @@ private:
   }
 
   void notifyDrained() {
-    std::function<void()> onDrained;
-    std::swap(onDrained, OnDrained);
-    if (onDrained)
-      onDrained();
+    if (!NotifiedDrained.exchange(true) && OnDrained)
+      OnDrained();
   }
 };
 
