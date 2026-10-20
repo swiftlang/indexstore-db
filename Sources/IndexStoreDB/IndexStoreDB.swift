@@ -173,6 +173,20 @@ public final class IndexStoreDB {
     indexstoredb_index_process_units_for_output_paths_and_wait(impl, cOutputPaths, cOutputPaths.count)
   }
 
+  /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
+  ///
+  /// Accepts the same output paths as `processUnitsForOutputPathsAndWait(_:)`. No thread is blocked while the import
+  /// is pending.
+  public func processUnitsForOutputPaths(_ outputPaths: some Collection<String> & Sendable) async {
+    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+      let cOutputPaths: [UnsafePointer<CChar>] = outputPaths.map { UnsafePointer($0.withCString(strdup)!) }
+      defer { for cOutputPath in cOutputPaths { free(UnsafeMutablePointer(mutating: cOutputPath)) } }
+      indexstoredb_index_process_units_for_output_paths(impl, cOutputPaths, cOutputPaths.count) {
+        continuation.resume()
+      }
+    }
+  }
+
   /// Add output filepaths for the set of unit files that index data should be loaded from.
   /// Only has an effect if `useExplicitOutputUnits` was set to true at initialization.
   public func addUnitOutFilePaths(_ paths: [String], waitForProcessing: Bool) {

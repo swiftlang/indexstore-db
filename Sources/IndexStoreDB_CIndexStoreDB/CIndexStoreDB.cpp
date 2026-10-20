@@ -232,6 +232,22 @@ void indexstoredb_index_process_units_for_output_paths_and_wait(indexstoredb_ind
   obj->value->processUnitsForOutputPathsAndWait(strVec);
 }
 
+void indexstoredb_index_process_units_for_output_paths(indexstoredb_index_t index,
+                                                       const char *const *outputPaths,
+                                                       size_t count,
+                                                       indexstoredb_completion_t completion) {
+  auto obj = (Object<std::shared_ptr<IndexSystem>> *)index;
+  SmallVector<StringRef, 32> strVec;
+  strVec.reserve(count);
+  for (unsigned i = 0; i != count; ++i)
+    strVec.push_back(outputPaths[i]);
+  indexstoredb_completion_t completionCopy = Block_copy(completion);
+  obj->value->processUnitsForOutputPaths(strVec, [completionCopy] {
+    completionCopy();
+    Block_release(completionCopy);
+  });
+}
+
 void indexstoredb_index_add_unit_out_file_paths(indexstoredb_index_t index,
                                                 const char *const *paths, size_t count,
                                                 bool waitForProcessing) {

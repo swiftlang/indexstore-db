@@ -41,6 +41,7 @@
 
 #include <dispatch/dispatch.h>
 #include <Block.h>
+#include <functional>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -145,6 +146,10 @@ public:
   /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
   void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
 
+  /// Import the units for the given output paths into indexstore-db and call \p completion on the unit processing
+  /// queue once the import has finished. The output paths are only read during this call.
+  void processUnitsForOutputPaths(ArrayRef<StringRef> outputPaths, std::function<void()> completion);
+
   std::shared_ptr<UnitProcessingSession> makeUnitProcessingSession();
 
   void addUnitOutFilePaths(ArrayRef<StringRef> filePaths, bool waitForProcessing);
@@ -166,6 +171,7 @@ public:
 private:
   void registerUnit(StringRef UnitName, bool isInitialScan, std::shared_ptr<UnitProcessingSession> processSession, bool ignoreModTime = false);
   void removeUnit(StringRef UnitName);
+  std::vector<UnitEventInfo> makeEventsForOutputPaths(ArrayRef<StringRef> outputPaths);
 };
 
 class IndexDatastoreImpl {
@@ -195,6 +201,10 @@ public:
 
   /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
   void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
+
+  /// Import the units for the given output paths into indexstore-db and call \p completion on the unit processing
+  /// queue once the import has finished. The output paths are only read during this call.
+  void processUnitsForOutputPaths(ArrayRef<StringRef> outputPaths, std::function<void()> completion);
 };
 
 class UnitMonitor {
@@ -282,6 +292,8 @@ class UnitProcessingSession : public std::enable_shared_from_this<UnitProcessing
   std::shared_ptr<UnitEventInfoDeque> Deque;
   std::weak_ptr<StoreUnitRepo> WeakUnitRepo;
   std::shared_ptr<IndexSystemDelegate> Delegate;
+  /// Called on the unit processing queue once the deque has been drained. Only set by `processAsync`.
+  std::function<void()> OnDrained;
 
   static const unsigned MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT = 10;
 
@@ -305,6 +317,16 @@ public:
     } else {
       processUnitsAsync();
     }
+  }
+
+  /// Process the events asynchronously and call \p completion on the unit processing queue once they, and any unit
+  /// dependencies they enqueue, have been processed. \p completion is called even if \p evts is empty.
+  ///
+  /// The session must own its deque, otherwise events of other sessions would delay \p completion.
+  void processAsync(std::vector<UnitEventInfo> evts, std::function<void()> completion) {
+    OnDrained = std::move(completion);
+    enqueue(std::move(evts));
+    processUnitsAsync();
   }
 
   /// Enqueue units for processing and return.
@@ -367,11 +389,15 @@ private:
   /// the current one has been processed.
   void processUnitEventsIncrementally(dispatch_queue_t queue) {
     std::vector<UnitEventInfo> poppedEvts = Deque->popFront(MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT);
-    if (poppedEvts.empty())
+    if (poppedEvts.empty()) {
+      notifyDrained();
       return;
+    }
     auto unitRepo = WeakUnitRepo.lock();
-    if (!unitRepo)
+    if (!unitRepo) {
+      notifyDrained();
       return;
+    }
 
     auto session = shared_from_this();
 
@@ -385,6 +411,13 @@ private:
     dispatch_async(queue, ^{
       session->processUnitEventsIncrementally(queue);
     });
+  }
+
+  void notifyDrained() {
+    std::function<void()> onDrained;
+    std::swap(onDrained, OnDrained);
+    if (onDrained)
+      onDrained();
   }
 };
 
@@ -751,7 +784,7 @@ void StoreUnitRepo::purgeStaleData() {
   // IdxStore->purgeStaleRecords(ActiveRecNames);
 }
 
-void StoreUnitRepo::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
+std::vector<UnitEventInfo> StoreUnitRepo::makeEventsForOutputPaths(ArrayRef<StringRef> outputPaths) {
   // Technically, we don't know if the unit has been added or modified, but we handle `Modified` and `Added` the same
   // way anyway, so using `Modified` here should be fine.
   std::vector<UnitEventInfo> events;
@@ -766,8 +799,17 @@ void StoreUnitRepo::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> output
     events.emplace_back(IndexStore::UnitEvent::Kind::Modified, nameBuf.str(), /*isInitialScan=*/false,
                         /*isDependency=*/false, /*ignoreModTime=*/true);
   }
+  return events;
+}
+
+void StoreUnitRepo::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
   auto session = makeUnitProcessingSession();
-  session->process(std::move(events), /*waitForProcessing=*/true);
+  session->process(makeEventsForOutputPaths(outputPaths), /*waitForProcessing=*/true);
+}
+
+void StoreUnitRepo::processUnitsForOutputPaths(ArrayRef<StringRef> outputPaths, std::function<void()> completion) {
+  auto session = makeUnitProcessingSession();
+  session->processAsync(makeEventsForOutputPaths(outputPaths), std::move(completion));
 }
 
 void StoreUnitRepo::pollForUnitChangesAndWait(bool isInitialScan) {
@@ -1177,6 +1219,11 @@ void IndexDatastoreImpl::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> o
   UnitRepo->processUnitsForOutputPathsAndWait(outputPaths);
 }
 
+void IndexDatastoreImpl::processUnitsForOutputPaths(ArrayRef<StringRef> outputPaths,
+                                                    std::function<void()> completion) {
+  UnitRepo->processUnitsForOutputPaths(outputPaths, std::move(completion));
+}
+
 //===----------------------------------------------------------------------===//
 // IndexDatastore
 //===----------------------------------------------------------------------===//
@@ -1239,4 +1286,8 @@ void IndexDatastore::pollForUnitChangesAndWait(bool isInitialScan) {
 
 void IndexDatastore::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
   return IMPL->processUnitsForOutputPathsAndWait(outputPaths);
+}
+
+void IndexDatastore::processUnitsForOutputPaths(ArrayRef<StringRef> outputPaths, std::function<void()> completion) {
+  return IMPL->processUnitsForOutputPaths(outputPaths, std::move(completion));
 }

@@ -19,6 +19,7 @@
 #include <IndexStoreDB_LLVMSupport/llvm_ADT_OptionSet.h>
 #include <IndexStoreDB_LLVMSupport/llvm_ADT_StringRef.h>
 #include <IndexStoreDB_LLVMSupport/llvm_Support_Chrono.h>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -98,6 +99,14 @@ public:
   /// index store was written with a path prefix remapping. Output paths that don't identify a unit in the index store
   /// are silently ignored.
   void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
+
+  /// Import the units for the given output paths into indexstore-db and call \p completion once the import has
+  /// finished. Accepts the same output paths as `processUnitsForOutputPathsAndWait`, which are only read during this
+  /// call.
+  ///
+  /// \p completion is called exactly once, on the serial queue that imports units, so it must not block or wait for
+  /// unit processing (e.g. by calling `processUnitsForOutputPathsAndWait`).
+  void processUnitsForOutputPaths(ArrayRef<StringRef> outputPaths, std::function<void()> completion);
 
   void printStats(raw_ostream &OS);
 
