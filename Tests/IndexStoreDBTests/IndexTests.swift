@@ -541,6 +541,140 @@ final class IndexTests: XCTestCase {
     XCTAssertEqual(0, index.occurrences(ofUSR: "s:4main1cyyF", roles: .definition).count)
   }
 
+  /// All units in the index store are imported by the time `pollForUnitChanges` returns.
+  func testPollForUnitChanges() async throws {
+    guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
+    try ws.builder.build()
+    let index = ws.index
+
+    let asym = Symbol(usr: "s:4main1ayyF", name: "a()", kind: .function, language: .swift)
+    let bsym = Symbol(usr: "s:4main1byyF", name: "b()", kind: .function, language: .swift)
+    let csym = Symbol(usr: "s:4main1cyyF", name: "c()", kind: .function, language: .swift)
+    let definitions = [(asym, "a:def"), (bsym, "b:def"), (csym, "c")]
+
+    for (symbol, _) in definitions {
+      XCTAssertEqual(0, index.occurrences(ofUSR: symbol.usr, roles: .definition).count)
+    }
+
+    await index.pollForUnitChanges()
+
+    for (symbol, locationName) in definitions {
+      let occurrences = index.occurrences(ofUSR: symbol.usr, roles: .definition)
+      let location = ws.testLoc(locationName)
+      XCTAssertEqual(1, occurrences.count, "expected a single definition of '\(symbol.name)'")
+      XCTAssertEqual(location.url.path, occurrences.first?.location.path)
+      XCTAssertEqual(location.line, occurrences.first?.location.line)
+    }
+  }
+
+  /// Concurrent `pollForUnitChanges` calls each return once all units in the index store are imported.
+  func testPollForUnitChangesConcurrently() async throws {
+    guard let ws = try staticTibsTestWorkspace(name: "proj1") else { return }
+    try ws.builder.build()
+    let index = ws.index
+
+    let usrs = ["s:4main1ayyF", "s:4main1byyF", "s:4main1cyyF"]
+    let importedCounts = await withTaskGroup(of: Int.self) { group in
+      for _ in 0..<4 {
+        group.addTask {
+          await index.pollForUnitChanges()
+          return usrs.reduce(0) { $0 + index.occurrences(ofUSR: $1, roles: .definition).count }
+        }
+      }
+      return await group.reduce(into: []) { $0.append($1) }
+    }
+    XCTAssertEqual([3, 3, 3, 3], importedCounts)
+  }
+
+  /// Concurrent `pollForUnitChanges` calls each return once all removed units are unregistered, including calls that
+  /// don't find the removals because another poll already picked them up.
+  func testPollForUnitChangesConcurrentlyAfterRemovingUnits() async throws {
+    let toolchain = TibsToolchain.testDefault
+    try XCTSkipUnless(toolchain.clangHasIndexSupport, "clang does not have indexstore support")
+
+    // Use enough units that importing the removals takes more than one batch of unit processing.
+    let testDataDir = URL(fileURLWithPath: NSTemporaryDirectory())
+      .appendingPathComponent("isdb-test-data", isDirectory: true)
+    let projectDir = testDataDir.appendingPathComponent("\(testDirectoryName)-project", isDirectory: true)
+    try? FileManager.default.removeItem(at: projectDir)
+    try FileManager.default.createDirectory(at: projectDir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: projectDir) }
+    let sourceNames = (1...100).map { "f\($0).c" }
+    for (i, sourceName) in zip(1..., sourceNames) {
+      try "void f\(i)(void) {}\n"
+        .write(to: projectDir.appendingPathComponent(sourceName), atomically: true, encoding: .utf8)
+    }
+    try JSONSerialization.data(withJSONObject: ["sources": sourceNames])
+      .write(to: projectDir.appendingPathComponent("project.json"))
+
+    let ws = try TibsTestWorkspace(
+      projectDir: projectDir,
+      tmpDir: testDataDir.appendingPathComponent(testDirectoryName, isDirectory: true),
+      toolchain: toolchain
+    )
+    try ws.buildAndIndex()
+    let index = ws.index
+
+    let usrs = (1...100).map { "c:@F@f\($0)" }
+    XCTAssertEqual(100, usrs.reduce(0) { $0 + index.occurrences(ofUSR: $1, roles: .definition).count })
+
+    let unitsDir = ws.builder.indexstore.appendingPathComponent("v5/units", isDirectory: true)
+    let unitFiles = try FileManager.default.contentsOfDirectory(at: unitsDir, includingPropertiesForKeys: nil)
+    XCTAssertEqual(100, unitFiles.count)
+    for unitFile in unitFiles {
+      try FileManager.default.removeItem(at: unitFile)
+    }
+
+    let remainingCounts = await withTaskGroup(of: Int.self) { group in
+      for _ in 0..<4 {
+        group.addTask {
+          await index.pollForUnitChanges()
+          return usrs.reduce(0) { $0 + index.occurrences(ofUSR: $1, roles: .definition).count }
+        }
+      }
+      return await group.reduce(into: []) { $0.append($1) }
+    }
+    XCTAssertEqual([0, 0, 0, 0], remainingCounts)
+  }
+
+  /// All delegate callbacks for the units imported by `pollForUnitChanges` are delivered before it returns.
+  func testPollForUnitChangesDelegate() async throws {
+    final class Delegate: IndexDelegate, @unchecked Sendable {
+      let queue: DispatchQueue = DispatchQueue(label: "testPollForUnitChangesDelegate mutex")
+      var _added: Int = 0
+      var _completed: Int = 0
+      var added: Int { queue.sync { _added } }
+      var completed: Int { queue.sync { _completed } }
+
+      func processingAddedPending(_ count: Int) {
+        queue.sync {
+          _added += count
+        }
+      }
+      func processingCompleted(_ count: Int) {
+        queue.sync {
+          _completed += count
+        }
+      }
+    }
+
+    guard let ws = try mutableTibsTestWorkspace(name: "proj1") else { return }
+
+    let delegate = Delegate()
+    ws.delegate = delegate
+
+    await ws.index.pollForUnitChanges()
+
+    XCTAssertEqual(delegate.added, 0)
+    XCTAssertEqual(delegate.completed, 0)
+
+    try ws.builder.build()
+    await ws.index.pollForUnitChanges()
+
+    XCTAssertEqual(delegate.added, 3)
+    XCTAssertEqual(delegate.completed, 3)
+  }
+
   /// Re-processing a batch of output paths picks up the changes of every unit in the batch.
   func testProcessUnitsForOutputPathsAndWaitAfterEdit() throws {
     guard let ws = try mutableTibsTestWorkspace(name: "proj1") else { return }

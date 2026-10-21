@@ -161,6 +161,18 @@ public final class IndexStoreDB {
     indexstoredb_index_poll_for_unit_changes_and_wait(impl, isInitialScan)
   }
 
+  /// Poll for any changes to units and return once they have been registered.
+  ///
+  /// This is as costly as `pollForUnitChangesAndWait(isInitialScan:)` but no thread is blocked while the poll is
+  /// pending.
+  public func pollForUnitChanges(isInitialScan: Bool = false) async {
+    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+      indexstoredb_index_poll_for_unit_changes(impl, isInitialScan) {
+        continuation.resume()
+      }
+    }
+  }
+
   /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
   ///
   /// A unit is identified by a hash of the output path that the compiler recorded for it, so each output path must be

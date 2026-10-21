@@ -41,6 +41,7 @@
 
 #include <dispatch/dispatch.h>
 #include <Block.h>
+#include <atomic>
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
@@ -101,7 +102,10 @@ struct UnitEventInfo {
 };
 
 struct PollUnitsState {
-  llvm::sys::Mutex pollMtx;
+  /// Serial queue on which every poll scans the index store and updates `knownUnits`. An asynchronous poll suspends
+  /// the queue until the units it found have been imported, so a poll only scans once all earlier polls have finished
+  /// importing.
+  WorkQueue pollQueue{WorkQueue::Dequeuing::Serial, "IndexStoreDB.store.unit.poll", WorkQueue::Priority::Low};
   llvm::StringMap<sys::TimePoint<>> knownUnits;
 };
 
@@ -143,6 +147,9 @@ public:
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait(bool isInitialScan);
 
+  /// Poll for any changes to units and call \p completion on an internal serial queue once they have been registered.
+  void pollForUnitChanges(bool isInitialScan, std::function<void()> completion);
+
   /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
   void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
 
@@ -172,6 +179,8 @@ private:
   void registerUnit(StringRef UnitName, bool isInitialScan, std::shared_ptr<UnitProcessingSession> processSession, bool ignoreModTime = false);
   void removeUnit(StringRef UnitName);
   std::vector<UnitEventInfo> makeEventsForOutputPaths(ArrayRef<StringRef> outputPaths);
+  /// Scan the index store for units that changed since the last poll. Must be called on the poll queue.
+  std::vector<UnitEventInfo> makeEventsForPoll(bool isInitialScan);
 };
 
 class IndexDatastoreImpl {
@@ -198,6 +207,9 @@ public:
 
   /// *For Testing* Poll for any changes to units and wait until they have been registered.
   void pollForUnitChangesAndWait(bool isInitialScan);
+
+  /// Poll for any changes to units and call \p completion on an internal serial queue once they have been registered.
+  void pollForUnitChanges(bool isInitialScan, std::function<void()> completion);
 
   /// Import the units for the given output paths into indexstore-db. Returns after the import has finished.
   void processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths);
@@ -294,6 +306,9 @@ class UnitProcessingSession : public std::enable_shared_from_this<UnitProcessing
   std::shared_ptr<IndexSystemDelegate> Delegate;
   /// Called on the unit processing queue once the deque has been drained. Only set by `processAsync`.
   std::function<void()> OnDrained;
+  /// Whether `OnDrained` has been called. `OnDrained` itself is only read on the unit processing queue because the
+  /// session may be destroyed on another thread without synchronization that the thread sanitizer can see.
+  std::atomic<bool> NotifiedDrained{false};
 
   static const unsigned MAX_STORE_EVENTS_TO_PROCESS_PER_WORK_UNIT = 10;
 
@@ -414,10 +429,8 @@ private:
   }
 
   void notifyDrained() {
-    std::function<void()> onDrained;
-    std::swap(onDrained, OnDrained);
-    if (onDrained)
-      onDrained();
+    if (!NotifiedDrained.exchange(true) && OnDrained)
+      OnDrained();
   }
 };
 
@@ -812,8 +825,7 @@ void StoreUnitRepo::processUnitsForOutputPaths(ArrayRef<StringRef> outputPaths, 
   session->processAsync(makeEventsForOutputPaths(outputPaths), std::move(completion));
 }
 
-void StoreUnitRepo::pollForUnitChangesAndWait(bool isInitialScan) {
-  sys::ScopedLock L(pollUnitsState.pollMtx);
+std::vector<UnitEventInfo> StoreUnitRepo::makeEventsForPoll(bool isInitialScan) {
   std::vector<UnitEventInfo> events;
   {
     llvm::StringMap<sys::TimePoint<>> knownUnits;
@@ -850,9 +862,39 @@ void StoreUnitRepo::pollForUnitChangesAndWait(bool isInitialScan) {
 
     pollUnitsState.knownUnits = std::move(foundUnits);
   }
+  return events;
+}
 
-  auto session = makeUnitProcessingSession();
-  session->process(std::move(events), /*waitForProcessing=*/true);
+void StoreUnitRepo::pollForUnitChangesAndWait(bool isInitialScan) {
+  pollUnitsState.pollQueue.dispatchSync([&] {
+    auto session = makeUnitProcessingSession();
+    session->process(makeEventsForPoll(isInitialScan), /*waitForProcessing=*/true);
+  });
+}
+
+void StoreUnitRepo::pollForUnitChanges(bool isInitialScan, std::function<void()> completion) {
+  std::weak_ptr<StoreUnitRepo> weakUnitRepo = weak_from_this();
+  WorkQueue pollQueue = pollUnitsState.pollQueue;
+  pollQueue.dispatch([weakUnitRepo, pollQueue, isInitialScan, completion]() mutable {
+    auto unitRepo = weakUnitRepo.lock();
+    if (!unitRepo) {
+      completion();
+      return;
+    }
+    std::vector<UnitEventInfo> events = unitRepo->makeEventsForPoll(isInitialScan);
+    if (events.empty()) {
+      // All earlier polls have finished importing, so there is nothing to wait for.
+      completion();
+      return;
+    }
+    // Don't let later polls scan until the units found by this poll have been imported.
+    pollQueue.suspend();
+    auto session = unitRepo->makeUnitProcessingSession();
+    session->processAsync(std::move(events), [pollQueue, completion]() mutable {
+      pollQueue.resume();
+      completion();
+    });
+  });
 }
 
 std::shared_ptr<UnitProcessingSession> StoreUnitRepo::makeUnitProcessingSession() {
@@ -1215,6 +1257,10 @@ void IndexDatastoreImpl::pollForUnitChangesAndWait(bool isInitialScan) {
   UnitRepo->pollForUnitChangesAndWait(isInitialScan);
 }
 
+void IndexDatastoreImpl::pollForUnitChanges(bool isInitialScan, std::function<void()> completion) {
+  UnitRepo->pollForUnitChanges(isInitialScan, std::move(completion));
+}
+
 void IndexDatastoreImpl::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
   UnitRepo->processUnitsForOutputPathsAndWait(outputPaths);
 }
@@ -1282,6 +1328,10 @@ void IndexDatastore::purgeStaleData() {
 
 void IndexDatastore::pollForUnitChangesAndWait(bool isInitialScan) {
   return IMPL->pollForUnitChangesAndWait(isInitialScan);
+}
+
+void IndexDatastore::pollForUnitChanges(bool isInitialScan, std::function<void()> completion) {
+  return IMPL->pollForUnitChanges(isInitialScan, std::move(completion));
 }
 
 void IndexDatastore::processUnitsForOutputPathsAndWait(ArrayRef<StringRef> outputPaths) {
