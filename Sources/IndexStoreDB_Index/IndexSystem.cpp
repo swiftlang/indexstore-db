@@ -27,6 +27,7 @@
 #include <IndexStoreDB_LLVMSupport/llvm_ADT_STLExtras.h>
 #include <IndexStoreDB_LLVMSupport/llvm_ADT_StringRef.h>
 #include <IndexStoreDB_LLVMSupport/llvm_Support_FileSystem.h>
+#include <IndexStoreDB_LLVMSupport/llvm_Support_MD5.h>
 #include <IndexStoreDB_LLVMSupport/llvm_Support_raw_ostream.h>
 
 #include <unordered_map>
@@ -259,6 +260,28 @@ public:
 
 } // anonymous namespace
 
+/// A hash of the options that affect what importing a unit stores in the database. The index store applies the
+/// prefix mapping to unit paths as they are read, in order, so the database stores the mapped paths.
+///
+/// Empty without a prefix mapping: no option changes what is imported, which is also what a database without a
+/// recorded signature was imported with.
+static std::string importSignature(const CreationOptions &options) {
+  const auto &prefixMap = options.indexStoreOptions.getPrefixMap();
+  if (prefixMap.empty()) {
+    return "";
+  }
+  llvm::MD5 hash;
+  for (const auto &mapping : prefixMap) {
+    hash.update(mapping.first);
+    hash.update(StringRef("\0", 1));
+    hash.update(mapping.second);
+    hash.update(StringRef("\0", 1));
+  }
+  llvm::MD5::MD5Result result;
+  hash.final(result);
+  return result.digest().str().str();
+}
+
 bool IndexSystemImpl::init(StringRef StorePath,
                            StringRef dbasePath,
                            std::shared_ptr<IndexStoreLibraryProvider> storeLibProvider,
@@ -270,7 +293,8 @@ bool IndexSystemImpl::init(StringRef StorePath,
   this->DBasePath = dbasePath;
   this->DelegateWrap = std::make_shared<AsyncIndexDelegate>(Delegate);
 
-  auto dbase = db::Database::create(dbasePath, options.readonly, initialDBSize, Error);
+  auto dbase = db::Database::create(dbasePath, options.readonly, initialDBSize,
+                                    importSignature(options), Error);
   if (!dbase)
     return true;
 

@@ -135,4 +135,36 @@ final class IndexStoreDBTests: XCTestCase {
       }
     }
   }
+
+  func testDatabaseReflectsPrefixMappingsAfterReopening() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "SingleUnit") else { return }
+    try ws.buildAndIndex()
+    let libIndexStore = try IndexStoreLibrary(dylibPath: TibsToolchain.testDefault.libIndexStore.path)
+    let dbPath = tmp + "/db"
+
+    // Each index is released, closing the database, before the next one opens it.
+    func definitionPaths(prefixMappings: [PathMapping]) throws -> [String] {
+      let index = try IndexStoreDB(
+        storePath: ws.builder.indexstore.path,
+        databasePath: dbPath,
+        library: libIndexStore,
+        waitUntilDoneInitializing: true,
+        prefixMappings: prefixMappings
+      )
+      return index.occurrences(ofUSR: "c:@F@test", roles: .definition).map { $0.location.path }
+    }
+
+    let recordedPaths = try definitionPaths(prefixMappings: [])
+    XCTAssertEqual(recordedPaths.count, 1)
+    let recordedPath = try XCTUnwrap(recordedPaths.first)
+    let recordedDirectory = (recordedPath as NSString).deletingLastPathComponent
+
+    // Units imported without a mapping are imported again once one applies.
+    XCTAssertEqual(
+      try definitionPaths(prefixMappings: [PathMapping(original: recordedDirectory, replacement: "/MAPPED")]),
+      ["/MAPPED/main.c"]
+    )
+    // And again once it no longer applies.
+    XCTAssertEqual(try definitionPaths(prefixMappings: []), [recordedPath])
+  }
 }
