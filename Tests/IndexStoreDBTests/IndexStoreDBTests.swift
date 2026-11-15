@@ -135,4 +135,49 @@ final class IndexStoreDBTests: XCTestCase {
       }
     }
   }
+
+  func testUnitWithUnknownProviderIsSkipped() throws {
+    // FIXME: This test seems to trigger a false-positive in TSan.
+    try XCTSkipIf(isTSanEnabled, "skipping because TSan is enabled")
+
+    let toolchain = TibsToolchain.testDefault
+    let libIndexStore = try! IndexStoreLibrary(dylibPath: toolchain.libIndexStore.path)
+
+    guard let ws = try staticTibsTestWorkspace(name: "SingleUnit") else { return }
+    try ws.buildAndIndex()
+    let indexStorePath = ws.builder.indexstore.path
+
+    // Rewrite the provider identifier of every unit to one that IndexStoreDB doesn't know about. The replacement has
+    // the same length as the original so that the bitstream stays valid.
+    let fileMgr = FileManager.default
+    let unitsDir = URL(fileURLWithPath: indexStorePath).appendingPathComponent("v5/units")
+    var patchedCount = 0
+    for unitFile in try fileMgr.contentsOfDirectory(at: unitsDir, includingPropertiesForKeys: nil) {
+      var bytes = [UInt8](try Data(contentsOf: unitFile))
+      for provider in ["clang", "swift"] {
+        let needle = Array(provider.utf8)
+        var i = 0
+        while i + needle.count < bytes.count {
+          let nextByte = bytes[i + needle.count]
+          if Array(bytes[i..<(i + needle.count)]) == needle, (UInt8(ascii: "0")...UInt8(ascii: "9")).contains(nextByte)
+          {
+            bytes.replaceSubrange(i..<(i + needle.count), with: Array("other".utf8))
+            patchedCount += 1
+          }
+          i += 1
+        }
+      }
+      try Data(bytes).write(to: unitFile)
+    }
+    XCTAssertGreaterThan(patchedCount, 0, "did not find a provider identifier to rewrite")
+
+    // This used to abort the process.
+    let db = try IndexStoreDB(
+      storePath: indexStorePath,
+      databasePath: tmp + "/db",
+      library: libIndexStore,
+      waitUntilDoneInitializing: true
+    )
+    XCTAssertEqual(db.allSymbolNames().count, 0)
+  }
 }
