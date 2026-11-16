@@ -48,6 +48,8 @@ namespace index {
 struct CreationOptions {
   indexstore::IndexStoreCreationOptions indexStoreOptions;
   bool useExplicitOutputUnits = false;
+  /// With `useExplicitOutputUnits`, treat every unit in the database as visible while no output paths are added.
+  bool allUnitsVisibleWithoutOutputPaths = false;
   bool wait = false;
   bool readonly = false;
   bool enableOutOfDateFileWatching = false;

@@ -67,6 +67,9 @@ public final class IndexStoreDB {
   ///   * databasePath: Path to the index database (or where it will be created).
   ///   * library: The index store library to use.
   ///   * delegate: The delegate to receive index events.
+  ///   * allUnitsVisibleWithoutOutputPaths: With `useExplicitOutputUnits`, treat every unit already in the database
+  ///     as visible while no output paths are added, so that a reopened database answers queries before the output
+  ///     paths are known. Units are still only imported once their output paths are added.
   ///   * wait: If `true`, wait for the database to be populated from the
   ///     (current) contents of the index store at `storePath` before returning.
   ///   * readonly: If `true`, read an existing database, but do not create or modify.
@@ -82,6 +85,7 @@ public final class IndexStoreDB {
     library: IndexStoreLibrary?,
     delegate: IndexDelegate? = nil,
     useExplicitOutputUnits: Bool = false,
+    allUnitsVisibleWithoutOutputPaths: Bool = false,
     waitUntilDoneInitializing wait: Bool = false,
     readonly: Bool = false,
     enableOutOfDateFileWatching: Bool = false,
@@ -101,6 +105,10 @@ public final class IndexStoreDB {
     let options = indexstoredb_creation_options_create()
     defer { indexstoredb_creation_options_dispose(options) }
     indexstoredb_creation_options_use_explicit_output_units(options, useExplicitOutputUnits)
+    indexstoredb_creation_options_all_units_visible_without_output_paths(
+      options,
+      allUnitsVisibleWithoutOutputPaths
+    )
     indexstoredb_creation_options_wait(options, wait)
     indexstoredb_creation_options_readonly(options, readonly)
     indexstoredb_creation_options_enable_out_of_date_file_watching(options, enableOutOfDateFileWatching)

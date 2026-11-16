@@ -1061,6 +1061,58 @@ final class IndexTests: XCTestCase {
     )
   }
 
+  func testAllUnitsVisibleWithoutOutputPaths() throws {
+    guard let ws = try staticTibsTestWorkspace(name: "MixedLangTarget", useExplicitOutputUnits: true) else { return }
+    try ws.builder.build()
+
+    let databasePath = ws.tmpDir.appendingPathComponent("reopened-db", isDirectory: true).path
+    let indexOutputPaths = ws.builder.indexOutputPaths.map { $0.path }
+    let ddecl = Symbol(usr: "c:@S@D", name: "D", kind: .class, language: .cxx)
+    let allOccs = [
+      ddecl.at(ws.testLoc("D:def"), roles: .definition, symbolProvider: .clang),
+      ddecl.at(ws.testLoc("D:ref"), roles: .reference, symbolProvider: .clang),
+      ddecl.at(ws.testLoc("D:ref:e.mm"), roles: .reference, symbolProvider: .clang),
+    ]
+
+    func openIndex(allUnitsVisibleWithoutOutputPaths: Bool) throws -> IndexStoreDB {
+      return try IndexStoreDB(
+        storePath: ws.builder.indexstore.path,
+        databasePath: databasePath,
+        library: ws.libIndexStore,
+        useExplicitOutputUnits: true,
+        allUnitsVisibleWithoutOutputPaths: allUnitsVisibleWithoutOutputPaths,
+        listenToUnitEvents: false
+      )
+    }
+
+    // Import every unit, then close the index so that the database is saved.
+    do {
+      let index = try openIndex(allUnitsVisibleWithoutOutputPaths: false)
+      index.addUnitOutFilePaths(indexOutputPaths, waitForProcessing: true)
+      checkOccurrences(index.occurrences(ofUSR: ddecl.usr, roles: .all), expected: allOccs)
+    }
+
+    // Without the option, the units in the database stay hidden until output paths are added.
+    do {
+      let index = try openIndex(allUnitsVisibleWithoutOutputPaths: false)
+      XCTAssertEqual(index.occurrences(ofUSR: ddecl.usr, roles: .all).count, 0)
+    }
+
+    // With the option, the units in the database are visible while no output paths are added.
+    let index = try openIndex(allUnitsVisibleWithoutOutputPaths: true)
+    checkOccurrences(index.occurrences(ofUSR: ddecl.usr, roles: .all), expected: allOccs)
+    index.addUnitOutFilePaths([], waitForProcessing: true)
+    checkOccurrences(index.occurrences(ofUSR: ddecl.usr, roles: .all), expected: allOccs)
+
+    // Once output paths are added, visibility follows them.
+    index.addUnitOutFilePaths(indexOutputPaths.filter { !$0.hasSuffix("-e.mm.o") }, waitForProcessing: true)
+    checkOccurrences(index.occurrences(ofUSR: ddecl.usr, roles: .all), expected: Array(allOccs.prefix(2)))
+
+    // Removing output paths deletes their units from the database, so they don't come back without output paths.
+    index.removeUnitOutFilePaths(indexOutputPaths, waitForProcessing: true)
+    XCTAssertEqual(index.occurrences(ofUSR: ddecl.usr, roles: .all).count, 0)
+  }
+
   func testSymbolsInFileC() throws {
     guard let ws = try staticTibsTestWorkspace(name: "CProject") else { return }
     try ws.buildAndIndex()

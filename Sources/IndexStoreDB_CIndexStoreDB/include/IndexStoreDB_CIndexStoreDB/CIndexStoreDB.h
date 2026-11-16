@@ -243,6 +243,13 @@ INDEXSTOREDB_PUBLIC void
 indexstoredb_creation_options_use_explicit_output_units(indexstoredb_creation_options_t _Nonnull options,
                                                             bool useExplicitOutputUnits);
 
+/// With explicit output units, treats every unit already in the database as visible while no output paths are added.
+/// Units are still only imported once their output paths are added.
+INDEXSTOREDB_PUBLIC void
+indexstoredb_creation_options_all_units_visible_without_output_paths(
+    indexstoredb_creation_options_t _Nonnull options,
+    bool allUnitsVisibleWithoutOutputPaths);
+
 /// Creates an index for the given raw index data in \p storePath.
 ///
 /// The resulting index must be released using \c indexstoredb_release.
