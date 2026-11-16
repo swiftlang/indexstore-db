@@ -43,11 +43,14 @@ class FileVisibilityChecker {
 
   std::unordered_set<db::IDCode> OutUnitFiles;
   bool UseExplicitOutputUnits;
+  /// Whether every unit is visible while no output paths are added.
+  bool AllUnitsVisibleWithoutOutputPaths;
 
 public:
   FileVisibilityChecker(db::DatabaseRef dbase,
                         std::shared_ptr<CanonicalPathCache> canonPathCache,
-                        bool useExplicitOutputUnits);
+                        bool useExplicitOutputUnits,
+                        bool allUnitsVisibleWithoutOutputPaths);
 
   void registerMainFiles(ArrayRef<StringRef> filePaths, StringRef productName);
   void unregisterMainFiles(ArrayRef<StringRef> filePaths, StringRef productName);

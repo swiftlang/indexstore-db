@@ -21,8 +21,10 @@ using namespace llvm;
 
 FileVisibilityChecker::FileVisibilityChecker(DatabaseRef dbase,
                                              std::shared_ptr<CanonicalPathCache> canonPathCache,
-                                             bool useExplicitOutputUnits)
-    : DBase(std::move(dbase)), CanonPathCache(std::move(canonPathCache)), UseExplicitOutputUnits(useExplicitOutputUnits) {}
+                                             bool useExplicitOutputUnits,
+                                             bool allUnitsVisibleWithoutOutputPaths)
+    : DBase(std::move(dbase)), CanonPathCache(std::move(canonPathCache)), UseExplicitOutputUnits(useExplicitOutputUnits),
+      AllUnitsVisibleWithoutOutputPaths(allUnitsVisibleWithoutOutputPaths) {}
 
 void FileVisibilityChecker::registerMainFiles(ArrayRef<StringRef> filePaths, StringRef productName) {
   sys::ScopedLock L(VisibleCacheMtx);
@@ -99,6 +101,9 @@ bool FileVisibilityChecker::isUnitVisible(const db::UnitInfo &unitInfo, db::Read
 
   if (!UseExplicitOutputUnits && VisibleMainFiles.empty())
     return true; // If not using main file 'visibility' feature, then assume all files visible.
+
+  if (UseExplicitOutputUnits && AllUnitsVisibleWithoutOutputPaths && OutUnitFiles.empty())
+    return true; // Show the units already in the database while the client provides no output paths.
 
   if (unitInfo.HasMainFile) {
     return visibleCheck(unitInfo);

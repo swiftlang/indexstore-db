@@ -294,7 +294,8 @@ bool IndexSystemImpl::init(StringRef StorePath,
 
   auto canonPathCache = std::make_shared<CanonicalPathCache>();
 
-  this->VisibilityChecker = std::make_shared<FileVisibilityChecker>(dbase, canonPathCache, options.useExplicitOutputUnits);
+  this->VisibilityChecker = std::make_shared<FileVisibilityChecker>(dbase, canonPathCache, options.useExplicitOutputUnits,
+                                                                    options.allUnitsVisibleWithoutOutputPaths);
   this->SymIndex = std::make_shared<SymbolIndex>(dbase, idxStore, this->VisibilityChecker);
   this->PathIndex = std::make_shared<FilePathIndex>(dbase, idxStore, this->VisibilityChecker,
                                                     canonPathCache);
