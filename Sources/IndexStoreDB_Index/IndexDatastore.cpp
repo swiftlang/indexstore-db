@@ -560,7 +560,15 @@ void StoreUnitRepo::registerUnit(StringRef unitName, bool isInitialScan, std::sh
     if (Reader.isInvalid())
       return true;
 
-    SymbolProviderKind symProviderKind = getSymbolProviderKindFromIdentifer(Reader.getProviderIdentifier()).getValue();
+    // Units written by an indexer we don't know about (e.g. a third-party
+    // indexer or a future toolchain) are skipped rather than aborting the
+    // process; the rest of the store remains usable.
+    Optional<SymbolProviderKind> optSymProviderKind = getSymbolProviderKindFromIdentifer(Reader.getProviderIdentifier());
+    if (!optSymProviderKind) {
+      LOG_WARN_FUNC("skipping unit '" << unitName << "' with unknown provider identifier '" << Reader.getProviderIdentifier() << "'");
+      return true;
+    }
+    SymbolProviderKind symProviderKind = optSymProviderKind.getValue();
     optIsSystem = Reader.isSystemUnit();
     unitImport.setIsSystemUnit(optIsSystem.getValue());
     unitImport.setSymbolProviderKind(symProviderKind);
