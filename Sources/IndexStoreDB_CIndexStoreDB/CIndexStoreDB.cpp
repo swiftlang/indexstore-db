@@ -153,6 +153,14 @@ indexstoredb_creation_options_use_explicit_output_units(indexstoredb_creation_op
   options->useExplicitOutputUnits = useExplicitOutputUnits;
 }
 
+void
+indexstoredb_creation_options_all_units_visible_without_output_paths(
+    indexstoredb_creation_options_t c_options,
+    bool allUnitsVisibleWithoutOutputPaths) {
+  auto *options = static_cast<CreationOptions *>(c_options);
+  options->allUnitsVisibleWithoutOutputPaths = allUnitsVisibleWithoutOutputPaths;
+}
+
 indexstoredb_index_t
 indexstoredb_index_create(const char *storePath, const char *databasePath,
                           indexstore_library_provider_t libProvider,
