@@ -51,7 +51,9 @@ class Database::Implementation {
   std::string UniquePath;
 
 public:
-  static std::shared_ptr<Implementation> create(StringRef dbPath, bool readonly, Optional<size_t> initialDBSize, std::string &error);
+  static std::shared_ptr<Implementation> create(StringRef dbPath, bool readonly, Optional<size_t> initialDBSize,
+                                                StringRef importSignature,
+                                                std::string &error);
 
   Implementation();
   ~Implementation();

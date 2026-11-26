@@ -25,6 +25,8 @@
 #include <IndexStoreDB_LLVMSupport/llvm_Support_Path.h>
 #include <IndexStoreDB_LLVMSupport/llvm_Support_raw_ostream.h>
 #include <IndexStoreDB_LLVMSupport/llvm_Support_WindowsError.h>
+#include <fstream>
+#include <sstream>
 #if defined(_WIN32)
 #define NOMINMAX
 #include "Windows.h"
@@ -48,6 +50,26 @@ using namespace IndexStoreDB::db;
 const unsigned Database::DATABASE_FORMAT_VERSION = 13;
 
 static const char *DeadProcessDBSuffix = "-dead";
+
+/// Returns the contents of the file at `path`, or an empty string if it can't be read.
+static std::string readFileContents(StringRef path) {
+  std::ifstream stream(path.str(), std::ios::binary);
+  std::stringstream contents;
+  contents << stream.rdbuf();
+  return contents.str();
+}
+
+/// The name of the file, inside a database directory, that records the signature the database was imported with.
+/// It lives inside the database directory so that it moves along with the database it describes.
+static const char *ImportSignatureFilename = "import-signature";
+
+static void writeFileContents(StringRef path, StringRef contents) {
+  std::ofstream stream(path.str(), std::ios::binary | std::ios::trunc);
+  stream.write(contents.data(), contents.size());
+  if (!stream) {
+    LOG_WARN_FUNC("failed writing " << path);
+  }
+}
 
 static std::error_code renameDirectory(const Twine &from, const Twine &to) {
   // llvm::sys::fs::rename is not able to rename directories on Windows. Use `MoveFile` directly.
@@ -137,7 +159,9 @@ Database::Implementation::~Implementation() {
 }
 
 std::shared_ptr<Database::Implementation>
-Database::Implementation::create(StringRef path, bool readonly, Optional<size_t> initialDBSize, std::string &error) {
+Database::Implementation::create(StringRef path, bool readonly, Optional<size_t> initialDBSize,
+                                 StringRef importSignature,
+                                 std::string &error) {
   SmallString<10> versionStr;
   llvm::raw_svector_ostream(versionStr) << 'v' << Database::DATABASE_FORMAT_VERSION;
   SmallString<128> versionPath = path;
@@ -183,6 +207,15 @@ Database::Implementation::create(StringRef path, bool readonly, Optional<size_t>
     // that is left in the unique directory that includes the process pid number.
     if (createUniqueDirOrError())
       return nullptr;
+
+    // A database imported with a different signature holds data that importing now would produce differently.
+    // Discard it, so that every unit is imported again. A missing signature file reads as the empty signature.
+    SmallString<128> savedSignaturePath = savedPathBuf;
+    llvm::sys::path::append(savedSignaturePath, ImportSignatureFilename);
+    if (llvm::sys::fs::exists(savedPathBuf) && readFileContents(savedSignaturePath) != importSignature) {
+      LOG_INFO_FUNC(High, "import signature changed; discarding database at " << savedPathBuf);
+      renameDirectory(savedPathBuf, llvm::Twine(uniqueDirPath) + "-import-signature-changed" + DeadProcessDBSuffix);
+    }
 
     // This succeeds for moving to an empty directory, like the newly constructed `uniqueDirPath`.
     if (renameDirectory(savedPathBuf, uniqueDirPath)) {
@@ -243,6 +276,12 @@ retry:
     db->DBITargetNameByCode = lmdb::dbi::open(txn, "target-names", MDB_INTEGERKEY|MDB_CREATE);
     db->DBIModuleNameByCode = lmdb::dbi::open(txn, "module-names", MDB_INTEGERKEY|MDB_CREATE);
     txn.commit();
+
+    if (!readonly) {
+      SmallString<128> signaturePath = dbPath;
+      llvm::sys::path::append(signaturePath, ImportSignatureFilename);
+      writeFileContents(signaturePath, importSignature);
+    }
 
     db->cleanupDiscardedDBs();
 
@@ -437,7 +476,9 @@ void Database::Implementation::printStats(raw_ostream &OS) {
 // racing issues where a new index client opens the same database before another client
 // had the chance to close it.
 static std::shared_ptr<Database::Implementation>
-getLMDBDatabaseRefForPath(StringRef dbPath, bool readonly, Optional<size_t> initialDBSize, std::string &error) {
+getLMDBDatabaseRefForPath(StringRef dbPath, bool readonly, Optional<size_t> initialDBSize,
+                          StringRef importSignature,
+                          std::string &error) {
   static llvm::sys::Mutex processDatabasesMtx;
   static llvm::StringMap<std::weak_ptr<Database::Implementation>> databasesByPath;
 
@@ -449,15 +490,17 @@ getLMDBDatabaseRefForPath(StringRef dbPath, bool readonly, Optional<size_t> init
   if (auto dbRef = dbWeakRef.lock()) {
     return dbRef;
   }
-  auto dbRef = Database::Implementation::create(dbPath, readonly, initialDBSize, error);
+  auto dbRef = Database::Implementation::create(dbPath, readonly, initialDBSize, importSignature, error);
   if (!dbRef)
     return nullptr;
   dbWeakRef = dbRef;
   return dbRef;
 }
 
-DatabaseRef Database::create(StringRef dbPath, bool readonly, Optional<size_t> initialDBSize, std::string &error) {
-  auto impl = getLMDBDatabaseRefForPath(dbPath, readonly, initialDBSize, error);
+DatabaseRef Database::create(StringRef dbPath, bool readonly, Optional<size_t> initialDBSize,
+                             StringRef importSignature,
+                             std::string &error) {
+  auto impl = getLMDBDatabaseRefForPath(dbPath, readonly, initialDBSize, importSignature, error);
   if (!impl)
     return nullptr;
 

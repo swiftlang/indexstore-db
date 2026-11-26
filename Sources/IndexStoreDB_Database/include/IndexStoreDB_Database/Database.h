@@ -26,7 +26,15 @@ namespace db {
 
 class INDEXSTOREDB_EXPORT Database {
 public:
-  static DatabaseRef create(StringRef dbPath, bool readonly, Optional<size_t> initialDBSize, std::string &error);
+  /// Opens or creates the database at `dbPath`.
+  ///
+  /// `importSignature` identifies the options that affect what importing a unit stores, such as the path prefix
+  /// mapping. When opened for writing, an existing database that was imported with a different signature is
+  /// discarded, so that every unit is imported again. An empty signature means no such options are in effect; it
+  /// also matches a database that has no recorded signature, such as one created before signatures were recorded.
+  static DatabaseRef create(StringRef dbPath, bool readonly, Optional<size_t> initialDBSize,
+                            StringRef importSignature,
+                            std::string &error);
   ~Database();
 
   void increaseMapSize();
